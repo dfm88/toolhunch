@@ -16,6 +16,7 @@ from toolhunch.retrieval.embedders import (
     EmbeddingKind,
     OpenAIEmbedder,
 )
+from toolhunch.retrieval.hybrid import HybridRetriever
 
 __all__ = [
     "ENGLISH_STOP_WORDS",
@@ -26,6 +27,7 @@ __all__ = [
     "EmbeddingBatch",
     "EmbeddingError",
     "EmbeddingKind",
+    "HybridRetriever",
     "OpenAIEmbedder",
     "Retrieval",
     "RetrievalUsage",
