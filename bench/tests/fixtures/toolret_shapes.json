@@ -1,0 +1,128 @@
+[
+  {
+    "shape": "parameters: JSON Schema object",
+    "id": "alpha_tool_0",
+    "doc": {
+      "name": "create_wallet",
+      "description": "Create a new wallet. Returns its address.",
+      "parameters": {"type": "dict", "properties": {"password": {"type": "string"}}, "required": ["password"]}
+    }
+  },
+  {
+    "shape": "parameters: name -> spec, with parameters literally named 'properties' and 'type'",
+    "id": "beta_tool_0",
+    "doc": {
+      "name": "zip_lookup",
+      "description": "Look up ZIP codes.",
+      "parameters": {
+        "ids": {"description": "Comma-separated ids.", "type": "str", "default": ""},
+        "properties": {"description": "Fields to return.", "type": "str", "default": ""},
+        "type": {"description": "Record type.", "type": "str", "default": "zip"}
+      }
+    }
+  },
+  {
+    "shape": "parameters: list of OpenAPI parameter objects",
+    "id": "gamma_tool_0",
+    "doc": {
+      "name": "get_album",
+      "description": "Get an album by id.",
+      "parameters": [
+        {"in": "path", "name": "id", "required": "true", "schema": {"type": "string"}},
+        {"in": "query", "name": "market", "schema": {"type": "string"}}
+      ]
+    }
+  },
+  {
+    "shape": "required_parameters + optional_parameters",
+    "id": "delta_tool_0",
+    "doc": {
+      "name": "task_status",
+      "description": "Check a task.",
+      "required_parameters": [{"name": "task_id", "type": "STRING", "description": "Task id.", "default": ""}],
+      "optional_parameters": [{"name": "verbose", "type": "BOOLEAN", "description": "", "default": "false"}]
+    }
+  },
+  {
+    "shape": "api_arguments: list of strings (free text dropped); description from functionality",
+    "id": "epsilon_tool_0",
+    "doc": {
+      "name": "image_classifier",
+      "description": "",
+      "functionality": "Image classification",
+      "api_arguments": ["images", "return_tensors", "data.csv"]
+    }
+  },
+  {
+    "shape": "api_arguments: comma-separated string",
+    "id": "epsilon_tool_1",
+    "doc": {"name": "qa_model", "description": "Answer questions.", "api_arguments": "question, context"}
+  },
+  {
+    "shape": "api_arguments: name -> value",
+    "id": "epsilon_tool_2",
+    "doc": {"name": "summarizer", "description": "Summarize text.", "api_arguments": {"pretrained_model_name": "org/model"}}
+  },
+  {
+    "shape": "api_arguments: list of objects",
+    "id": "epsilon_tool_3",
+    "doc": {
+      "name": "resnet",
+      "description": "Image model.",
+      "api_arguments": [{"name": "pretrained", "type": "bool", "description": "Load weights."}]
+    }
+  },
+  {
+    "shape": "doc_arguments: JSON Schema object",
+    "id": "zeta_tool_0",
+    "doc": {
+      "name": "count_chars",
+      "description": "Count the characters of a file.",
+      "doc_arguments": {"type": "object", "properties": {"file_path": {"type": "string"}}}
+    }
+  },
+  {
+    "shape": "inputs: list of objects",
+    "id": "eta_tool_0",
+    "doc": {
+      "name": "Calculator",
+      "description": "Evaluate an expression.",
+      "inputs": [{"type": "text", "name": "expression", "description": null, "optional": false}]
+    }
+  },
+  {
+    "shape": "additional_required_arguments + optional_arguments, keys 'name (type)'",
+    "id": "theta_tool_0",
+    "doc": {
+      "name": "book_house",
+      "description": "Book a house.",
+      "additional_required_arguments": {"where_to (str)": "Location.", "check_in_date (date)": "Start date."},
+      "optional_arguments": {"rating (float)": "Minimum rating."}
+    }
+  },
+  {
+    "shape": "no name, no parameters, description from func_description",
+    "id": "iota_tool_0",
+    "doc": {"name": "", "description": "", "func_description": "Convert units of length."}
+  },
+  {
+    "shape": "description from description_for_human; nested toolkit tools are not parameters",
+    "id": "kappa_tool_0",
+    "doc": {
+      "name": "Terminal",
+      "description": "",
+      "description_for_human": "Run terminal commands.",
+      "tools": [{"name": "Execute", "parameters": [{"name": "command", "type": "string"}]}]
+    }
+  },
+  {
+    "shape": "no description at all",
+    "id": "lambda_tool_0",
+    "doc": {"name": "image_crop", "parameters": [{"in": "query", "name": "image", "schema": {"type": "string"}}]}
+  },
+  {
+    "shape": "parameters: free-text string",
+    "id": "mu_tool_0",
+    "doc": {"name": "ocr", "description": "Read the text in an image.", "parameters": "(image: str)"}
+  }
+]

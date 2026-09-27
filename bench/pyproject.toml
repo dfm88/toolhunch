@@ -5,8 +5,16 @@ description = "Benchmark harness for toolhunch: retrieval quality, end-to-end ag
 requires-python = ">=3.12"
 classifiers = ["Private :: Do Not Upload"]
 dependencies = [
+    "bm25s>=0.3.11",
+    "genai-prices>=0.1.9",
+    "pyarrow>=25.0.1",
+    "python-dotenv>=1.2.3",
+    "tiktoken>=0.14.0",
     "toolhunch[pydantic-ai]",
 ]
+
+[project.scripts]
+toolhunch-bench = "toolhunch_bench.cli:main"
 
 [tool.uv.sources]
 toolhunch = { workspace = true }
