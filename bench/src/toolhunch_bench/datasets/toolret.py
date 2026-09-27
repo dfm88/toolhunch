@@ -46,7 +46,9 @@ __all__ = [
     "ToolRetTask",
     "card_from_toolret",
     "load_toolret",
+    "read_task_file",
     "sample_tasks",
+    "write_task_file",
 ]
 
 TOOLRET_DATASET = "mteb/ToolRetrieval"
@@ -286,3 +288,25 @@ def sample_tasks(tasks: Sequence[ToolRetTask], *, n: int, seed: int) -> list[Too
         random.Random(f"{seed}/{subtask}").shuffle(shuffled)
         sample += shuffled[: counts[subtask]]
     return sorted(sample, key=lambda task: task.id)
+
+
+def write_task_file(path: Path, tasks: Sequence[ToolRetTask], *, seed: int) -> None:
+    """Write the ids of `tasks` with the dataset revision and `seed`: the committed form of a sample."""
+    spec = {"dataset": TOOLRET_DATASET, "revision": TOOLRET_REVISION, "seed": seed, "n": len(tasks)}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(spec | {"ids": [task.id for task in tasks]}, indent=2) + "\n")
+
+
+def read_task_file(path: Path, data: ToolRetData) -> list[ToolRetTask]:
+    """The tasks of `data` listed in the task file at `path`, in file order.
+
+    Raises:
+        ValueError: The file is for another dataset or revision, or lists ids `data` lacks.
+    """
+    spec = json.loads(path.read_text())
+    if (spec.get("dataset"), spec.get("revision")) != (TOOLRET_DATASET, TOOLRET_REVISION):
+        raise ValueError(f"{path} is for {spec.get('dataset')} @ {spec.get('revision')}, not this revision")
+    by_id = {task.id: task for task in data.tasks}
+    if missing := [task_id for task_id in spec["ids"] if task_id not in by_id]:
+        raise ValueError(f"{path} lists {len(missing)} unknown task ids, first {missing[0]!r}")
+    return [by_id[task_id] for task_id in spec["ids"]]
