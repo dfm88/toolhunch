@@ -8,11 +8,37 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Callable, Iterable, Iterator, Mapping
+import re
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, cast
+from enum import IntEnum
+from typing import TYPE_CHECKING, Any, cast
 
-__all__ = ["SearchText", "ToolCard", "ToolCatalog", "default_search_text"]
+if TYPE_CHECKING:
+    from toolhunch.tokens import Tokenizer
+
+__all__ = [
+    "DetailLevel",
+    "RenderedCards",
+    "SearchText",
+    "ToolCard",
+    "ToolCatalog",
+    "default_search_text",
+    "render_within_budget",
+]
+
+_FIRST_SENTENCE = re.compile(r".*?[.!?](?=\s|$)")
+
+
+class DetailLevel(IntEnum):
+    """How much of a card to render, from least to most."""
+
+    NAME = 0
+    """The name only."""
+    BRIEF = 1
+    """Name, first sentence of the description, input property names."""
+    FULL = 2
+    """Name, full description, input JSON Schema."""
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -42,6 +68,26 @@ class ToolCard:
         if not self.id:
             object.__setattr__(self, "id", self.name)
 
+    def render(self, detail: DetailLevel) -> str:
+        """Render the card as plain text at the given level of detail.
+
+        The text is data written by whoever published the tool; fence it before showing it to a model.
+        """
+        if detail is DetailLevel.NAME:
+            return self.name
+        if detail is DetailLevel.BRIEF:
+            text = self.name
+            if summary := _first_sentence(self.description):
+                text += f": {summary}"
+            if names := _property_names(self):
+                text += f" (params: {', '.join(names)})"
+            return text
+        description = self.description.strip()
+        text = f"{self.name}: {description}" if description else self.name
+        if self.parameters is not None:
+            text += "\nparameters: " + json.dumps(dict(self.parameters), separators=(",", ":"), ensure_ascii=False)
+        return text
+
 
 type SearchText = Callable[[ToolCard], str]
 """Turns a card into the text a retriever indexes."""
@@ -53,11 +99,44 @@ def default_search_text(card: ToolCard) -> str:
     Property descriptions, enum values and output schemas are left out: ratel measured this mix as
     the best for BM25 (its ADR-0023); the toolhunch benchmark re-checks it.
     """
-    property_names = ""
-    properties = None if card.parameters is None else card.parameters.get("properties")
-    if isinstance(properties, Mapping):
-        property_names = " ".join(str(key) for key in cast("Mapping[object, object]", properties))
+    property_names = " ".join(_property_names(card))
     return "\n".join(part for part in (card.name, card.description, property_names) if part)
+
+
+@dataclass(frozen=True, slots=True)
+class RenderedCards:
+    """Cards rendered at one level of detail, with their total token count."""
+
+    detail: DetailLevel
+    texts: tuple[str, ...]
+    tokens: int
+
+
+def render_within_budget(cards: Sequence[ToolCard], *, max_tokens: int, tokenizer: Tokenizer) -> RenderedCards | None:
+    """Render every card at the most detailed level whose total fits in `max_tokens`.
+
+    All cards share one level. `tokens` is the sum of per-text counts; separators and any framing
+    are the caller's to budget. Returns `None` when even names alone do not fit.
+    """
+    for detail in sorted(DetailLevel, reverse=True):
+        texts = tuple(card.render(detail) for card in cards)
+        tokens = sum(tokenizer.count(text) for text in texts)
+        if tokens <= max_tokens:
+            return RenderedCards(detail=detail, texts=texts, tokens=tokens)
+    return None
+
+
+def _property_names(card: ToolCard) -> list[str]:
+    properties = None if card.parameters is None else card.parameters.get("properties")
+    if not isinstance(properties, Mapping):
+        return []
+    return [str(key) for key in cast("Mapping[object, object]", properties)]
+
+
+def _first_sentence(description: str) -> str:
+    collapsed = " ".join(description.split())
+    match = _FIRST_SENTENCE.match(collapsed)
+    return match.group(0) if match else collapsed
 
 
 class ToolCatalog:
