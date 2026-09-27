@@ -4,6 +4,8 @@ from pathlib import Path
 import pytest
 from dotenv import load_dotenv
 
+os.environ.setdefault("PYDANTIC_AI_NO_BANNER", "1")
+
 
 @pytest.fixture
 def anyio_backend() -> str:
