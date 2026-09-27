@@ -2,6 +2,8 @@
 
 from importlib.metadata import version as _version
 
-__all__ = ["__version__"]
+from toolhunch.tokens import HeuristicTokenizer, Tokenizer
+
+__all__ = ["HeuristicTokenizer", "Tokenizer", "__version__"]
 
 __version__ = _version("toolhunch")
