@@ -13,6 +13,7 @@ from toolhunch.cards import (
 )
 from toolhunch.retrieval import (
     BM25Retriever,
+    DenseRetriever,
     Embedder,
     OpenAIEmbedder,
     Retrieval,
@@ -24,6 +25,7 @@ from toolhunch.tokens import HeuristicTokenizer, Tokenizer
 
 __all__ = [
     "BM25Retriever",
+    "DenseRetriever",
     "DetailLevel",
     "Embedder",
     "HeuristicTokenizer",
