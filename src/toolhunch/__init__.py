@@ -11,6 +11,7 @@ from toolhunch.cards import (
     default_search_text,
     render_within_budget,
 )
+from toolhunch.pipeline import SearchResult, StageTrace, ToolSearchPipeline
 from toolhunch.retrieval import (
     BM25Retriever,
     DenseRetriever,
@@ -37,10 +38,13 @@ __all__ = [
     "RetrievalUsage",
     "Retriever",
     "ScoredCard",
+    "SearchResult",
     "SearchText",
+    "StageTrace",
     "Tokenizer",
     "ToolCard",
     "ToolCatalog",
+    "ToolSearchPipeline",
     "__version__",
     "default_search_text",
     "render_within_budget",
