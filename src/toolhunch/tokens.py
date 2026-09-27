@@ -38,7 +38,9 @@ class HeuristicTokenizer:
     Calibrated on 2026-09-27 against tiktoken `cl100k_base` and `o200k_base` over the 44,453 tool
     documents of ToolRet (name + description, and the raw JSON): median overestimate 1.44x;
     0.2-0.3 % of single texts undercounted; no undercount on 20,000 random groups of 20 texts.
-    Use it for budgets over several texts, not for exact single-text counts.
+    On the cards' search texts alone the median overestimate is 1.6x and 0.6-0.7 % of single texts
+    are undercounted, worst by half on Burmese (three bytes per character, two tokens); groups of 20
+    still never are. Use it for budgets over several texts, not for exact single-text counts.
 
     Attributes:
         bytes_per_token: UTF-8 bytes assumed per token; lower is more conservative.
