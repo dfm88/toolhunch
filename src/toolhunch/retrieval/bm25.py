@@ -2,14 +2,30 @@
 
 from __future__ import annotations
 
+import math
 import re
+from collections import Counter
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
-if TYPE_CHECKING:
-    from collections.abc import Callable
+from toolhunch.cards import default_search_text
+from toolhunch.retrieval.base import (
+    FUSION_DEPTH,
+    IndexCache,
+    Retrieval,
+    ScoredCard,
+    check_k,
+    clean_queries,
+    fuse_query_rankings,
+    top_k,
+)
 
-__all__ = ["ENGLISH_STOP_WORDS", "Analyzer", "TextAnalyzer", "s_stemmer"]
+if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
+    from toolhunch.cards import SearchText, ToolCard, ToolCatalog
+
+__all__ = ["ENGLISH_STOP_WORDS", "Analyzer", "BM25Retriever", "TextAnalyzer", "s_stemmer"]
 
 # Lucene's EnglishAnalyzer.ENGLISH_STOP_WORDS_SET (lucene/analysis/common, checked 2026-09-27).
 ENGLISH_STOP_WORDS: frozenset[str] = frozenset(
@@ -73,3 +89,83 @@ class TextAnalyzer:
         if self.stemmer is None:
             return terms
         return [self.stemmer(term) for term in terms]
+
+
+@dataclass(frozen=True, slots=True)
+class _Index:
+    cards: tuple[ToolCard, ...]
+    postings: dict[str, list[tuple[int, int]]]  # term → [(card position, term frequency)]
+    idf: dict[str, float]
+    norms: list[float]  # k1 · (1 - b + b · |d| / avgdl), per card
+
+
+class BM25Retriever:
+    """Okapi BM25, Lucene variant, over each card's search text.
+
+    `score(q, d) = Σ idf(t) · tf / (tf + k1 · (1 - b + b · |d| / avgdl))` over the unique terms of
+    the query, with `idf(t) = ln(1 + (N - df + 0.5) / (df + 0.5))` — the formula of `bm25s`
+    `method="lucene"`, which the benchmark checks this implementation against. Only cards with a
+    positive score are returned. The index is built once per catalog fingerprint.
+    """
+
+    def __init__(
+        self,
+        *,
+        analyzer: Analyzer | None = None,
+        search_text: SearchText = default_search_text,
+        k1: float = 1.2,
+        b: float = 0.75,
+        cache_size: int = 8,
+    ) -> None:
+        """Configure the analyzer, the indexed text and the BM25 parameters (Lucene defaults)."""
+        self._analyzer = analyzer if analyzer is not None else TextAnalyzer()
+        self._search_text = search_text
+        self._k1 = k1
+        self._b = b
+        self._indexes: IndexCache[_Index] = IndexCache(max_entries=cache_size)
+
+    async def retrieve(self, queries: Sequence[str], catalog: ToolCatalog, *, k: int) -> Retrieval:
+        """Rank `catalog` for each query and fuse; see [`Retriever.retrieve`][toolhunch.Retriever.retrieve]."""
+        check_k(k)
+        cleaned = clean_queries(queries)
+        if not cleaned or not len(catalog):
+            return Retrieval()
+        index = self._index(catalog)
+        depth = max(k, FUSION_DEPTH)
+        rankings = [ranking for query in cleaned if (ranking := self._rank(index, query, depth=depth))]
+        if not rankings:
+            return Retrieval()
+        return Retrieval(matches=tuple(fuse_query_rankings(rankings, k=k)))
+
+    def _rank(self, index: _Index, query: str, *, depth: int) -> list[ScoredCard]:
+        scores: dict[int, float] = {}
+        for term in set(self._analyzer.analyze(query)):
+            idf = index.idf.get(term)
+            if idf is None:
+                continue
+            for position, tf in index.postings[term]:
+                scores[position] = scores.get(position, 0.0) + idf * tf / (tf + index.norms[position])
+        return top_k(
+            (ScoredCard(index.cards[position], score) for position, score in scores.items() if score > 0), depth
+        )
+
+    def _index(self, catalog: ToolCatalog) -> _Index:
+        if (cached := self._indexes.get(catalog.fingerprint)) is not None:
+            return cached
+        postings: dict[str, list[tuple[int, int]]] = {}
+        lengths: list[int] = []
+        for position, card in enumerate(catalog):
+            terms = self._analyzer.analyze(self._search_text(card))
+            lengths.append(len(terms))
+            for term, tf in Counter(terms).items():
+                postings.setdefault(term, []).append((position, tf))
+        n = len(lengths)
+        avg_length = (sum(lengths) / n) or 1.0
+        index = _Index(
+            cards=catalog.cards,
+            postings=postings,
+            idf={term: math.log(1 + (n - len(docs) + 0.5) / (len(docs) + 0.5)) for term, docs in postings.items()},
+            norms=[self._k1 * (1 - self._b + self._b * length / avg_length) for length in lengths],
+        )
+        self._indexes.put(catalog.fingerprint, index)
+        return index

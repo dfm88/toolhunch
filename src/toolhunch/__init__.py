@@ -11,10 +11,11 @@ from toolhunch.cards import (
     default_search_text,
     render_within_budget,
 )
-from toolhunch.retrieval import Retrieval, RetrievalUsage, Retriever, ScoredCard
+from toolhunch.retrieval import BM25Retriever, Retrieval, RetrievalUsage, Retriever, ScoredCard
 from toolhunch.tokens import HeuristicTokenizer, Tokenizer
 
 __all__ = [
+    "BM25Retriever",
     "DetailLevel",
     "HeuristicTokenizer",
     "RenderedCards",
