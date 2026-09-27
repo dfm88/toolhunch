@@ -74,6 +74,18 @@ class TextAnalyzer:
     Tool names carry much of the signal (`get_diary_day`, `listUserRepos`), so identifiers are split
     on `snake_case` and `camelCase` before matching. Letters and digits stay together (`base64`).
 
+    Language: the defaults are **English** — Lucene's English stop words and, if enabled, an English
+    plural stemmer. Splitting is Unicode-aware, so text in other languages still matches word for
+    word, without stop-word removal or stemming. For a catalog written in another language, pass
+    that language's stop words and stemmer, for example Snowball's (`pip install snowballstemmer`,
+    36 languages, the algorithms behind Lucene's language analyzers)::
+
+        TextAnalyzer(stop_words=italian_stop_words, stemmer=snowballstemmer.stemmer("italian").stemWord)
+
+    or implement [`Analyzer`][toolhunch.retrieval.Analyzer] from scratch. No analyzer bridges
+    languages: English cards and Italian queries share few words, which is what multilingual
+    embeddings are for.
+
     Attributes:
         stop_words: Lowercase terms to drop.
         stemmer: Applied to each remaining term, for example [`s_stemmer`][toolhunch.retrieval.s_stemmer].
