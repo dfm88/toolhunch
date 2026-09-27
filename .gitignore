@@ -9,7 +9,26 @@ wheels/
 # Virtual environments
 .venv
 
+# Tool caches
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Docs build
+site/
+
+# Benchmark artefacts: raw runs stay local, curated results are committed under bench/results/
+bench/runs/
+
+.DS_Store
 
 .vscode
 
 .memsearch
+
+# Secrets
+.env
+
+# Private maintainer notes (design, ADRs, benchmark protocol, landscape): own local git repo, never published
+notes/

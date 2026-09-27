@@ -1,16 +1,35 @@
 [project]
 name = "toolhunch"
 version = "0.1.0"
-description = "Add your description here"
+description = "Tool search for LLM agents, ranked by System-1 decision models, with a benchmark that measures prompt caching."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     { name = "Diego Margoni", email = "diegof.margoni@gmail.com" }
 ]
-requires-python = ">=3.14"
-dependencies = []
+requires-python = ">=3.12"
+keywords = ["llm", "agents", "tool-search", "tool-retrieval", "system-one", "pydantic-ai", "jev"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
+dependencies = [
+    "httpx2>=2.7",
+    "pydantic>=2.12",
+]
 
-[project.scripts]
-toolhunch = "toolhunch:main"
+[project.optional-dependencies]
+pydantic-ai = ["pydantic-ai-slim>=2.50"]
+
+[project.urls]
+Source = "https://github.com/dfm88/toolhunch"
 
 [build-system]
 requires = ["uv_build>=0.12.4,<0.13.0"]
@@ -18,6 +37,68 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "inline-snapshot>=0.35",
     "ipdb>=0.13.13",
+    "pyright>=1.1.414",
     "pytest>=9.1.1",
+    "ruff>=0.16.9",
+]
+docs = [
+    "mkdocs>=1.6,<2",  # MkDocs 2.0 drops the plugin system Material relies on
+    "mkdocs-material>=9.7",
+    "mkdocstrings-python>=2.0",
+]
+
+[tool.uv]
+default-groups = ["dev"]
+
+[tool.uv.workspace]
+members = ["bench"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = [".memsearch"]
+
+[tool.ruff.lint]
+select = [
+    "B",    # bugbear
+    "C4",   # comprehensions
+    "D",    # docstrings (Google convention, public API only)
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "FA",   # future annotations
+    "I",    # isort
+    "PT",   # pytest style
+    "RUF",  # ruff-specific
+    "SIM",  # simplify
+    "TC",   # type-checking imports
+    "UP",   # pyupgrade
+    "W",    # pycodestyle warnings
+]
+ignore = [
+    "D105", # magic methods
+    "D107", # __init__ (documented on the class)
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]
+"bench/tests/**" = ["D"]
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "strict"
+include = ["src", "tests", "bench/src", "bench/tests"]
+venvPath = "."
+venv = ".venv"
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "bench/tests"]
+addopts = ["--strict-markers", "--strict-config", "--import-mode=importlib", "-ra"]
+xfail_strict = true
+markers = [
+    "live: calls a paid external API; needs keys in .env and is skipped otherwise",
 ]

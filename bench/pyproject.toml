@@ -1,0 +1,16 @@
+[project]
+name = "toolhunch-bench"
+version = "0.0.0"
+description = "Benchmark harness for toolhunch: retrieval quality, end-to-end agent runs, prompt-cache behaviour."
+requires-python = ">=3.12"
+classifiers = ["Private :: Do Not Upload"]
+dependencies = [
+    "toolhunch[pydantic-ai]",
+]
+
+[tool.uv.sources]
+toolhunch = { workspace = true }
+
+[build-system]
+requires = ["uv_build>=0.12.4,<0.13.0"]
+build-backend = "uv_build"
