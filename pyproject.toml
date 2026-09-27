@@ -41,6 +41,7 @@ dev = [
     "ipdb>=0.13.13",
     "pyright>=1.1.414",
     "pytest>=9.1.1",
+    "python-dotenv>=1.2.3",
     "ruff>=0.16.9",
 ]
 docs = [
@@ -97,7 +98,7 @@ venv = ".venv"
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "bench/tests"]
-addopts = ["--strict-markers", "--strict-config", "--import-mode=importlib", "-ra"]
+addopts = ["--strict-markers", "--strict-config", "--import-mode=importlib", "-ra", "-m", "not live"]
 xfail_strict = true
 markers = [
     "live: calls a paid external API; needs keys in .env and is skipped otherwise",
