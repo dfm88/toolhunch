@@ -11,10 +11,11 @@ dependencies = [
     "python-dotenv>=1.2.3",
     "tiktoken>=0.14.0",
     "toolhunch[pydantic-ai]",
+    "typer>=0.27.2",
 ]
 
 [project.scripts]
-toolhunch-bench = "toolhunch_bench.cli:main"
+toolhunch-bench = "toolhunch_bench.cli:app"
 
 [tool.uv.sources]
 toolhunch = { workspace = true }
