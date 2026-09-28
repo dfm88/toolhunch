@@ -12,18 +12,6 @@ that measures prompt caching, not just tokens.
 
 Status: pre-alpha.
 
-## Maintainer notes (private)
-
-Design, decision records, benchmark protocol, landscape and prompts live in `notes/`: git-ignored
-here, a **separate local git repository** with its own history, never published.
-
-- Read `notes/design.md` before changing architecture and `notes/benchmark.md` before touching
-  `bench/`. Decisions: `notes/adr/`.
-- Commit note changes inside that repository (`git -C notes ...`), never in this one.
-- Do not copy note content into public files (README, `docs/`, code comments, commit messages)
-  unless asked: the notes stay private until the maintainer decides otherwise.
-- No `notes/` directory means a public clone: follow this file alone.
-
 ## Commands
 
 ```shell
@@ -44,20 +32,18 @@ src/toolhunch/        the library (published)
 bench/                benchmark harness, a uv workspace member (never published to PyPI)
 tests/                library tests
 docs/                 public user documentation (mkdocs)
-notes/                private maintainer notes, separate git repo, git-ignored
 ```
 
-The target module map is in `notes/design.md` §7. Create a module when its code lands; do not add
-empty placeholders.
+Create a module when its code lands; do not add empty placeholders.
 
 ## Architecture rules
 
 - **Core stays framework-free.** Nothing under `src/toolhunch/` outside `integrations/` imports a
   framework. Integrations depend on core, never the reverse.
 - **Core dependencies are `pydantic` and `httpx2` only.** Anything else is an extra, imported
-  lazily, with an error naming the extra (ADR-0002).
-- **Ranking and disclosure are separate** (ADR-0004):
-  pipelines rank; reveal/preselect/proxy decide how tools reach the model.
+  lazily, with an error naming the extra.
+- **Ranking and disclosure are separate**: pipelines rank; reveal/preselect/proxy decide how tools
+  reach the model.
 - **Model limits are declared data** with a source and a date, overridable per instance. Never
   hard-code a vendor limit inside planner logic.
 - **Card text is untrusted.** Fence it as data; never splice it into instructions.
@@ -100,11 +86,7 @@ key values, and never read `.env` into a transcript — load it in code.
 
 ## Documentation
 
-- Facts about other projects go in `notes/landscape.md` with a date and a source;
-  mark anything not verified.
-- A decision that is expensive to reverse gets an ADR; update `notes/design.md` in the same
-  change.
-- Repository language is English.
+Repository language is English.
 
 ## Git
 

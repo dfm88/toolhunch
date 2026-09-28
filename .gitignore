@@ -30,5 +30,7 @@ bench/runs/
 # Secrets
 .env
 
-# Private maintainer notes (design, ADRs, benchmark protocol, landscape): own local git repo, never published
+# Maintainer-local files, never published
 notes/
+AGENTS.local.md
+CLAUDE.local.md
