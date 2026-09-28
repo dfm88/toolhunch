@@ -42,6 +42,9 @@ class DenseRetriever:
     per query for 1,000 cards and 0.2-0.6 s for 44,000 (1536 dimensions, measured 2026-09-27).
     Card vectors are kept per `(model_id, text)`, so a changed catalog embeds only its new cards;
     that store grows with every distinct text the retriever sees.
+    Texts over the embedder's input limit must be cut by the embedder
+    ([`OpenAIEmbedder`][toolhunch.OpenAIEmbedder] does, see `max_input_bytes`): a rejected card fails
+    the whole index build.
     """
 
     def __init__(

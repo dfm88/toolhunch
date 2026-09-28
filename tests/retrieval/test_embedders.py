@@ -67,3 +67,19 @@ async def test_errors_never_leak_the_key(monkeypatch: pytest.MonkeyPatch) -> Non
 
     for text in (str(missing.value), str(rejected.value), repr(embedder)):
         assert SECRET not in text
+
+
+async def test_inputs_are_cut_to_the_declared_byte_limit() -> None:
+    requests: list[httpx2.Request] = []
+    long_ascii, long_accented = "x" * 9000, "é" * 5000  # 9,000 and 10,000 UTF-8 bytes
+
+    await OpenAIEmbedder(api_key=SECRET, http_client=fake_openai(requests)).embed(
+        [long_ascii, long_accented, "ok"], kind="document"
+    )
+    await OpenAIEmbedder(api_key=SECRET, max_input_bytes=None, http_client=fake_openai(requests)).embed(
+        [long_ascii], kind="document"
+    )
+
+    cut, uncut = (json.loads(request.content)["input"] for request in requests)
+    assert cut == ["x" * 8191, "é" * 4095, "ok"]  # at most 8,191 bytes, never inside a character
+    assert uncut == [long_ascii]

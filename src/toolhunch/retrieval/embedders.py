@@ -65,6 +65,14 @@ class OpenAIEmbedder:
     it is never logged or shown in `repr`. Pass `api_key_env=None` for servers without auth. `kind`
     is ignored: OpenAI models embed queries and documents alike.
 
+    Inputs longer than `max_input_bytes` UTF-8 bytes are cut before sending, since the API rejects an
+    over-long input instead of truncating it, and one such card would fail every index build.
+    OpenAI's `text-embedding-3-*` models accept 8,191 tokens per input (OpenAI cookbook,
+    "Embedding texts that are longer than the model's maximum context length", checked 2026-09-28);
+    a byte-level BPE token covers at least one byte, so the default can never exceed that limit.
+    English runs about four bytes per token, so text past roughly 2,000 tokens loses its tail: raise
+    the limit for servers that accept more, or pass `None` when texts are already cut.
+
     No retries yet: a failed request raises [`EmbeddingError`][toolhunch.retrieval.EmbeddingError].
     """
 
@@ -77,6 +85,7 @@ class OpenAIEmbedder:
         api_key_env: str | None = "OPENAI_API_KEY",
         dimensions: int | None = None,
         batch_size: int = 512,
+        max_input_bytes: int | None = 8191,
         http_client: httpx2.AsyncClient | None = None,
         timeout: float = 60.0,
     ) -> None:
@@ -87,6 +96,7 @@ class OpenAIEmbedder:
         self._api_key_env = api_key_env
         self._dimensions = dimensions
         self._batch_size = batch_size
+        self._max_input_bytes = max_input_bytes
         self._client = http_client
         self._owns_client = http_client is None
         self._timeout = timeout
@@ -108,7 +118,7 @@ class OpenAIEmbedder:
         vectors: list[tuple[float, ...]] = []
         tokens = 0
         for start in range(0, len(texts), self._batch_size):
-            batch = list(texts[start : start + self._batch_size])
+            batch = [self._fit(text) for text in texts[start : start + self._batch_size]]
             payload: dict[str, Any] = {"model": self._model, "input": batch, "encoding_format": "float"}
             if self._dimensions is not None:
                 payload["dimensions"] = self._dimensions
@@ -130,6 +140,11 @@ class OpenAIEmbedder:
         if self._owns_client and self._client is not None:
             await self._client.aclose()
             self._client = None
+
+    def _fit(self, text: str) -> str:
+        if self._max_input_bytes is None or len(encoded := text.encode()) <= self._max_input_bytes:
+            return text
+        return encoded[: self._max_input_bytes].decode(errors="ignore")  # drops a character cut in half
 
     def _auth_headers(self) -> dict[str, str]:
         key = self._api_key

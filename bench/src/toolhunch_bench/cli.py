@@ -100,7 +100,7 @@ def retrieval(
     selected = read_task_file(tasks, data)
     names = [name.strip() for name in arms.split(",") if name.strip()]
     paid = [name for name in names if name in PAID_ARMS]
-    inner = OpenAIEmbedder(embedding_model)
+    inner = OpenAIEmbedder(embedding_model, max_input_bytes=None)  # TruncatingEmbedder cuts exactly, by tokens
     cache: CachedEmbedder | None = None
     if paid:
         encoding = tiktoken.get_encoding("cl100k_base")
