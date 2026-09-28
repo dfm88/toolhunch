@@ -113,7 +113,8 @@ class OpenAIEmbedder:
         """Embed `texts` in batches of `batch_size`; see [`Embedder.embed`][toolhunch.retrieval.Embedder.embed]."""
         if not texts:
             return EmbeddingBatch(vectors=(), input_tokens=0)
-        headers = self._auth_headers()
+        key = self._key()
+        headers = {} if key is None else {"Authorization": f"Bearer {key}"}
         client = self._http_client()
         vectors: list[tuple[float, ...]] = []
         tokens = 0
@@ -122,13 +123,18 @@ class OpenAIEmbedder:
             payload: dict[str, Any] = {"model": self._model, "input": batch, "encoding_format": "float"}
             if self._dimensions is not None:
                 payload["dimensions"] = self._dimensions
-            response = await client.post(self._url, json=payload, headers=headers)
+            try:
+                response = await client.post(self._url, json=payload, headers=headers)
+            except httpx2.HTTPError as error:  # transport failures: connection, timeout, protocol
+                raise EmbeddingError(f"embeddings request failed: {type(error).__name__}: {error}") from error
+            # Bodies are redacted: a proxy may echo the request, key included.
             if response.status_code >= 400:
-                raise EmbeddingError(f"embeddings request failed: HTTP {response.status_code}: {response.text[:500]}")
+                body = _redact(response.text, key)[:500]
+                raise EmbeddingError(f"embeddings request failed: HTTP {response.status_code}: {body}")
             try:
                 parsed = _Response.model_validate_json(response.content)
             except ValidationError as error:
-                raise EmbeddingError(f"unexpected embeddings response: {error}") from error
+                raise EmbeddingError(f"unexpected embeddings response: {_redact(str(error), key)}") from None
             if len(parsed.data) != len(batch):
                 raise EmbeddingError(f"asked for {len(batch)} embeddings, got {len(parsed.data)}")
             vectors.extend(tuple(item.embedding) for item in sorted(parsed.data, key=lambda item: item.index))
@@ -146,15 +152,18 @@ class OpenAIEmbedder:
             return text
         return encoded[: self._max_input_bytes].decode(errors="ignore")  # drops a character cut in half
 
-    def _auth_headers(self) -> dict[str, str]:
-        key = self._api_key
-        if key is None and self._api_key_env is not None:
-            key = os.environ.get(self._api_key_env)
-            if not key:
-                raise EmbeddingError(f"no API key: set {self._api_key_env} or pass api_key")
-        return {} if key is None else {"Authorization": f"Bearer {key}"}
+    def _key(self) -> str | None:
+        if self._api_key is not None or self._api_key_env is None:
+            return self._api_key
+        if not (key := os.environ.get(self._api_key_env)):
+            raise EmbeddingError(f"no API key: set {self._api_key_env} or pass api_key")
+        return key
 
     def _http_client(self) -> httpx2.AsyncClient:
         if self._client is None:
             self._client = httpx2.AsyncClient(timeout=self._timeout)
         return self._client
+
+
+def _redact(text: str, key: str | None) -> str:
+    return text if key is None else text.replace(key, "***")

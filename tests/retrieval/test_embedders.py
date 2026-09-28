@@ -83,3 +83,17 @@ async def test_inputs_are_cut_to_the_declared_byte_limit() -> None:
     cut, uncut = (json.loads(request.content)["input"] for request in requests)
     assert cut == ["x" * 8191, "é" * 4095, "ok"]  # at most 8,191 bytes, never inside a character
     assert uncut == [long_ascii]
+
+
+async def test_transport_failures_and_echoed_keys_surface_as_embedding_errors() -> None:
+    def refuse(request: httpx2.Request) -> httpx2.Response:
+        raise httpx2.ConnectError("connection refused", request=request)
+
+    def echo(request: httpx2.Request) -> httpx2.Response:  # some proxies echo the request back
+        return httpx2.Response(400, text=f"bad request, headers: {dict(request.headers)}")
+
+    for handler in (refuse, echo):
+        client = httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
+        with pytest.raises(EmbeddingError) as failure:
+            await OpenAIEmbedder(api_key=SECRET, http_client=client).embed(["a"], kind="query")
+        assert SECRET not in str(failure.value)
