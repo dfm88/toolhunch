@@ -91,3 +91,10 @@ Repository language is English.
 ## Git
 
 Conventional commits (`feat:`, `fix:`, `docs:`, `bench:`, `chore:`). Commit or push only when asked.
+
+## Local instructions
+
+Maintainers may keep extra instructions in a git-ignored `AGENTS.local.md` at the repository root.
+If it exists and is not already in your context, read it before starting and treat it as an
+extension of this file; if it does not exist, ignore this section. Claude Code loads it on its own
+when `CLAUDE.local.md` is a symlink to it.
