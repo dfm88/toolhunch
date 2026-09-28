@@ -1,0 +1,126 @@
+{
+  "run_id": "20260928T154543Z",
+  "started": "2026-09-28T15:45:43+00:00",
+  "git": {
+    "commit": "9a43c92e9cb81e78c75acdb4f7bf4402c6997a00",
+    "dirty": false
+  },
+  "versions": {
+    "python": "3.14.3",
+    "toolhunch": "0.1.0",
+    "toolhunch-bench": "0.0.0",
+    "pydantic-ai-slim": "2.50.0",
+    "bm25s": "0.3.11",
+    "tiktoken": "0.14.0",
+    "genai-prices": "0.1.9"
+  },
+  "platform": {
+    "system": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "machine": "arm64"
+  },
+  "dataset": {
+    "name": "mteb/ToolRetrieval",
+    "revision": "76d45e560059754e289ea202462865a585679619",
+    "corpus_sha256": "774aa8c5263eed9870fb6eefc47491c67d3998e7eda1d897f9b359e20be67efb",
+    "tools": 44453,
+    "catalog_fingerprint": "sha256:7d56b70f34151288b0351d0764064e2d9852b9c2f1ef4e5ed076f1edb83debbf",
+    "mapping_stats": {
+      "name": 0.9999550086608328,
+      "description": 0.97766180010348,
+      "properties": 0.8109014014802151
+    }
+  },
+  "tasks": {
+    "file": "bench/tasks/toolret-pilot-50.json",
+    "sha256": "90b0f6009aa5cfdb0935b731060c5cc3165b3f6d4c0ac877b6a49e73eb171d85",
+    "count": 50
+  },
+  "seeds": {
+    "sample": 0,
+    "keywords_order": 0
+  },
+  "modes": [
+    "plain",
+    "instructed"
+  ],
+  "query_formats": {
+    "plain": "{query}",
+    "instructed/lexical": "{instruction} {query}",
+    "instructed/dense": "Instruct: {instruction}\nQuery: {query}"
+  },
+  "k_max": 50,
+  "embedding_model": "text-embedding-3-small",
+  "arms": {
+    "keywords": {
+      "query_kind": "lexical",
+      "retriever": "KeywordsRetriever",
+      "copies": "pydantic-ai-slim 2.50.0 keywords_search_fn",
+      "seed": 0,
+      "text": "name and description"
+    },
+    "bm25": {
+      "query_kind": "lexical",
+      "retriever": "BM25Retriever",
+      "k1": 1.2,
+      "b": 0.75,
+      "stop_words": "Lucene English",
+      "stemmer": null,
+      "text": "name, description and parameter names"
+    },
+    "bm25-stem": {
+      "query_kind": "lexical",
+      "retriever": "BM25Retriever",
+      "k1": 1.2,
+      "b": 0.75,
+      "stop_words": "Lucene English",
+      "stemmer": "s_stemmer",
+      "text": "name, description and parameter names"
+    },
+    "bm25-namedesc": {
+      "query_kind": "lexical",
+      "retriever": "BM25Retriever",
+      "k1": 1.2,
+      "b": 0.75,
+      "stop_words": "Lucene English",
+      "stemmer": null,
+      "text": "name and description"
+    },
+    "bm25-raw": {
+      "query_kind": "lexical",
+      "retriever": "BM25Retriever",
+      "k1": 1.2,
+      "b": 0.75,
+      "stop_words": "Lucene English",
+      "stemmer": null,
+      "text": "raw corpus JSON"
+    },
+    "bm25s-toolret": {
+      "query_kind": "lexical",
+      "retriever": "bm25s",
+      "bm25s": "0.3.11",
+      "k1": 1.5,
+      "b": 0.75,
+      "method": "lucene",
+      "stop_words": "bm25s English, documents and query",
+      "text": "raw corpus JSON",
+      "replays": "toolret/eval.py eval_bm25 @ d181f1c"
+    },
+    "dense": {
+      "query_kind": "dense",
+      "retriever": "DenseRetriever",
+      "embedding_model": "text-embedding-3-small",
+      "embedder": "CachedEmbedder(TruncatingEmbedder(OpenAIEmbedder(model='text-embedding-3-small', url='https://api.openai.com/v1/embeddings', dimensions=None), max_tokens=8191, encoding='cl100k_base'))",
+      "text": "name, description and parameter names"
+    },
+    "hybrid": {
+      "query_kind": "lexical",
+      "retriever": "HybridRetriever(bm25, dense)",
+      "rrf_k": 60,
+      "depth": 100,
+      "embedding_model": "text-embedding-3-small",
+      "embedder": "CachedEmbedder(TruncatingEmbedder(OpenAIEmbedder(model='text-embedding-3-small', url='https://api.openai.com/v1/embeddings', dimensions=None), max_tokens=8191, encoding='cl100k_base'))",
+      "text": "name, description and parameter names",
+      "instructed_format": "lexical for both halves"
+    }
+  }
+}

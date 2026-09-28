@@ -1,0 +1,30 @@
+{
+  "bm25": {
+    "queries": 100,
+    "max_relative_difference": 2.01552138195581e-07,
+    "mean_top10_overlap": 1.0,
+    "bm25s": "0.3.11"
+  },
+  "tokens": {
+    "texts": 44453,
+    "heuristic": "HeuristicTokenizer(bytes_per_token=3.0)",
+    "cl100k_base": {
+      "single_undercount_share": 0.007378579623422491,
+      "group_undercounts": 0,
+      "groups": 20000,
+      "group_size": 20,
+      "median_ratio": 1.6,
+      "p99_ratio": 2.227272727272727,
+      "min_ratio": 0.5152542372881356
+    },
+    "o200k_base": {
+      "single_undercount_share": 0.005916361100488156,
+      "group_undercounts": 0,
+      "groups": 20000,
+      "group_size": 20,
+      "median_ratio": 1.608695652173913,
+      "p99_ratio": 2.25,
+      "min_ratio": 0.5454545454545454
+    }
+  }
+}

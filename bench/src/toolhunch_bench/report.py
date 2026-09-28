@@ -138,7 +138,9 @@ def _markdown(summary: dict[str, Any]) -> str:
         "",
         "- `plain`: the query text alone, which is what an agent has.",
         "- `instructed`: ToolRet's formats, `{instruction} {query}` for lexical arms and "
-        "`Instruct: {instruction}\\nQuery: {query}` for `dense`; `hybrid` gets the lexical one for both halves.",
+        "`Instruct: {instruction}\\nQuery: {query}` for `dense`; `hybrid` gets the lexical one for both halves. "
+        "ToolRet's instructions were written by GPT-4o from the target tools (paper, section 3.3), so this mode "
+        "hints at the answer: `plain` is the realistic setting.",
     ]
     for mode in manifest["modes"]:
         lines += [
