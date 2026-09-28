@@ -72,14 +72,23 @@ class Retriever(Protocol):
         """Return at most `k` matches for `queries` from `catalog`, best first.
 
         Several queries (Pydantic AI's `search_tools` sends a list) are ranked separately and fused.
-        Blank queries are ignored; with none left the result is empty.
+        Queries without a letter or digit are ignored; with none left the result is empty. A single
+        `str` is rejected with `TypeError` by the built-in retrievers.
         """
         ...
 
 
 def clean_queries(queries: Sequence[str]) -> list[str]:
-    """Strip queries, drop blank ones and duplicates, keep the original order."""
-    return list(dict.fromkeys(query.strip() for query in queries if query.strip()))
+    """Strip queries, drop duplicates and queries without a letter or digit, keep the original order.
+
+    A query of punctuation alone ("???") would still reach an embedder and return arbitrary cards.
+
+    Raises:
+        TypeError: `queries` is a single `str`, which would be searched character by character.
+    """
+    if isinstance(queries, str):
+        raise TypeError("queries must be a list of strings, not a str: wrap a single query in a list")
+    return list(dict.fromkeys(query.strip() for query in queries if any(char.isalnum() for char in query)))
 
 
 def check_k(k: int) -> None:

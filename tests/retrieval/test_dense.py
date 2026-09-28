@@ -68,7 +68,9 @@ async def test_cards_are_embedded_once_and_usage_is_split() -> None:
     assert (second.usage.index_tokens, second.usage.query_tokens) == (0, 1)
 
 
-@pytest.mark.parametrize(("queries", "catalog"), [([" ", ""], CATALOG), (["weather"], ToolCatalog([]))])
+@pytest.mark.parametrize(
+    ("queries", "catalog"), [([" ", ""], CATALOG), (["???", "--"], CATALOG), (["weather"], ToolCatalog([]))]
+)
 async def test_nothing_to_search_makes_no_request(queries: list[str], catalog: ToolCatalog) -> None:
     embedder = FakeEmbedder()
     assert (await DenseRetriever(embedder).retrieve(queries, catalog, k=5)).matches == ()

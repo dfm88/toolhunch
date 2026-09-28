@@ -2,7 +2,7 @@ from collections.abc import Sequence
 
 import pytest
 
-from toolhunch import Retrieval, RetrievalUsage, ScoredCard, ToolCard, ToolCatalog, ToolSearchPipeline
+from toolhunch import BM25Retriever, Retrieval, RetrievalUsage, ScoredCard, ToolCard, ToolCatalog, ToolSearchPipeline
 
 pytestmark = pytest.mark.anyio
 
@@ -33,3 +33,9 @@ async def test_search_runs_the_retriever_and_traces_the_stage() -> None:
 def test_k_must_be_positive() -> None:
     with pytest.raises(ValueError, match="k must be"):
         ToolSearchPipeline(StubRetriever(), k=0)
+
+
+async def test_a_bare_string_is_rejected() -> None:
+    catalog = ToolCatalog([ToolCard(name="get_weather", description="Weather forecast.")])
+    with pytest.raises(TypeError, match="list"):  # a str is a Sequence[str]: it would search letter by letter
+        await ToolSearchPipeline(BM25Retriever()).search("weather forecast", catalog)
