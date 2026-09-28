@@ -12,9 +12,12 @@ All notable changes to this project are documented here. The format follows
 - `ToolCard` and `ToolCatalog`: immutable tool cards with an `id` separate from the name, a canonical
   order and a SHA-256 fingerprint; rendering at three detail levels within a token budget.
 - `HeuristicTokenizer`: a conservative, dependency-free token estimate behind a `Tokenizer` protocol.
-- Retrievers behind one async `Retriever` protocol: `BM25Retriever` (Lucene BM25 with an
-  identifier-aware analyzer, checked against bm25s), `DenseRetriever` with an OpenAI-compatible
-  `OpenAIEmbedder`, and `HybridRetriever` (reciprocal rank fusion). Several queries are fused the same way.
+- Retrievers behind one async `Retriever` protocol: `BM25Retriever` (Lucene BM25, checked against bm25s,
+  with an identifier-aware, Unicode-aware analyzer: NFKC, case folding, words kept whole across
+  combining marks), `DenseRetriever` with an OpenAI-compatible `OpenAIEmbedder` (over-long inputs are cut
+  to a declared byte limit; failures raise `EmbeddingError` with the key redacted), and `HybridRetriever`
+  (reciprocal rank fusion). Several queries are fused the same way; queries without a letter or digit
+  are ignored.
 - `ToolSearchPipeline`: a retriever-only pipeline with a per-stage trace.
 - Pydantic AI integration (`toolhunch[pydantic-ai]`): `catalog_from_tool_defs` and `reveal_strategy`
   for `ToolSearch(strategy=...)`.
