@@ -81,7 +81,8 @@ async def test_long_texts_are_cut_to_the_input_limit() -> None:
     inner = CountingEmbedder()
     embedder = TruncatingEmbedder(inner, max_tokens=5, encoding=byte_level)
 
-    await embedder.embed(["short", "much longer text"], kind="document")
+    await embedder.embed(["short", "much longer text", "\u00e9\u00e9\u00e9"], kind="document")
 
-    assert inner.calls == [("document", ["short", "much "])]
+    # Five bytes of "\u00e9\u00e9\u00e9" end inside a character and decode to "\u00e9\u00e9\ufffd" (7 tokens): back off.
+    assert inner.calls == [("document", ["short", "much ", "\u00e9\u00e9"])]
     assert embedder.model_id == inner.model_id

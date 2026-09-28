@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import functools
 import json
 from statistics import mean
 from typing import TYPE_CHECKING, Any
 
+import tiktoken
 from genai_prices import Usage, calc_price
 
 from toolhunch_bench.metrics import bootstrap_ci, ndcg_at_k, percentile, precision_at_1, recall_at_k
@@ -27,13 +29,29 @@ def build_report(run_dir: Path, *, out_dir: Path) -> None:
     indexes = {record["arm"]: record for record in records if record["record"] == "index"}
     searches = [record for record in records if record["record"] == "search"]
     results = [
-        _row(mode, arm, lines, index=indexes[arm], searches=searches, model=manifest["embedding_model"])
+        _row(
+            mode,
+            arm,
+            lines,
+            index=indexes[arm],
+            searches=searches,
+            config=manifest["arms"][arm],
+            model=manifest["embedding_model"],
+        )
         for mode in manifest["modes"]
         for arm in manifest["arms"]
         if (lines := [r for r in searches if (r["mode"], r["arm"]) == (mode, arm)])
     ]
     bootstrap = {"resamples": BOOTSTRAP_RESAMPLES, "seed": BOOTSTRAP_SEED, "level": 0.95}
-    summary = {"run_id": manifest["run_id"], "bootstrap": bootstrap, "manifest": manifest, "results": results}
+    tokens = sum(_tokens(record) for record in records)
+    cost = {"embedding_tokens": tokens, "usd": _usd(tokens, model=manifest["embedding_model"])}
+    summary = {
+        "run_id": manifest["run_id"],
+        "bootstrap": bootstrap,
+        "cost": cost,
+        "manifest": manifest,
+        "results": results,
+    }
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     (out_dir / "README.md").write_text(_markdown(summary))
@@ -46,6 +64,7 @@ def _row(
     *,
     index: dict[str, Any],
     searches: list[dict[str, Any]],
+    config: dict[str, Any],
     model: str | None,
 ) -> dict[str, Any]:
     per_task: dict[str, list[float]] = {
@@ -71,7 +90,21 @@ def _row(
         "index_seconds": index["seconds"],
         "embedding_tokens": tokens,
         "usd": _usd(tokens, model=model),
+        "usd_per_1000_queries": _per_1000_queries(lines, model=model) if "embedding_model" in config else 0.0,
     }
+
+
+def _per_1000_queries(lines: list[dict[str, Any]], *, model: str | None) -> float | None:
+    """What embedding 1,000 queries like these costs in deployment: their cl100k tokens, cached or not."""
+    if _usd(1, model=model) is None:
+        return None
+    tokens = sum(len(_cl100k().encode(r["query"], disallowed_special=())) for r in lines)
+    return _usd(round(tokens * 1000 / len(lines)), model=model)
+
+
+@functools.cache
+def _cl100k() -> tiktoken.Encoding:
+    return tiktoken.get_encoding("cl100k_base")
 
 
 def _tokens(record: dict[str, Any]) -> int:
@@ -113,11 +146,18 @@ def _markdown(summary: dict[str, Any]) -> str:
             f"## {mode}",
             "",
             "| arm | R@1 | R@5 | R@10 | R@20 | R@50 | nDCG@10 (95% CI) | P@1 (95% CI) | p50 ms | p95 ms "
-            "| index s | emb. tokens | USD |",
-            "|---|" + "---:|" * 12,
+            "| index s | emb. tokens | USD | USD / 1k queries |",
+            "|---|" + "---:|" * 13,
         ]
         lines += [_table_row(row) for row in summary["results"] if row["mode"] == mode]
+    cost = summary["cost"]
+    usd = "an unknown amount" if cost["usd"] is None else f"${cost['usd']:.4f}"
     lines += [
+        "",
+        f"Cost: the run billed {cost['embedding_tokens']:,} embedding tokens, {usd}"
+        + (f" with `{manifest['embedding_model']}`" if manifest["embedding_model"] else "")
+        + ". The catalog is embedded once and shared through the embedding cache, so the first arm that "
+        "needs it carries the index cost.",
         "",
         "Notes:",
         "",
@@ -125,14 +165,17 @@ def _markdown(summary: dict[str, Any]) -> str:
         "discount. P@1: the first result is relevant. 95% CIs: percentile bootstrap over tasks (1,000 "
         "resamples, seed 0); with few tasks they are wide, and differences inside them are not findings.",
         "- Latency is per search, after one warm-up search per arm that builds the index (`index s`). "
-        "`dense` and `hybrid` latency includes one embeddings API round trip for the query.",
+        "`dense` and `hybrid` latency is mostly the pure-Python cosine over every card vector, plus an "
+        "embeddings API round trip when the query text is not cached yet (`hybrid`'s plain queries repeat "
+        "`dense`'s, so they skip it).",
         "- `keywords` is Pydantic AI's keyword search, copied and parity-tested. Inside an agent "
         "`ToolSearch(max_results=10)` keeps its first 10 results, so R@20 and R@50 describe the ranking, not "
         "what the model would see.",
         "- `bm25s-toolret` replays ToolRet's own BM25 baseline (bm25s defaults, raw tool JSON, English stop "
         "words) on this corpus.",
         "- Embedding tokens and USD are what the run billed per arm, for both modes; texts already in the "
-        "embedding cache cost nothing.",
+        "embedding cache cost nothing. USD / 1k queries is what embedding 1,000 such queries costs in "
+        "deployment (their cl100k tokens, cached or not), without the one-off index.",
     ]
     return "\n".join(lines) + "\n"
 
@@ -144,7 +187,9 @@ def _table_row(row: dict[str, Any]) -> str:
         low, high = metrics[name]["ci95"]
         return f"{metrics[name]['mean']:.3f} ({low:.2f}-{high:.2f})"
 
-    usd = "n/a" if row["usd"] is None else f"{row['usd']:.4f}"
+    def dollars(value: float | None) -> str:
+        return "n/a" if value is None else f"{value:.4f}"
+
     cells = [
         row["arm"],
         *(f"{metrics[f'recall@{k}']['mean']:.3f}" for k in RECALL_KS),
@@ -154,6 +199,7 @@ def _table_row(row: dict[str, Any]) -> str:
         f"{row['latency_ms']['p95']:.1f}",
         f"{row['index_seconds']:.2f}",
         f"{row['embedding_tokens']:,}",
-        usd,
+        dollars(row["usd"]),
+        dollars(row["usd_per_1000_queries"]),
     ]
     return "| " + " | ".join(cells) + " |"

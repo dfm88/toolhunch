@@ -112,7 +112,7 @@ class CachedEmbedder:
 class TruncatingEmbedder:
     """An [`Embedder`][toolhunch.retrieval.Embedder] that cuts each text to its first `max_tokens` tokens.
 
-    OpenAI's embedding models reject an input over 8,192 tokens (HTTP 400) instead of truncating it;
+    OpenAI's embedding models reject an input over 8,191 tokens (HTTP 400) instead of truncating it;
     counting with the model's own tiktoken encoding makes the cut exact. The model id is unchanged:
     texts within the limit embed exactly as before.
     """
@@ -137,7 +137,14 @@ class TruncatingEmbedder:
 
     def _cut(self, text: str) -> str:
         tokens = self._encoding.encode(text, disallowed_special=())
-        return text if len(tokens) <= self._max_tokens else self._encoding.decode(tokens[: self._max_tokens])
+        keep = self._max_tokens
+        if len(tokens) <= keep:
+            return text
+        while True:  # a cut inside a multi-byte character decodes to U+FFFD, which can re-encode longer
+            cut = self._encoding.decode(tokens[:keep])
+            if len(self._encoding.encode(cut, disallowed_special=())) <= self._max_tokens:
+                return cut
+            keep -= 1
 
 
 @dataclass(frozen=True, slots=True)
