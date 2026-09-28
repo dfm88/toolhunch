@@ -1,1 +1,3 @@
 {"timestamp":"2026-09-28T15:52:29.085204Z","run_id":"20260928T154543Z","provider":"openai","model":"text-embedding-3-small","input_tokens":1454448,"usd":0.02908896,"purpose":"ToolRet retrieval (dense, hybrid) on toolret-pilot-50.json"}
+{"timestamp":"2026-09-28T21:01:11.690112Z","run_id":"f2a-verification-20260928","provider":"openai","model":"gpt-4.1-mini, gpt-4.1-nano, gpt-4o-mini","input_tokens":906,"usd":0.0002015,"purpose":"F2a verification: which chat models return 20 top logprobs"}
+{"timestamp":"2026-09-28T21:01:11.690112Z","run_id":"f2a-verification-20260928","provider":"typesafe","model":"jev-1.13.0","input_tokens":1896,"usd":0.00007963,"purpose":"F2a verification: model ids, answer shapes, error shapes, usage"}
