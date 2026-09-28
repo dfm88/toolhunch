@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import functools
 import math
 import re
+import sys
+import unicodedata
 from collections import Counter
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
@@ -38,8 +41,25 @@ ENGLISH_STOP_WORDS: frozenset[str] = frozenset(
 
 # camelCase and PascalCase boundaries: "getDiary" → "get Diary", "HTTPServer" → "HTTP Server".
 _CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
-# Runs of Unicode letters and digits; "_" and punctuation separate words.
-_WORD = re.compile(r"[^\W_]+")
+
+
+@functools.cache
+def _word_pattern() -> re.Pattern[str]:
+    r"""Runs of Unicode letters and digits with their combining marks; `_` and punctuation separate words.
+
+    `re`'s `\w` leaves combining marks (categories Mn, Mc, Me) out, which would cut Devanagari, Burmese
+    or Tamil words at every vowel sign, so the marks of the running Unicode database (about 2,500) are
+    added. Built once, on first use (about 50 ms).
+    """
+    ranges: list[list[int]] = []
+    for code in range(sys.maxunicode + 1):
+        if unicodedata.category(chr(code)).startswith("M"):
+            if ranges and ranges[-1][1] == code - 1:
+                ranges[-1][1] = code
+            else:
+                ranges.append([code, code])
+    marks = "".join(f"\\U{start:08x}-\\U{end:08x}" for start, end in ranges)
+    return re.compile(rf"[^\W_](?:[^\W_]|[{marks}])*")
 
 
 class Analyzer(Protocol):
@@ -69,10 +89,12 @@ def s_stemmer(token: str) -> str:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class TextAnalyzer:
-    """Default analyzer: identifier-aware splitting, lowercase, stop words, optional stemming.
+    """Default analyzer: identifier-aware splitting, Unicode normalisation, case folding, stop words, stemming.
 
     Tool names carry much of the signal (`get_diary_day`, `listUserRepos`), so identifiers are split
-    on `snake_case` and `camelCase` before matching. Letters and digits stay together (`base64`).
+    on `snake_case` and `camelCase` before matching. Letters and digits stay together (`base64`). Text
+    is NFKC-normalised and case-folded, so a decomposed and a precomposed "caffè", full-width letters
+    and "Straße"/"STRASSE" match; words keep their combining marks (Devanagari, Burmese, Tamil).
 
     Language: the defaults are **English** — Lucene's English stop words and, if enabled, an English
     plural stemmer. Splitting is Unicode-aware, so text in other languages still matches word for
@@ -95,9 +117,9 @@ class TextAnalyzer:
     stemmer: Callable[[str], str] | None = None
 
     def analyze(self, text: str, /) -> list[str]:
-        """Split, lowercase, drop stop words, then stem."""
-        words = _WORD.findall(_CAMEL_BOUNDARY.sub(" ", text))
-        terms = [lowered for word in words if (lowered := word.lower()) not in self.stop_words]
+        """Normalise (NFKC), split, case-fold, drop stop words, then stem."""
+        words = _word_pattern().findall(_CAMEL_BOUNDARY.sub(" ", unicodedata.normalize("NFKC", text)))
+        terms = [folded for word in words if (folded := word.casefold()) not in self.stop_words]
         if self.stemmer is None:
             return terms
         return [self.stemmer(term) for term in terms]

@@ -12,6 +12,10 @@ from toolhunch.retrieval import TextAnalyzer, s_stemmer
         ("Search the Web for news", ["search", "web", "news"]),
         ("base64_encode mp3", ["base64", "encode", "mp3"]),
         ("Qual è il meteo a Milano?", ["qual", "è", "il", "meteo", "milano"]),  # "a" is an English stop word
+        ("नमस्ते मौसम", ["नमस्ते", "मौसम"]),  # combining vowel signs stay inside the word
+        ("မြန်မာ ရာသီဥတု", ["မြန်မာ", "ရာသီဥတု"]),
+        ("caffe\u0300 caff\u00e8", ["caff\u00e8", "caff\u00e8"]),  # decomposed and precomposed agree (NFKC)
+        ("STRASSE Straße \uff21\uff30\uff29", ["strasse", "strasse", "api"]),  # case-folded; full-width API
         ("the of and ???", []),
         ("", []),
     ],
