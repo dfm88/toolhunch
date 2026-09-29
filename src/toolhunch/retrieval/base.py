@@ -91,10 +91,10 @@ def clean_queries(queries: Sequence[str]) -> list[str]:
     return list(dict.fromkeys(query.strip() for query in queries if any(char.isalnum() for char in query)))
 
 
-def check_k(k: int) -> None:
-    """Reject a non-positive result size."""
+def check_k(k: int, *, name: str = "k") -> None:
+    """Reject a non-positive result size; `name` is what the error calls it."""
     if k < 1:
-        raise ValueError(f"k must be at least 1, got {k}")
+        raise ValueError(f"{name} must be at least 1, got {k}")
 
 
 def top_k(scored: Iterable[ScoredCard], k: int) -> list[ScoredCard]:

@@ -40,7 +40,7 @@ Create a module when its code lands; do not add empty placeholders.
 
 - **Core stays framework-free.** Nothing under `src/toolhunch/` outside `integrations/` imports a
   framework. Integrations depend on core, never the reverse.
-- **Core dependencies are `pydantic` and `httpx2` only.** Anything else is an extra, imported
+- **Core dependencies are `pydantic`, `httpx2` and `anyio` only.** Anything else is an extra, imported
   lazily, with an error naming the extra.
 - **Ranking and disclosure are separate**: pipelines rank; reveal/preselect/proxy decide how tools
   reach the model.

@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING, Any, Literal
 
-from toolhunch import BM25Retriever, DenseRetriever, HybridRetriever, ToolSearchPipeline
+from toolhunch import BM25Retriever, DenseRetriever, HybridRetriever, RetrievalUsage, ToolSearchPipeline
 from toolhunch.retrieval import TextAnalyzer, s_stemmer
 from toolhunch_bench import BENCH_DIR
 from toolhunch_bench.baselines import BM25sToolRetRetriever, KeywordsRetriever
@@ -196,11 +196,12 @@ async def run_arms(
 
 
 def _cost(result: SearchResult) -> dict[str, Any]:
+    retrieval = [stage.usage for stage in result.trace if isinstance(stage.usage, RetrievalUsage)]
     return {
         "seconds": sum(stage.seconds for stage in result.trace),
         "usage": {
-            "index_tokens": sum(stage.usage.index_tokens for stage in result.trace),
-            "query_tokens": sum(stage.usage.query_tokens for stage in result.trace),
+            "index_tokens": sum(usage.index_tokens for usage in retrieval),
+            "query_tokens": sum(usage.query_tokens for usage in retrieval),
         },
     }
 

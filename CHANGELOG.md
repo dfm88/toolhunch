@@ -26,3 +26,9 @@ All notable changes to this project are documented here. The format follows
   Pydantic AI's keyword search and ToolRet's BM25 as baselines, metrics with bootstrap confidence
   intervals, an embedding cache, a cost ledger, and a 50-task retrieval pilot with its cost report
   (`bench/results/2026-09-toolret-pilot/`).
+- Decision stage: canonical decision types and the `DecisionModel` protocol; `ModelLimits` declared with
+  source and date; `JevWireModel` for TypeSafe's Jev (`jev()`) and Jev-compatible servers such as CLM
+  (`clm()`); `OpenAILogprobModel`, an LLM's option-letter logprobs as a vendor-free decider;
+  `ChoiceDecider`, which plans questions within each model's limits and can abstain.
+  `ToolSearchPipeline` takes `decider=` and `top_n=`, and `search()` takes `context=`. The reveal
+  strategy passes the user prompt and reveals nothing when the decider abstains.

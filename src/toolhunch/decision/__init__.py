@@ -1,4 +1,4 @@
-"""Stage 2: decision models that answer typed questions with probabilities."""
+"""Stage 2: decision models that answer typed questions with probabilities, and the decider that asks them."""
 
 from toolhunch.decision.base import (
     Answer,

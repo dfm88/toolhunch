@@ -1,11 +1,23 @@
 import importlib
 import sys
+from collections.abc import Sequence
+from typing import Any
 
 import pytest
 from inline_snapshot import snapshot
 from pydantic_ai import Agent
 from pydantic_ai.capabilities import ToolSearch
-from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, TextPart, ToolCallPart, ToolSearchReturnPart
+from pydantic_ai.messages import (
+    ImageUrl,
+    ModelMessage,
+    ModelRequest,
+    ModelResponse,
+    TextContent,
+    TextPart,
+    ToolCallPart,
+    ToolSearchReturnPart,
+    UserContent,
+)
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import ExternalToolset
@@ -68,6 +80,73 @@ async def test_tool_search_reveals_what_the_pipeline_ranks() -> None:
     ]
     assert [r.content["discovered_tools"] for r in returns] == [[{"name": "get_weather"}]]
     assert seen_tools == [["search_tools"], ["get_weather", "search_tools"]]  # revealed on the next request
+
+
+BOOKING_TOOLS = [
+    deferred("book_table", "Book a table at a restaurant.", "restaurant", "guests"),
+    deferred("book_flight", "Book a flight between two airports.", "origin", "destination"),
+]
+IMAGE = ImageUrl(url="https://example.com/menu.png")
+
+
+async def search_once(prompt: str | Sequence[UserContent], decider: Any) -> list[list[str]]:
+    """Run an agent on `prompt` that searches for "book a table" once; return the tools each request offered."""
+    offered: list[list[str]] = []
+
+    def model(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+        offered.append(sorted(tool.name for tool in info.function_tools))
+        if len(messages) == 1:
+            return ModelResponse(parts=[ToolCallPart("search_tools", {"queries": ["book a table"]})])
+        return ModelResponse(parts=[TextPart("done")])
+
+    pipeline = ToolSearchPipeline(BM25Retriever(), decider=decider, k=2, top_n=1)
+    agent = Agent(
+        FunctionModel(model),
+        toolsets=[ExternalToolset(BOOKING_TOOLS)],
+        capabilities=[ToolSearch(strategy=reveal_strategy(pipeline))],
+    )
+    await agent.run(prompt)
+    return offered
+
+
+async def test_reveal_gives_the_decider_the_user_prompt(recording_decider: Any) -> None:
+    decider = recording_decider(order=["book_flight", "book_table"])
+
+    offered = await search_once("Book a table for two", decider)
+
+    assert decider.states == ["Request: Book a table for two\nSearch queries: book a table"]
+    assert offered == [["search_tools"], ["book_flight", "search_tools"]]  # the decider's pick, not the retriever's
+
+
+@pytest.mark.parametrize(
+    ("prompt", "state"),
+    [
+        pytest.param(["Book this", IMAGE], "Request: Book this\nSearch queries: book a table", id="text-and-image"),
+        pytest.param(
+            ["Book this", IMAGE, TextContent("for two", metadata={"lang": "en"})],
+            "Request: Book this\nfor two\nSearch queries: book a table",
+            id="text-parts-are-joined-by-newlines",
+        ),
+        pytest.param([IMAGE], "Search queries: book a table", id="no-text-at-all"),
+    ],
+)
+async def test_reveal_uses_the_text_parts_of_a_multimodal_prompt(
+    recording_decider: Any, prompt: list[UserContent], state: str
+) -> None:
+    decider = recording_decider()
+
+    await search_once(prompt, decider)
+
+    assert decider.states == [state]
+
+
+async def test_reveal_reveals_nothing_when_the_decider_abstains(recording_decider: Any) -> None:
+    decider = recording_decider(abstain=True)
+
+    offered = await search_once("Book a table for two", decider)
+
+    assert decider.candidates == [["book_table", "book_flight"]]  # it was asked, and had candidates to rank
+    assert offered == [["search_tools"], ["search_tools"]]  # the next request lists only search_tools
 
 
 def test_missing_extra_names_it(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -1,20 +1,26 @@
 import os
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import date
 from pathlib import Path
 from typing import Any
 
+import anyio
 import pytest
 from dotenv import load_dotenv
 
+from toolhunch import DetailLevel, ScoredCard
 from toolhunch.decision import (
     Answer,
+    BinaryQuestion,
     ChoiceQuestion,
+    Decision,
     DecisionRequest,
     DecisionResponse,
     DecisionUsage,
+    Exchange,
     ModelLimits,
     QuestionKind,
+    ThresholdKey,
     check_request,
     choice_answer,
 )
@@ -98,6 +104,72 @@ class FakeModel:
 def fake_model() -> type[FakeModel]:
     """The `FakeModel` class; under importlib import mode a test module cannot import it from here."""
     return FakeModel
+
+
+class RecordingDecider:
+    """A `Decider` for tests: it records what it is asked and answers from a script.
+
+    It returns the candidates in the order of `order`; ids the script does not name follow, in the order it got them.
+    A candidate's score falls with its rank. `abstain` makes it abstain, and `error` is raised instead of answering.
+    The decision holds one scripted exchange that carries `usage`, because `Decision.usage` is the sum over the
+    exchanges. `delay` is how long it takes to answer, in seconds.
+
+    Attributes:
+        states: The states it was asked about, in order.
+        candidates: The card ids it was given with each state, in the order it got them.
+    """
+
+    def __init__(
+        self,
+        *,
+        order: Sequence[str] = (),
+        usage: DecisionUsage | None = None,
+        abstain: bool = False,
+        error: Exception | None = None,
+        delay: float = 0.0,
+    ) -> None:
+        self.states: list[str] = []
+        self.candidates: list[list[str]] = []
+        self._rank = {card_id: rank for rank, card_id in enumerate(order)}
+        self._usage = DecisionUsage() if usage is None else usage
+        self._abstain = abstain
+        self._error = error
+        self._delay = delay
+
+    async def decide(self, state: str, candidates: Sequence[ScoredCard], /) -> Decision:
+        self.states.append(state)
+        self.candidates.append([match.card.id for match in candidates])
+        if self._delay:
+            await anyio.sleep(self._delay)
+        if self._error is not None:
+            raise self._error
+        cards = sorted((match.card for match in candidates), key=lambda card: self._rank.get(card.id, len(self._rank)))
+        weights = range(len(cards), 0, -1)
+        total = sum(weights)
+        probabilities = {card.id: weight / total for card, weight in zip(cards, weights, strict=True)}
+        exchange = Exchange(
+            round=1,
+            request=DecisionRequest(state=state, questions={"tool": BinaryQuestion(instructions="scripted")}),
+            response=DecisionResponse(answers={}, usage=self._usage, seconds=0.0, raw={}),
+            detail=DetailLevel.FULL,
+            estimated_input_tokens=0,
+        )
+        return Decision(
+            ranked=tuple(ScoredCard(card, probabilities[card.id]) for card in cards),
+            probabilities=probabilities,
+            none_probability=None,
+            abstained=self._abstain,
+            key=ThresholdKey("recording@test", "scripted", "0" * 16, "choice"),
+            shape={},
+            state_cut=False,
+            exchanges=(exchange,),
+        )
+
+
+@pytest.fixture
+def recording_decider() -> type[RecordingDecider]:
+    """The `RecordingDecider` class; under importlib import mode a test module cannot import it from here."""
+    return RecordingDecider
 
 
 def _env(name: str) -> str | None:

@@ -11,6 +11,21 @@ from toolhunch.cards import (
     default_search_text,
     render_within_budget,
 )
+from toolhunch.decision import (
+    Abstention,
+    ChoiceDecider,
+    Decider,
+    Decision,
+    DecisionError,
+    DecisionModel,
+    DecisionUsage,
+    JevWireModel,
+    ModelLimits,
+    OpenAILogprobModel,
+    ThresholdKey,
+    clm,
+    jev,
+)
 from toolhunch.pipeline import SearchResult, StageTrace, ToolSearchPipeline
 from toolhunch.retrieval import (
     BM25Retriever,
@@ -26,13 +41,23 @@ from toolhunch.retrieval import (
 from toolhunch.tokens import HeuristicTokenizer, Tokenizer
 
 __all__ = [
+    "Abstention",
     "BM25Retriever",
+    "ChoiceDecider",
+    "Decider",
+    "Decision",
+    "DecisionError",
+    "DecisionModel",
+    "DecisionUsage",
     "DenseRetriever",
     "DetailLevel",
     "Embedder",
     "HeuristicTokenizer",
     "HybridRetriever",
+    "JevWireModel",
+    "ModelLimits",
     "OpenAIEmbedder",
+    "OpenAILogprobModel",
     "RenderedCards",
     "Retrieval",
     "RetrievalUsage",
@@ -41,12 +66,15 @@ __all__ = [
     "SearchResult",
     "SearchText",
     "StageTrace",
+    "ThresholdKey",
     "Tokenizer",
     "ToolCard",
     "ToolCatalog",
     "ToolSearchPipeline",
     "__version__",
+    "clm",
     "default_search_text",
+    "jev",
     "render_within_budget",
 ]
 
