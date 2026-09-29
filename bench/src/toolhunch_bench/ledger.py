@@ -63,11 +63,11 @@ def read_ledger(path: Path = LEDGER_PATH) -> list[LedgerEntry]:
     return [LedgerEntry.model_validate_json(line) for line in lines if line.strip()]
 
 
-def f2a_spend(entries: Iterable[LedgerEntry]) -> F2aSpend:
-    """Add up the F2a lines of `entries`, those whose `purpose` starts with `"F2a"`, and no others."""
+def f2a_spend(entries: Iterable[LedgerEntry], *, purpose_prefix: str = "F2a") -> F2aSpend:
+    """Add up lines beginning with `purpose_prefix`, preserving F2a's default and separate Modal accounting."""
     usd = modal_usd = 0.0
     for entry in entries:
-        if not entry.purpose.startswith("F2a"):
+        if not entry.purpose.startswith(purpose_prefix):
             continue
         if entry.provider == "modal":
             modal_usd += entry.usd

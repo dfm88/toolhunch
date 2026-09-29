@@ -66,6 +66,16 @@ from toolhunch_bench.decision import (
 )
 from toolhunch_bench.decision_cache import DECISION_CACHE_PATH, CachedDecisionModel
 from toolhunch_bench.decision_report import build_decision_report
+from toolhunch_bench.direct import DirectRunner, direct_catalogs, estimate_direct
+from toolhunch_bench.direct_agent import CachedAgent
+from toolhunch_bench.direct_cost import (
+    AGENT_MODEL,
+    P1_CAP_USD,
+    GuardedDecisionModel,
+    GuardedEmbedder,
+    SpendGuard,
+)
+from toolhunch_bench.direct_report import build_direct_report
 from toolhunch_bench.embedding_cache import (
     EMBEDDING_CACHE_PATH,
     CachedEmbedder,
@@ -412,6 +422,169 @@ def decision_charts(
     """Draw held-out ranking-cost and coverage-accuracy charts without calling a provider."""
     for path in build_decision_charts(summary, out_dir=out):
         typer.echo(f"chart written to {path}")
+
+
+@app.command()
+def direct(
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="Estimate pilot and full runs; no paid calls.")] = False,
+    pilot: Annotated[
+        bool, typer.Option("--pilot", help="Ten positives and five negatives per source catalog.")
+    ] = False,
+    estimate_out: Annotated[Path | None, typer.Option("--estimate-out", help="Write both estimates as JSON.")] = None,
+) -> None:
+    """Compare five direct-choice strategies; every paid attempt shares the P1 spend guard."""
+    from dataclasses import asdict
+
+    from openai import AsyncOpenAI
+    from pydantic_ai.providers.openai import OpenAIProvider
+
+    pydantic_ai.BANNER_ENABLED = False
+    data = load_toolret(cache_dir=TOOLRET_CACHE)
+    full, small = direct_catalogs(data), direct_catalogs(data, pilot=True)
+    spend = f2a_spend(read_ledger(LEDGER_PATH), purpose_prefix="P1:")
+    run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + ("-direct-pilot" if pilot else "-direct")
+
+    def persist_call(call: dict[str, Any]) -> None:
+        with (RUNS_DIR / run_id / "calls.jsonl").open("a") as journal:
+            journal.write(json.dumps(call) + "\n")
+
+    guard = SpendGuard(prior_usd=spend.usd, sink=persist_call)
+    inner = OpenAIEmbedder(DECISION_EMBEDDING_MODEL, batch_size=512, max_input_bytes=None)
+    cache = CachedEmbedder(
+        GuardedEmbedder(
+            TruncatingEmbedder(inner, max_tokens=MAX_INPUT_TOKENS, encoding=tiktoken.get_encoding("cl100k_base")),
+            guard=guard,
+        ),
+        path=EMBEDDING_CACHE_PATH,
+        chunk_size=512,
+    )
+    adapter = jev(model=JEV_MODEL, max_retries=0)
+    models: CachedDecisionModel | None = None
+    agent: CachedAgent | None = None
+    client: AsyncOpenAI | None = None
+    paid_cleanup_done = False
+    try:
+        [hybrid] = build_arms(["hybrid"], embedder=cache, raw_text=data.raw_text)
+        free = CacheOnlyRetrieval(hybrid.retriever, stand_in=BM25Retriever(), embeddings=cache)
+        full_estimate = asyncio.run(
+            estimate_direct(full, retriever=SharedRetrieval(free), jev_model=adapter, embeddings=cache)
+        )
+        pilot_estimate = asyncio.run(
+            estimate_direct(small, retriever=SharedRetrieval(free), jev_model=adapter, embeddings=cache)
+        )
+        estimate = pilot_estimate if pilot else full_estimate
+        estimates = {
+            "full": asdict(full_estimate),
+            "pilot": asdict(pilot_estimate),
+            "prior_p1_usd": spend.usd,
+            "full_plus_prior_usd": spend.usd + full_estimate.usd,
+            "assumptions": "No prompt-cache or replay savings; configured maximum output tokens per agent request.",
+        }
+        typer.echo(
+            "Conservative estimate (no cache savings, bounded output): "
+            f"pilot ${pilot_estimate.usd:.4f}; full ${full_estimate.usd:.4f}"
+        )
+        typer.echo(
+            f"P1 total so far: ${spend.usd:.4f}; selected estimate plus prior: "
+            f"${spend.usd + estimate.usd:.4f}; cap ${P1_CAP_USD:.2f}"
+        )
+        if estimate_out is not None:
+            estimate_out.parent.mkdir(parents=True, exist_ok=True)
+            estimate_out.write_text(json.dumps(estimates, indent=2) + "\n")
+        if spend.usd + estimate.usd > P1_CAP_USD:
+            typer.echo("Over the P1 cap: nothing was spent.", err=True)
+            raise typer.Exit(code=2)
+        if dry_run:
+            return
+        load_dotenv(BENCH_DIR.parent / ".env", override=False)
+        if any(not os.environ.get(name) for name in ("OPENAI_API_KEY", "TYPESAFE_API_KEY")):
+            typer.echo("Paid direct choice requires OPENAI_API_KEY and TYPESAFE_API_KEY.", err=True)
+            raise typer.Exit(code=2)
+        client = AsyncOpenAI(base_url="https://api.openai.com/v1", max_retries=0, timeout=60)
+        model = OpenAIChatModel(AGENT_MODEL, provider=OpenAIProvider(openai_client=client))
+        agent = CachedAgent(model, path=BENCH_DIR / "runs" / "cache" / "agent.sqlite", guard=guard)
+        models = CachedDecisionModel(
+            GuardedDecisionModel(adapter, guard=guard),
+            path=BENCH_DIR / "runs" / "cache" / "direct-decisions.sqlite",
+        )
+        runner = DirectRunner(retriever=hybrid.retriever, jev_model=models, agent=agent, guard=guard)
+
+        async def execute() -> Path:
+            nonlocal paid_cleanup_done
+            try:
+                return await runner.run(
+                    small if pilot else full, out_dir=RUNS_DIR, run_id=run_id, pilot=pilot, estimate=estimate
+                )
+            finally:
+                await inner.aclose()
+                await adapter.aclose()
+                await client.close()
+                paid_cleanup_done = True
+
+        run_dir = asyncio.run(execute())
+        manifest = json.loads((run_dir / "manifest.json").read_text())
+        manifest |= {
+            "full_estimate": asdict(full_estimate),
+            "full_catalogs": [
+                {"source": c.source, "positives": len(c.positives), "negatives": len(c.negatives)} for c in full
+            ],
+            "prior_p1_usd": spend.usd,
+            "purpose": "P1: direct choice " + ("pilot" if pilot else "full"),
+        }
+        (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+        typer.echo(f"run written to {run_dir}; verified/guarded cost ${guard.run_usd:.4f}")
+        if not manifest["completed"]:
+            typer.echo(f"Stopped: {manifest['stop_reason']}", err=True)
+            raise typer.Exit(code=2)
+    except typer.Exit:
+        raise
+    except Exception as error:
+        typer.echo(f"Direct run failed: {type(error).__name__}", err=True)
+        raise typer.Exit(code=2) from None
+    finally:
+        grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
+        for call in guard.calls:
+            grouped.setdefault((call["provider"], call["model"]), []).append(call)
+        for (provider, billed_model), calls in grouped.items():
+            verified = sum(call["usd"] or 0 for call in calls)
+            charged = sum(call["budget_charge_usd"] for call in calls)
+            append_ledger(
+                LedgerEntry(
+                    timestamp=datetime.now(UTC),
+                    run_id=run_id,
+                    provider=provider,
+                    model=billed_model,
+                    input_tokens=sum(call["input_tokens"] or 0 for call in calls),
+                    output_tokens=sum(call["output_tokens"] or 0 for call in calls),
+                    usd=charged,
+                    purpose="P1: direct choice " + ("pilot" if pilot else "full"),
+                    note=f"Verified usage ${verified:.6f}; "
+                    f"uncertain failed-attempt reserves ${charged - verified:.6f}; "
+                    f"cache-read tokens {sum(call['cache_read_tokens'] or 0 for call in calls)}; "
+                    f"{len(calls)} provider attempts; local replays excluded.",
+                ),
+                path=LEDGER_PATH,
+            )
+        cache.close()
+        if models is not None:
+            models.close()
+        if agent is not None:
+            agent.close()
+        if not paid_cleanup_done:
+            asyncio.run(inner.aclose())
+            asyncio.run(adapter.aclose())
+            if client is not None:
+                asyncio.run(client.close())
+
+
+@app.command("direct-report")
+def direct_report(
+    run_dir: Annotated[Path, typer.Argument(help="Recorded direct-choice run.", exists=True, file_okay=False)],
+    out: Annotated[Path, typer.Option(help="Directory for generated summary and public table.")],
+) -> None:
+    """Report direct-choice outcomes and observed provider cache costs without paid calls."""
+    build_direct_report(run_dir, out_dir=out)
+    typer.echo(f"report written to {out}")
 
 
 @check_app.command("bm25")
