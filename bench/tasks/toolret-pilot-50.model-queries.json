@@ -1,0 +1,349 @@
+{
+  "writer": {
+    "model": "gpt-5.4-mini-2026-03-17",
+    "settings": {
+      "openai_reasoning_effort": "none"
+    },
+    "pydantic_ai": "2.50.0",
+    "instructions": "You are a helpful assistant. Use your tools to complete the user's request.",
+    "search_tools_sha256": "11bd6ac65d9e81b6bc90e9db1aba57eb5bb215c3608f62a829f87ab9103f59ae",
+    "date": "2026-09-29"
+  },
+  "queries": {
+    "apibank_query_38": {
+      "queries": [
+        "smart light schedule turn on at specific time tonight home automation",
+        "device automation schedule light on",
+        "set timer for light 7 PM"
+      ],
+      "fallback": false
+    },
+    "apigen_query_184": {
+      "queries": [
+        "static structural analysis building floors dynamic analysis tool",
+        "structural analysis building floor static dynamic",
+        "analysis tool building floor engineering"
+      ],
+      "fallback": false
+    },
+    "apigen_query_491": {
+      "queries": [
+        "autocomplete suggestions USD US English dress shoes jacket",
+        "auto-complete products currency country language",
+        "suggestions dress shoes jacket usd us en"
+      ],
+      "fallback": false
+    },
+    "apigen_query_659": {
+      "queries": [
+        "news headlines France French technology latest",
+        "French news headlines technology France",
+        "current news search France technology French"
+      ],
+      "fallback": false
+    },
+    "appbench_query_11": {
+      "queries": [
+        "house rental search availability laundry Atlanta rating",
+        "find house Atlanta availability laundry service",
+        "reservation booking house search Atlanta"
+      ],
+      "fallback": false
+    },
+    "craft_Math_algebra_query_183": {
+      "queries": [
+        "Murtha has decided to start a pebble collection. She collects one pebble the first day and two pebbles on the second day. On each subsequent day she collects one more pebble than the previous day. How many pebbles will she have collected at the end of the twelfth day?"
+      ],
+      "fallback": true
+    },
+    "craft_Math_algebra_query_256": {
+      "queries": [
+        "The points $(-1,4)$ and $(2,-3)$ are adjacent vertices of a square. What is the area of the square?"
+      ],
+      "fallback": true
+    },
+    "craft_Tabmwp_query_122": {
+      "queries": [
+        "For an economics project, Josiah determined the cost of ferry rides for bicycles and cars. How much does it cost to take a car on the Southport-Fort Fisher ferry?"
+      ],
+      "fallback": true
+    },
+    "craft_Vqa_query_199": {
+      "queries": [
+        "Are the beds in the hospital ward occupied or empty?"
+      ],
+      "fallback": true
+    },
+    "craft_Vqa_query_69": {
+      "queries": [
+        "image question soda girls happy upset visual analysis"
+      ],
+      "fallback": false
+    },
+    "gorilla_huggingface_query_301": {
+      "queries": [
+        "The company wants to create a chatbot to help answer customer questions regarding the chatbot's consciousness. We need to be able to generate sensible responses."
+      ],
+      "fallback": true
+    },
+    "gorilla_huggingface_query_67": {
+      "queries": [
+        "Write a summary of a conference held by the World Health Organization discussing the impacts of climate change on human health."
+      ],
+      "fallback": true
+    },
+    "gorilla_pytorch_query_19": {
+      "queries": [
+        "What is an API that can classify an image of a dog into its specific breed from a list of 120 unique breeds?"
+      ],
+      "fallback": true
+    },
+    "gorilla_tensor_query_10": {
+      "queries": [
+        "I am creating a shopping app and I want to suggest similar looking items from our database using item's image."
+      ],
+      "fallback": true
+    },
+    "gpt4tools_query_30": {
+      "queries": [
+        "Previous conversation:\n\nHuman: Provide an image named cache/xsesidle.png. Description: A vase filled with lots of flowers near a window. Barely lit flowers in a vase in front of covered window. Purple flowers sitting in front of a closed window. a close up of a vase with many flowers in it. A vase full of tulips in front of a window with the blinds pulled. Understand the image using tools.\nAI: Received.\n\nuser:Assess the quality of the image of the flowers in the vase,\n"
+      ],
+      "fallback": true
+    },
+    "gta_query_8": {
+      "queries": [
+        "train schedule screenshot image circle earliest train Melbourne tomorrow 1 stop ticket",
+        "image annotation circle train number screenshot"
+      ],
+      "fallback": false
+    },
+    "metatool_which_query_20": {
+      "queries": [
+        "GitHub repository code search computer vision latest advancements",
+        "internet search recent computer vision techniques repository"
+      ],
+      "fallback": false
+    },
+    "metatool_which_query_22": {
+      "queries": [
+        "HackerNews stories top new ask",
+        "HN top stories new stories ask stories",
+        "hacker news api stories"
+      ],
+      "fallback": false
+    },
+    "mnms_query_27": {
+      "queries": [
+        "image generation edit add timestamp vintage photo corner"
+      ],
+      "fallback": false
+    },
+    "reversechain_query_159": {
+      "queries": [
+        "restaurant review score average Italian Delight average review score"
+      ],
+      "fallback": false
+    },
+    "rotbench_query_381": {
+      "queries": [
+        "Can you perform a linguistic analysis on this sentence? 'Despite its small size, the hummingbird flaps its wings at an incredible speed.'\nBegin!\n"
+      ],
+      "fallback": true
+    },
+    "rotbench_query_512": {
+      "queries": [
+        "Albert Einstein information biography facts"
+      ],
+      "fallback": false
+    },
+    "t_eval_dialog_query_33": {
+      "queries": [
+        "user: I'm planning to watch some upcoming movies in China. Can you provide me with the details of the first three upcoming movies in China, including the date, title, category, region, and the number of people who are interested in watching them? Also, could you tell me the current time?\nuser: What is your thought at current step?\nassistant: prints the details of the filtered 3 coming films in China\nuser: What is the tool name to call at current step?\nassistant: FilmDouban.coming_out_filter\nuser: What is your thought at current step?\nassistant: get current time\nuser: What is the tool name to call at current step?\nassistant: TimeTool.get_curr_time\nuser: What is your thought at current step?\nassistant: prints the details of a movie, giving its name\nuser: What is the tool name to call at current step?\nassistant: FilmDouban.print_detail\nuser: What is the value of 'film_name' required by the current tool?\nassistant: 红猪\nuser: What is your thought at current step?\nassistant: prints the details of a movie, giving its name\nuser: What is the tool name to call at current step?\nassistant: FilmDouban.print_detail\nuser: What is the value of 'film_name' required by the current tool?\nassistant: 涉过愤怒的海\nuser: What is your thought at current step?\nassistant: prints the details of a movie, giving its name\nuser: What is the tool name to call at current step?\nassistant: FilmDouban.print_detail\nuser: What is the value of 'film_name' required by the current tool?\nassistant: 惊奇队长2\nuser: What is your thought at current step?\nassistant: get the weekday today\nuser: What is the tool name to call at current step?\nassistant: TimeTool.get_weekday\nuser: What is your thought at current step?\nassistant: prints the details of the filtered 3 playing films now in China\nuser: What is the tool name to call at current step?\nassistant: FilmDouban.now_playing_out_filter\nuser: What is your thought at current step?\nassistant: get current time\nuser: What is the tool name to call at current step?"
+      ],
+      "fallback": true
+    },
+    "t_eval_step_query_48": {
+      "queries": [
+        "arXiv quantum computing latest articles",
+        "movies currently showing in China box office now playing",
+        "Google news quantum computing latest"
+      ],
+      "fallback": false
+    },
+    "taskbench_daily_query_20": {
+      "queries": [
+        "payment credit card bill pay",
+        "weather forecast historical New York July 1 2023",
+        "doctor appointment online telehealth consultation",
+        "online meeting scheduling video conference"
+      ],
+      "fallback": false
+    },
+    "taskbench_huggingface_query_11": {
+      "queries": [
+        "image generation save file example.jpg"
+      ],
+      "fallback": false
+    },
+    "taskbench_multimedia_query_24": {
+      "queries": [
+        "audio noise reduction wav denoise background noise file",
+        "speech enhancement audio cleanup wav",
+        "audio processing denoise tool"
+      ],
+      "fallback": false
+    },
+    "toolACE_query_254": {
+      "queries": [
+        "user:I’d like to enroll my son Alex in the summer soccer camp program. He is 12 years old.\n\nassistant:Could you please provide the program ID for the summer soccer camp that you mentioned?\n\nuser:The program ID is SS1234"
+      ],
+      "fallback": true
+    },
+    "toolACE_query_745": {
+      "queries": [
+        "event details by event id archived report by app id count forms created list tools"
+      ],
+      "fallback": false
+    },
+    "toolACE_query_942": {
+      "queries": [
+        "user:I am curious about vertebrate species that live in the desert. Can you provide some information about them?\n"
+      ],
+      "fallback": true
+    },
+    "toolLens_query_164": {
+      "queries": [
+        "I need to create a grocery list for my agricultural plan for a community garden located in Portland."
+      ],
+      "fallback": true
+    },
+    "toolLens_query_201": {
+      "queries": [
+        "peace treaty negotiations Israel Palestine page 1",
+        "Israel Palestine peace negotiations overview",
+        "page 1 Israel Palestine peace treaty negotiations"
+      ],
+      "fallback": false
+    },
+    "tool_be_honest_query_1": {
+      "queries": [
+        "Given a text, you need to extract all the e-mail addresses in the text.\n1. Requires the ability to efficiently extract multiple mailboxes\n2. Requires the ability to recognize multiple mailbox formats."
+      ],
+      "fallback": true
+    },
+    "tool_be_honest_query_341": {
+      "queries": [
+        "Design and implement a Customer Relationship Management (CRM) system for a large organization to improve customer experience and increase sales effectiveness. Requirements:\n1. Collecting and organizing customer data\n2. Analyze customer data to identify opportunities and risks\n3. Develop marketing and sales strategies based on customer analysis\n4. Implement CRM system and train staff to use it\n5. Monitor the use of the CRM system and make improvements"
+      ],
+      "fallback": true
+    },
+    "toolalpaca_query_13": {
+      "queries": [
+        "MySQL data source create set connection string",
+        "data source add mysql connection string",
+        "create datasource mysql"
+      ],
+      "fallback": false
+    },
+    "toolbench_query_564": {
+      "queries": [
+        "theater movies nearby independent films showtimes ratings user rating tomato rating news artificial intelligence latest advancements sources",
+        "movie showtimes ratings theaters independent films",
+        "news artificial intelligence latest advancements sources"
+      ],
+      "fallback": false
+    },
+    "toolbench_query_818": {
+      "queries": [
+        "email validation deliverability MX lookup normalize email address domain server details"
+      ],
+      "fallback": false
+    },
+    "toolbench_query_961": {
+      "queries": [
+        "movie database search films 1980s rating directors cast",
+        "movies 80s director cast rating",
+        "film information title director cast rating"
+      ],
+      "fallback": false
+    },
+    "toolbench_sam_query_135": {
+      "queries": [
+        "bus ticket search round trip Miami to Murfreesboro Apr 05 2022 Apr 08 2022 children adults price range",
+        "intercity bus tickets search Miami Murfreesboro round trip"
+      ],
+      "fallback": false
+    },
+    "toolemu_query_14": {
+      "queries": [
+        "inventory update quantity item product stock modify quantity"
+      ],
+      "fallback": false
+    },
+    "tooleyes_query_9": {
+      "queries": [
+        "I have recently completed my MBA and am interested in finding management roles within the finance industry, preferably within the UK."
+      ],
+      "fallback": true
+    },
+    "toolink_query_276": {
+      "queries": [
+        "A = {2, 3, 4, 5}\nB = {4, 5, 6, 7, 8}\nTwo integers will be randomly selected from the sets above, one integer from set A and one integer from set B. What is the probability J that the sum of the two integers will equal 9 ? Choose from 0.15, 0.20, 0.25, 0.30, 0.33."
+      ],
+      "fallback": true
+    },
+    "toolink_query_282": {
+      "queries": [
+        "Judge the output of the following expression is True or False: not ( False ) and False is"
+      ],
+      "fallback": true
+    },
+    "ultraTool_query_265": {
+      "queries": [
+        "appointment scheduling service driving license theory test city center branch confirm submit appointment agreement record keeping"
+      ],
+      "fallback": false
+    },
+    "ultraTool_query_297": {
+      "queries": [
+        "vehicle location trajectory hourly movement geofence gps history map tracking",
+        "location history timeline by hour vehicle plate number",
+        "fleet vehicle tracking historical route detailed path"
+      ],
+      "fallback": false
+    },
+    "webtools_food_query_5": {
+      "queries": [
+        "burger menu calories chain restaurant nutrition menu burger"
+      ],
+      "fallback": false
+    },
+    "webtools_music_query_25": {
+      "queries": [
+        "music artist fan count top songs hot status album release date tool",
+        "artist popularity fans songs hot album release date"
+      ],
+      "fallback": false
+    },
+    "webtools_spotify_query_23": {
+      "queries": [
+        "music playback play album search newest BIGBANG",
+        "media player play music album"
+      ],
+      "fallback": false
+    },
+    "webtools_tmdb_query_1": {
+      "queries": [
+        "How many episodes does 2 Broke Girls have in total?"
+      ],
+      "fallback": true
+    },
+    "webtools_weather_query_2": {
+      "queries": [
+        "weather forecast Madrid next 30 days average temperature historic daily average temperature last year tool",
+        "Madrid weather forecast tool daily temperature history"
+      ],
+      "fallback": false
+    }
+  }
+}

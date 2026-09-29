@@ -8,6 +8,7 @@ dependencies = [
     "bm25s>=0.3.11",
     "genai-prices>=0.1.9",
     "pyarrow>=25.0.1",
+    "pydantic-ai-slim[openai]>=2.50",
     "python-dotenv>=1.2.3",
     "tiktoken>=0.14.0",
     "toolhunch[pydantic-ai]",

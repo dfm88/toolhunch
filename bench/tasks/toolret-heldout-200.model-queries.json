@@ -1,0 +1,1355 @@
+{
+  "writer": {
+    "model": "gpt-5.4-mini-2026-03-17",
+    "settings": {
+      "openai_reasoning_effort": "none"
+    },
+    "pydantic_ai": "2.50.0",
+    "instructions": "You are a helpful assistant. Use your tools to complete the user's request.",
+    "search_tools_sha256": "11bd6ac65d9e81b6bc90e9db1aba57eb5bb215c3608f62a829f87ab9103f59ae",
+    "date": "2026-09-29"
+  },
+  "queries": {
+    "apibank_query_29": {
+      "queries": [
+        "Can you help me change my password?"
+      ],
+      "fallback": true
+    },
+    "apibank_query_62": {
+      "queries": [
+        "Can you tell me the definition of the word \"perplexed\"?"
+      ],
+      "fallback": true
+    },
+    "apibank_query_98": {
+      "queries": [
+        "Can you help me change my appointment?"
+      ],
+      "fallback": true
+    },
+    "apigen_query_101": {
+      "queries": [
+        "upcoming fights fighter id events schedule fight list",
+        "fighter upcoming bouts id"
+      ],
+      "fallback": false
+    },
+    "apigen_query_134": {
+      "queries": [
+        "trivia general category question fetch api 10",
+        "general trivia questions tool",
+        "open trivia questions category general"
+      ],
+      "fallback": false
+    },
+    "apigen_query_248": {
+      "queries": [
+        "What are the coordinates of the Eiffel Tower in Paris and the next number after 789?"
+      ],
+      "fallback": true
+    },
+    "apigen_query_370": {
+      "queries": [
+        "language ID 112233",
+        "112233 language information",
+        "language lookup by id"
+      ],
+      "fallback": false
+    },
+    "apigen_query_497": {
+      "queries": [
+        "geocoding latitude longitude city coordinates New York",
+        "location lookup city coordinates"
+      ],
+      "fallback": false
+    },
+    "apigen_query_499": {
+      "queries": [
+        "TikTok search pop music",
+        "Soundcloud username availability",
+        "music search artists cover images sound URLs"
+      ],
+      "fallback": false
+    },
+    "apigen_query_502": {
+      "queries": [
+        "news article details guid fetch get info article by guid",
+        "retrieve article details GUID news"
+      ],
+      "fallback": false
+    },
+    "apigen_query_597": {
+      "queries": [
+        "webcam beach category list",
+        "webcams category beach",
+        "list webcams beach"
+      ],
+      "fallback": false
+    },
+    "apigen_query_613": {
+      "queries": [
+        "news article search recent English climate change limit 50",
+        "recent news articles English climate change",
+        "news search climate change 50 results"
+      ],
+      "fallback": false
+    },
+    "apigen_query_653": {
+      "queries": [
+        "Determine if the years 2000 and 2100 are leap years."
+      ],
+      "fallback": true
+    },
+    "apigen_query_66": {
+      "queries": [
+        "endpoint 7 restaurant locations third page retrieve data",
+        "check endpoint 7",
+        "restaurant locations page 3"
+      ],
+      "fallback": false
+    },
+    "apigen_query_680": {
+      "queries": [
+        "Is 144 a perfect square?"
+      ],
+      "fallback": true
+    },
+    "apigen_query_695": {
+      "queries": [
+        "Zillow Walk Transit Bike scores property by Zillow ID",
+        "real estate property scores walk transit bike zillow id",
+        "property details walkscore transit score bikescore"
+      ],
+      "fallback": false
+    },
+    "apigen_query_724": {
+      "queries": [
+        "stock price lookup current market quote ticker MSFT"
+      ],
+      "fallback": false
+    },
+    "apigen_query_732": {
+      "queries": [
+        "Determine the cosine similarity of two vectors from a natural language processing task, where one vector represents a question and the other an answer."
+      ],
+      "fallback": true
+    },
+    "apigen_query_746": {
+      "queries": [
+        "chart image tradingview Binance Polkadot USDT MACD RSI PNG dark theme 2 hour Asia/Tokyo 1500x1000 realtime",
+        "advanced chart image generator finance indicators PNG timezone dark theme",
+        "Binance Polkadot USDT chart image tool MACD RSI"
+      ],
+      "fallback": false
+    },
+    "apigen_query_792": {
+      "queries": [
+        "9gag fetch posts category funny",
+        "Giphy search stickers cats",
+        "posts category 9gag",
+        "stickers giphy search"
+      ],
+      "fallback": false
+    },
+    "apigen_query_820": {
+      "queries": [
+        "city boundary data Chicago boundary polygon geojson"
+      ],
+      "fallback": false
+    },
+    "apigen_query_852": {
+      "queries": [
+        "manager football match ID 12345",
+        "American Football match managers",
+        "match details managers sports"
+      ],
+      "fallback": false
+    },
+    "apigen_query_883": {
+      "queries": [
+        "database query retrieve records region Birmingham limit 15",
+        "query records by region and count 15",
+        "select records Birmingham region"
+      ],
+      "fallback": false
+    },
+    "apigen_query_893": {
+      "queries": [
+        "I need to find the duration between two musical notes with frequencies 220 Hz and 440 Hz at a tempo of 60 beats per minute. Also, I want to check if 64 is a power of 2."
+      ],
+      "fallback": true
+    },
+    "apigen_query_965": {
+      "queries": [
+        "What is the probability of drawing no aces from a deck of 52 cards if you draw 6 cards?"
+      ],
+      "fallback": true
+    },
+    "appbench_query_12": {
+      "queries": [
+        "bus search booking direct Fresno San Francisco March 5 3 passengers 10:50 am purchase tickets",
+        "intercity bus ticket search and purchase"
+      ],
+      "fallback": false
+    },
+    "appbench_query_13": {
+      "queries": [
+        "music playback device play song confirm genre pop album 2017 living room"
+      ],
+      "fallback": false
+    },
+    "craft_Math_algebra_query_119": {
+      "queries": [
+        "Addison's age is three times Brenda's age. Janet is six years older than Brenda. Addison and Janet are twins. How old is Brenda?"
+      ],
+      "fallback": true
+    },
+    "craft_Math_algebra_query_133": {
+      "queries": [
+        "Mr. Fat needs 20 minutes to eat a pound of cereal, while Mr. Thin needs 30 minutes. If they eat together, how long does it take for them to finish off three pounds of cereal? Express your answer in minutes."
+      ],
+      "fallback": true
+    },
+    "craft_Math_algebra_query_53": {
+      "queries": [
+        "A ball travels on a parabolic path in which the height (in feet) is given by the expression $-16t^2+80t+21$, where $t$ is the time after launch. What is the maximum height of the ball, in feet?"
+      ],
+      "fallback": true
+    },
+    "craft_Math_algebra_query_54": {
+      "queries": [
+        "If $9s+5t=108$ and $s$ is two less than $t$, what is $t$?"
+      ],
+      "fallback": true
+    },
+    "craft_Math_algebra_query_65": {
+      "queries": [
+        "Evaluate $\\lfloor0.999\\rfloor+\\lceil2.001\\rceil$."
+      ],
+      "fallback": true
+    },
+    "craft_Math_algebra_query_71": {
+      "queries": [
+        "What is the sum of all values of $z$ such that $z^2=12z-7$?"
+      ],
+      "fallback": true
+    },
+    "craft_Math_algebra_query_89": {
+      "queries": [
+        "Evaluate $\\left\\lfloor -\\frac{5}{3}\\right\\rfloor.$"
+      ],
+      "fallback": true
+    },
+    "craft_Tabmwp_query_100": {
+      "queries": [
+        "A machine dispensed red gumdrops into bags of various sizes. What is the largest number of red gumdrops?"
+      ],
+      "fallback": true
+    },
+    "craft_Tabmwp_query_26": {
+      "queries": [
+        "Nobel Prizes countries decades Canada 1980s 1990s assignment dataset"
+      ],
+      "fallback": false
+    },
+    "craft_Tabmwp_query_50": {
+      "queries": [
+        "Bernard counted the total number of shells collected by his friends during a walk on the beach. How many people found at least 4 seashells?"
+      ],
+      "fallback": true
+    },
+    "craft_Tabmwp_query_87": {
+      "queries": [
+        "Steve loves to play the piano but doesn't like practicing the exercises his piano teacher assigns. Steve knows the exercises will help him play better though, so he tries to motivate himself using his favorite treat—chocolate chip cookies. There is a proportional relationship between the amount of time (in hours) that Steve practices the piano, x, and how many cookies he gives himself, y. What is the constant of proportionality? Write your answer as a whole number or decimal."
+      ],
+      "fallback": true
+    },
+    "craft_Tabmwp_query_90": {
+      "queries": [
+        "Each coat rack has 2 coats. How many coats are on 4 coat racks?"
+      ],
+      "fallback": true
+    },
+    "craft_Vqa_query_127": {
+      "queries": [
+        "Could this scene be described as taking place on a ranch?"
+      ],
+      "fallback": true
+    },
+    "craft_Vqa_query_194": {
+      "queries": [
+        "What is the teddy bear wearing?"
+      ],
+      "fallback": true
+    },
+    "craft_Vqa_query_195": {
+      "queries": [
+        "What are the potential benefits and challenges of having a fire hydrant near a body of water like a lake?"
+      ],
+      "fallback": true
+    },
+    "craft_Vqa_query_38": {
+      "queries": [
+        "Is the entire house being demolished or just part of it?"
+      ],
+      "fallback": true
+    },
+    "craft_Vqa_query_99": {
+      "queries": [
+        "What could be some factors behind the woman's confusion or difficulty in choosing a suitcase?"
+      ],
+      "fallback": true
+    },
+    "gorilla_huggingface_query_107": {
+      "queries": [
+        "We have a French news agency and we want to categorize the news articles based on sports, politics, and science."
+      ],
+      "fallback": true
+    },
+    "gorilla_huggingface_query_110": {
+      "queries": [
+        "I need a text analysis tool that can automatically predict the most plausible missing text in a given sentence."
+      ],
+      "fallback": true
+    },
+    "gorilla_huggingface_query_211": {
+      "queries": [
+        "I am designing a quiz app that caters to blind users. The app should interpret the images and answer questions based on the image contents."
+      ],
+      "fallback": true
+    },
+    "gorilla_huggingface_query_227": {
+      "queries": [
+        "To improve customer satisfaction, we want to automate the creation of written explanations that sound more natural and less robotic. Can you suggest a way to generate text that sounds conscious and alive?"
+      ],
+      "fallback": true
+    },
+    "gorilla_huggingface_query_282": {
+      "queries": [
+        "We need to analyze user reviews for our app to determine whether they are positive, negative, or neutral."
+      ],
+      "fallback": true
+    },
+    "gorilla_huggingface_query_302": {
+      "queries": [
+        "Our company is working on an app that allows music producers to detect beats in a sample. We want to use the Hubert-large-ll60k model for this."
+      ],
+      "fallback": true
+    },
+    "gorilla_huggingface_query_319": {
+      "queries": [
+        "image editing tool landscape add building river",
+        "edit picture add objects to image",
+        "image manipulation tool"
+      ],
+      "fallback": false
+    },
+    "gorilla_huggingface_query_323": {
+      "queries": [
+        "I would like to create an application where users may listen to translations of English sentences. I need a Text-to-Speech model to support this functionality."
+      ],
+      "fallback": true
+    },
+    "gorilla_huggingface_query_368": {
+      "queries": [
+        "image style transfer artistic variations image editing generate stylized variants",
+        "photo transformation artistic interpretation style variation"
+      ],
+      "fallback": false
+    },
+    "gorilla_huggingface_query_439": {
+      "queries": [
+        "I want to estimate the price of a house based on its features using this API. Please provide the code."
+      ],
+      "fallback": true
+    },
+    "gorilla_huggingface_query_485": {
+      "queries": [
+        "I'm working on a biomedical research project and need to extract features from a set of entity names to help me understand their relationships."
+      ],
+      "fallback": true
+    },
+    "gorilla_pytorch_query_2": {
+      "queries": [
+        "A company wants to segment objects in the images for its e-commerce website. Give an API that can segment objects in images."
+      ],
+      "fallback": true
+    },
+    "gorilla_pytorch_query_39": {
+      "queries": [
+        "Recommend a way to recognize decorative and architectural elements in architectural design images using a pre-trained network."
+      ],
+      "fallback": true
+    },
+    "gorilla_tensor_query_25": {
+      "queries": [
+        "Given a dataset of images, we need to extract their feature vectors for use in an image search engine application."
+      ],
+      "fallback": true
+    },
+    "gorilla_tensor_query_43": {
+      "queries": [
+        "image feature extraction compare similar images",
+        "image analysis extract features embeddings",
+        "vision image similarity tool"
+      ],
+      "fallback": false
+    },
+    "gpt4tools_query_21": {
+      "queries": [
+        "Previous conversation:\n\nHuman: Provide an image named cache/pqumqcwt.png. Description: A skateboarder heads down a decorated ramp against a panorama that includes an overcast sky, a line of trees and a field of snow dotted with people in winter clothing. A snowboarder wearing a brown jacket is on top of a fence. a man going down a ramp on a skate board in the snow. A person does a snowboard trick on a rail in the mountain. A LARGE GROUP OF PEOPLE ARE SNOWBOARDING TOGETHER. Understand the image using tools.\nAI: Received.\n\nuser:Predict the depth of the snowboarding scene,\n"
+      ],
+      "fallback": true
+    },
+    "gpt4tools_query_27": {
+      "queries": [
+        "image segmentation object masks annotate segment all objects except cat"
+      ],
+      "fallback": false
+    },
+    "gta_query_13": {
+      "queries": [
+        "image analysis tool count biscuits bags picture",
+        "vision tool identify biscuits in image"
+      ],
+      "fallback": false
+    },
+    "metatool_which_query_11": {
+      "queries": [
+        "Can you assist me in deploying a webhook for my fitness app that sends personalized workout reminders to users based on their preferred schedule?"
+      ],
+      "fallback": true
+    },
+    "metatool_which_query_134": {
+      "queries": [
+        "clinical trials breast cancer New York City available",
+        "breast cancer trial New York City treatment"
+      ],
+      "fallback": false
+    },
+    "metatool_which_query_42": {
+      "queries": [
+        "Can you make the first move on the Tic Tac Toe board by selecting either an X or an O and placing it in one of the available squares on the grid?"
+      ],
+      "fallback": true
+    },
+    "metatool_which_query_82": {
+      "queries": [
+        "Space objects need something to travel, what is it?"
+      ],
+      "fallback": true
+    },
+    "metatool_which_query_95": {
+      "queries": [
+        "PDF page number find step-by-step troubleshooting computer network issue describe page number",
+        "search PDF text page extraction document question page number",
+        "pdf analysis tool page locate text troubleshooting network issue"
+      ],
+      "fallback": false
+    },
+    "mnms_query_0": {
+      "queries": [
+        "\"Can I use the description 'A man is doing tricks with a frisbee' to generate a corresponding visual and tell me what the central object or subject in the created picture is?\""
+      ],
+      "fallback": true
+    },
+    "mnms_query_1": {
+      "queries": [
+        "image generation tool generate right half image collage historical fact October 19",
+        "visual art create image from prompt",
+        "image synthesis"
+      ],
+      "fallback": false
+    },
+    "reversechain_query_134": {
+      "queries": [
+        "hotel booking reservation room Paris book hotel double room"
+      ],
+      "fallback": false
+    },
+    "reversechain_query_14": {
+      "queries": [
+        "hotel booking Seattle check availability rooms 5 people 4-star September 15 September 22",
+        "travel booking hotel search Seattle"
+      ],
+      "fallback": false
+    },
+    "reversechain_query_180": {
+      "queries": [
+        "Could you assist janesmith@yahoo.com to register for the Algebra course in the Spring semester?"
+      ],
+      "fallback": true
+    },
+    "reversechain_query_34": {
+      "queries": [
+        "tool to look up item price by item ID and convert currencies CAD to GBP",
+        "price lookup item ID 789 Canadian dollars British Pounds"
+      ],
+      "fallback": false
+    },
+    "reversechain_query_95": {
+      "queries": [
+        "I would like to help mary@yahoo.com get registered for the course Applied Math in the spring semester."
+      ],
+      "fallback": true
+    },
+    "rotbench_query_155": {
+      "queries": [
+        "Can you perform a linguistic analysis on this sentence? 'Despite its small size, the hummingbird flaps its wings at an incredible speed.'\nBegin!\n"
+      ],
+      "fallback": true
+    },
+    "rotbench_query_271": {
+      "queries": [
+        "flight search Sydney Los Angeles car rental Sydney airport travel booking"
+      ],
+      "fallback": false
+    },
+    "rotbench_query_275": {
+      "queries": [
+        "Can you help me translate this English text to Danish: 'The quick brown fox jumps over the lazy dog.'\nBegin!\n"
+      ],
+      "fallback": true
+    },
+    "rotbench_query_382": {
+      "queries": [
+        "arXiv search e-prints quantum entanglement applications",
+        "quantum entanglement arXiv e-prints",
+        "search arXiv papers quantum entanglement applications"
+      ],
+      "fallback": false
+    },
+    "rotbench_query_386": {
+      "queries": [
+        "iTunes store search audiobooks US Stephen King",
+        "Apple iTunes audiobook search US",
+        "search iTunes store media catalog books audiobooks"
+      ],
+      "fallback": false
+    },
+    "rotbench_query_440": {
+      "queries": [
+        "document clustering content analysis cluster similar documents group by topic"
+      ],
+      "fallback": false
+    },
+    "rotbench_query_466": {
+      "queries": [
+        "4chan boards page three attributes display boards page 3 4chan"
+      ],
+      "fallback": false
+    },
+    "rotbench_query_467": {
+      "queries": [
+        "timezone race available list races timezones",
+        "races timezone options",
+        "timezone"
+      ],
+      "fallback": false
+    },
+    "rotbench_query_481": {
+      "queries": [
+        "charity event accessibility high above 0.8 event search accessible charity events accessibility score"
+      ],
+      "fallback": false
+    },
+    "rotbench_query_520": {
+      "queries": [
+        "4chan boards page three attributes display boards",
+        "4chan board listing scrape boards attributes"
+      ],
+      "fallback": false
+    },
+    "rotbench_query_55": {
+      "queries": [
+        "market open today United States stock market hours holiday calendar",
+        "US market open now trading calendar"
+      ],
+      "fallback": false
+    },
+    "rotbench_query_61": {
+      "queries": [
+        "timezone races available timezones race timezone list",
+        "available timezones races",
+        "timezone"
+      ],
+      "fallback": false
+    },
+    "t_eval_dialog_query_3": {
+      "queries": [
+        "citation mla scholarly article tool google scholar format first result",
+        "mla citation from search result tool",
+        "format citation scholarly article"
+      ],
+      "fallback": false
+    },
+    "t_eval_dialog_query_9": {
+      "queries": [
+        "movie details by id top level details film tmdb tool",
+        "get movie details by id tmdb movie_id"
+      ],
+      "fallback": false
+    },
+    "t_eval_step_query_10": {
+      "queries": [
+        "arxiv search articles",
+        "meeting room availability schedule",
+        "presentation create save ppt text page"
+      ],
+      "fallback": false
+    },
+    "t_eval_step_query_26": {
+      "queries": [
+        "scholarly publications platform article search author profile MLA citation title authors abstract quantum computing",
+        "academic search quantum computing articles author details latest articles citation MLA",
+        "scholarly publications platform profile articles citation MLA"
+      ],
+      "fallback": false
+    },
+    "taskbench_daily_query_8": {
+      "queries": [
+        "robot vacuum living room job application software engineer google search top companies hiring software engineers",
+        "vacuum robot tool job application tool google search tool",
+        "browser search google jobs companies hiring software engineer"
+      ],
+      "fallback": false
+    },
+    "taskbench_daily_query_9": {
+      "queries": [
+        "I want to order a taxi to Example City through Uber platform."
+      ],
+      "fallback": true
+    },
+    "taskbench_huggingface_query_1": {
+      "queries": [
+        "audio enhancement speech transcription text similarity compare reference text wav"
+      ],
+      "fallback": false
+    },
+    "taskbench_multimedia_query_29": {
+      "queries": [
+        "audio download noise reduction reverb tool",
+        "wav download edit audio effect tool",
+        "audio processing noise removal reverb"
+      ],
+      "fallback": false
+    },
+    "taskbench_multimedia_query_9": {
+      "queries": [
+        "image to video audio extract transcription generate image style transfer",
+        "slideshow video from images extract audio transcribe generate styled image",
+        "media pipeline images video audio transcription image generation style reference"
+      ],
+      "fallback": false
+    },
+    "toolACE_query_134": {
+      "queries": [
+        "PDF pages extract document pages retrieve page images text ProjectProposal.pdf",
+        "pdf document page retrieval tool",
+        "file pages pdf"
+      ],
+      "fallback": false
+    },
+    "toolACE_query_243": {
+      "queries": [
+        "standard deck generator playing cards",
+        "card deck custom fantasy cards generator",
+        "poker hand scoring calculator",
+        "standard 52 card deck",
+        "card deck create custom cards",
+        "evaluate poker hand three cards"
+      ],
+      "fallback": false
+    },
+    "toolACE_query_314": {
+      "queries": [
+        "customer service phone number billing support account customer ID 45321",
+        "billing support phone number lookup customer ID",
+        "customer service contact phone billing issues"
+      ],
+      "fallback": false
+    },
+    "toolACE_query_319": {
+      "queries": [
+        "user:I am working on a biology project and need some analysis on a DNA sequence. Please calculate the GC content, as well as count all nucleotides of this sequence: \"ATCGGGCTAGCTA\".\n"
+      ],
+      "fallback": true
+    },
+    "toolACE_query_371": {
+      "queries": [
+        "stock market analysis tool Microsoft historical price October 1 October 25 this year",
+        "financial data stock performance historical quotes Microsoft",
+        "news search Microsoft stock October 2026 October 1 October 25"
+      ],
+      "fallback": false
+    },
+    "toolACE_query_439": {
+      "queries": [
+        "user:I received several comments from our website users about the difficult navigation. I would like to analyze these comments to improve our UX design. After improvements, I plan to carry out an A/B testing on our home page with click-through rate as the metric. The planned sample size for the test is 1000 users. Could we proceed?\n\nassistant:Could you please provide the user feedback and the UX design variations to be tested?\n\nuser:Sure. Some website users have commented that, 'Navigation is a bit complex', 'I have difficulty finding the search button', 'Items are hard to locate'. For the A/B testing, design variation A will be the current design and variation B will be the improved design after integrating user feedback."
+      ],
+      "fallback": true
+    },
+    "toolACE_query_474": {
+      "queries": [
+        "Ultimate Oscillator Binance BTCUSDT 1h spot USDT perpetual market data tool",
+        "crypto technical indicator market data Binance spot futures oscillator"
+      ],
+      "fallback": false
+    },
+    "toolACE_query_522": {
+      "queries": [
+        "urban design score Tokyo past 10 years urban design metric",
+        "Tokyo urban design score dataset",
+        "city urban design score historical time series"
+      ],
+      "fallback": false
+    },
+    "toolACE_query_595": {
+      "queries": [
+        "Instagram post fetch shortcode tool",
+        "fetch instagram post by shortcode",
+        "instagram shortcode lookup"
+      ],
+      "fallback": false
+    },
+    "toolACE_query_673": {
+      "queries": [
+        "exchange rate euro usd latest currency",
+        "foreign exchange euro dollar live rate"
+      ],
+      "fallback": false
+    },
+    "toolACE_query_709": {
+      "queries": [
+        "visual recognition API version service wine recognition service image file versions"
+      ],
+      "fallback": false
+    },
+    "toolACE_query_732": {
+      "queries": [
+        "YouTube subtitles transcript video captions extract transcribe"
+      ],
+      "fallback": false
+    },
+    "toolACE_query_759": {
+      "queries": [
+        "fetch videos hashtag social media trends Instagram post short code",
+        "video search hashtag Instagram post lookup",
+        "social media data retrieval video hashtag post short code"
+      ],
+      "fallback": false
+    },
+    "toolACE_query_764": {
+      "queries": [
+        "user:I want to sort the products in the electronics category of the store. Can you help with that?\n\nassistant:Could you please specify how you would like the products to be sorted? For example, by price, rating, etc.\n\nuser:I would like the products to be sorted by price, in descending order."
+      ],
+      "fallback": true
+    },
+    "toolACE_query_777": {
+      "queries": [
+        "soundtrack details game Celeste orchestral electronic playlist afternoon"
+      ],
+      "fallback": false
+    },
+    "toolACE_query_789": {
+      "queries": [
+        "COVID-19 report Italy latest",
+        "Italy COVID report data current",
+        "Italy coronavirus latest report"
+      ],
+      "fallback": false
+    },
+    "toolACE_query_88": {
+      "queries": [
+        "prematch sports betting events football basketball league upcoming league id 100 200",
+        "sports betting events odds prematch football basketball league event list",
+        "check upcoming events by league id 100 200"
+      ],
+      "fallback": false
+    },
+    "toolACE_query_886": {
+      "queries": [
+        "events calendar sports theatre New York City January 10 2022 January 20 2022",
+        "NYC upcoming sports theatre events January 2022",
+        "New York City event search sports theatre"
+      ],
+      "fallback": false
+    },
+    "toolACE_query_888": {
+      "queries": [
+        "train model CSV learning rate iterations regularization split ratio data set",
+        "dataset model training csv regression classification tool",
+        "load csv train model with parameters learning rate regularization split"
+      ],
+      "fallback": false
+    },
+    "toolACE_query_901": {
+      "queries": [
+        "guardian raids NA server list EU server raids list lost ark",
+        "NA server guardian raids EU server raids",
+        "guardian raid list region server"
+      ],
+      "fallback": false
+    },
+    "toolACE_query_952": {
+      "queries": [
+        "Instagram user following list followers tool social media Instagram ID",
+        "list accounts a user is following Instagram",
+        "Instagram followers following lookup"
+      ],
+      "fallback": false
+    },
+    "toolACE_query_969": {
+      "queries": [
+        "fall of wickets cricket event id locale english",
+        "cricket match event fall of wickets",
+        "sports cricket scorecard wickets"
+      ],
+      "fallback": false
+    },
+    "toolLens_query_158": {
+      "queries": [
+        "I'm seeking tourist information and planning to use the 'en-us' language code for my search, while also using the IP address '193.114.112.1'."
+      ],
+      "fallback": true
+    },
+    "toolLens_query_178": {
+      "queries": [
+        "I will be programming television this week starting from October 8, 2022."
+      ],
+      "fallback": true
+    },
+    "toolLens_query_196": {
+      "queries": [
+        "I have identified a possible scam originating from the IP address 193.114.112.1 with the address code 13101001."
+      ],
+      "fallback": true
+    },
+    "toolLens_query_215": {
+      "queries": [
+        "local news zip code 3052 news",
+        "news by zip code location local news"
+      ],
+      "fallback": false
+    },
+    "toolLens_query_219": {
+      "queries": [
+        "dictionary translate word meaning language country location locale us kalem",
+        "translate lexical lookup word kalem",
+        "language translation tool"
+      ],
+      "fallback": false
+    },
+    "toolLens_query_225": {
+      "queries": [
+        "I need to write a travel guide for an airport with the IATA code LHR, located within the bounding box with bottom left longitude 100.641975, top right latitude 13.771029, bottom left latitude 13.607884, and top right longitude 100.861566, for the month of January in the year 2023, in the country with the code IT."
+      ],
+      "fallback": true
+    },
+    "toolLens_query_55": {
+      "queries": [
+        "\"Can we talk about the latest celebrity gossip involving Twice, the K-pop idols, on our podcast in English?\""
+      ],
+      "fallback": true
+    },
+    "toolLens_query_62": {
+      "queries": [
+        "I am currently practicing yoga at the location with the latitude of 40.71427 N and the longitude of -73.00597 W."
+      ],
+      "fallback": true
+    },
+    "tool_be_honest_query_146": {
+      "queries": [
+        "semantic segmentation image high resolution accurate object categories",
+        "image segmentation tool semantic segmentation high-res",
+        "vision segmentation capability"
+      ],
+      "fallback": false
+    },
+    "tool_be_honest_query_269": {
+      "queries": [
+        "Developing a digital marketing campaign for a soon-to-be-launched restaurant, specifically\n1. The first thing that needs to be done is to analyze the market.\n2. Segmentation of the audience.\n3. Developing marketing content for different audiences.\n4. Subsequently marketed separately on social media.\n5. Marketing in mailboxes.\n6. and marketing on search engines.\n7. Final evaluation and tracking of the results of marketing."
+      ],
+      "fallback": true
+    },
+    "tool_be_honest_query_283": {
+      "queries": [
+        "news article recent tech news current technology news write article",
+        "tech news article generation recent technology"
+      ],
+      "fallback": false
+    },
+    "tool_be_honest_query_289": {
+      "queries": [
+        "On Linux, we need to modify the boot settings to move a program in the startup list from location A to location B. Do the following.\n1. Upgrading of competencies\n2. Modification of the start-up menu\n3. Adjustment of start-up sequence."
+      ],
+      "fallback": true
+    },
+    "tool_be_honest_query_38": {
+      "queries": [
+        "Create a detailed project plan with clear goals, tasks, timeline and budget. Requirements:\n1. Defining project objectives and scope\n2. Break down the project and create a task list\n3. Estimated duration and cost of the mandate\n4. Creating a project timetable\n5. Track project progress and update plans"
+      ],
+      "fallback": true
+    },
+    "tool_be_honest_query_59": {
+      "queries": [
+        "file manager open directory create file",
+        "open root directory create file",
+        "filesystem tool directory file operations"
+      ],
+      "fallback": false
+    },
+    "tool_be_honest_query_6": {
+      "queries": [
+        "I need to know how to replace the spark plugs for my motorcycle."
+      ],
+      "fallback": true
+    },
+    "tool_be_honest_query_62": {
+      "queries": [
+        "paper pdf analysis scientific research extract citations summarize critique analyze data OCR document parsing"
+      ],
+      "fallback": false
+    },
+    "toolalpaca_query_42": {
+      "queries": [
+        "I'd like to log in without a password this time. Can you send a verification code to my email, jane.doe@example.com, to initiate passwordless authentication?"
+      ],
+      "fallback": true
+    },
+    "toolalpaca_query_43": {
+      "queries": [
+        "aeronautical chart airport elevation fuel available aviation airport info KLAX Los Angeles International Airport"
+      ],
+      "fallback": false
+    },
+    "toolalpaca_query_80": {
+      "queries": [
+        "abuse reports domain search past week",
+        "report lookup domain abuse reports",
+        "find reports by domain example.com"
+      ],
+      "fallback": false
+    },
+    "toolbench_query_1083": {
+      "queries": [
+        "short url domain availability create short link domain search available domains"
+      ],
+      "fallback": false
+    },
+    "toolbench_query_130": {
+      "queries": [
+        "I'm planning a surprise birthday party for my friend who is a huge TikTok fan. Can you gather information about their favorite TikTok user? I need the username, unique ID, avatar, follower count, and the user's latest feed items. I want to create a TikTok-themed party with decorations inspired by their favorite TikTok videos."
+      ],
+      "fallback": true
+    },
+    "toolbench_query_210": {
+      "queries": [
+        "fuel price latest Diesel B10 Gasohol 91 ULG image price change previous update"
+      ],
+      "fallback": false
+    },
+    "toolbench_query_380": {
+      "queries": [
+        "stock historical prices date open high low close adj close volume financial income statement balance sheet tickers TSLA AAPL MSFT AMZN last 5 years"
+      ],
+      "fallback": false
+    },
+    "toolbench_query_384": {
+      "queries": [
+        "VAT validation company details VAT rates Germany reduced rates",
+        "business validation VAT number company details VAT Germany rates"
+      ],
+      "fallback": false
+    },
+    "toolbench_query_428": {
+      "queries": [
+        "pricing history chart Amazon items",
+        "website heatmap user behavior analytics",
+        "summer outfit recommendations fashion blogger"
+      ],
+      "fallback": false
+    },
+    "toolbench_query_441": {
+      "queries": [
+        "Movies details API movie trivia facts sentiment analysis News Sentiment API article classic movie"
+      ],
+      "fallback": false
+    },
+    "toolbench_query_463": {
+      "queries": [
+        "JobSearch API remote job listings job id copywriting jobs latest jobs"
+      ],
+      "fallback": false
+    },
+    "toolbench_query_472": {
+      "queries": [
+        "YouTube trending videos tool",
+        "Check Similarity API domain similarity tool",
+        "web search YouTube videos"
+      ],
+      "fallback": false
+    },
+    "toolbench_query_558": {
+      "queries": [
+        "sponsor charity event local community order details"
+      ],
+      "fallback": false
+    },
+    "toolbench_query_565": {
+      "queries": [
+        "football news latest articles multiple sources Greece Greek news"
+      ],
+      "fallback": false
+    },
+    "toolbench_query_605": {
+      "queries": [
+        "shipping services companies list SQUAKE platform project description random"
+      ],
+      "fallback": false
+    },
+    "toolbench_query_641": {
+      "queries": [
+        "Recommend some food replacements for beef and other food in our existing diet. Also, provide me with the diet plans for each day of the week which also include some pizza and dessert."
+      ],
+      "fallback": true
+    },
+    "toolbench_query_734": {
+      "queries": [
+        "IP ECHO API JSON version list C++14 available versions"
+      ],
+      "fallback": false
+    },
+    "toolbench_query_74": {
+      "queries": [
+        "anime quotes random quote available anime list"
+      ],
+      "fallback": false
+    },
+    "toolbench_query_750": {
+      "queries": [
+        "Scala versions list tool",
+        "YouTube video summary tool",
+        "fetch versions of Scala",
+        "summarize YouTube video"
+      ],
+      "fallback": false
+    },
+    "toolbench_query_754": {
+      "queries": [
+        "local bakery search birthday cake custom bakeries nearby find bakery recommendations",
+        "party theme ideas decorations unique birthday"
+      ],
+      "fallback": false
+    },
+    "toolbench_query_788": {
+      "queries": [
+        "timezone current time Paris local timezone current time date time tool",
+        "Scala versions available package versions tool",
+        "time zone conversion current time tool"
+      ],
+      "fallback": false
+    },
+    "toolbench_query_789": {
+      "queries": [
+        "album track list by album id music database",
+        "Ruby versions list tool"
+      ],
+      "fallback": false
+    },
+    "toolbench_query_82": {
+      "queries": [
+        "zip code lookup county location information Hampshire County 01003",
+        "county zip codes Massachusetts Hampshire County",
+        "ZIP code location information 01003"
+      ],
+      "fallback": false
+    },
+    "toolbench_query_900": {
+      "queries": [
+        "My family is planning a surprise birthday party for my sister and we need a temporary email address to communicate without her knowing. Can you give us a list of available domains for email creation? Additionally, we would like to fetch a specific message from the temporary email inbox using its message ID."
+      ],
+      "fallback": true
+    },
+    "toolbench_query_909": {
+      "queries": [
+        "Image Anonymization service modes version face license plate anonymization"
+      ],
+      "fallback": false
+    },
+    "toolbench_query_93": {
+      "queries": [
+        "Bing Search API web search scientific studies exercise mental health",
+        "Image Search API exercise mental health images",
+        "Bing image search API"
+      ],
+      "fallback": false
+    },
+    "toolbench_query_984": {
+      "queries": [
+        "James tool red video fetch API call",
+        "tool for retrieving video by color red james",
+        "James video retrieval API"
+      ],
+      "fallback": false
+    },
+    "toolbench_sam_query_104": {
+      "queries": [
+        "hotel availability search Palmdale 2022-06-10 2022-06-11 King Bed price range 580 680",
+        "available hotel rooms Palmdale 6 King Bed room price per night",
+        "hotel booking search by city date room type price range"
+      ],
+      "fallback": false
+    },
+    "toolbench_sam_query_146": {
+      "queries": [
+        "Enjoy view out window"
+      ],
+      "fallback": true
+    },
+    "toolbench_sam_query_31": {
+      "queries": [
+        "cruise booking tickets travel hotel room search accommodation Madison dates budget nights adults",
+        "hotel booking Madison 4 rooms 2 nights April 18 2023 April 20 2023 price budget per night"
+      ],
+      "fallback": false
+    },
+    "toolbench_sam_query_82": {
+      "queries": [
+        "hotel booking Newport News 2022-08-18 2022-08-19 Queen Bed budget nightly room search",
+        "find hotel availability Newport News queen bed rooms budget per night"
+      ],
+      "fallback": false
+    },
+    "toolbench_sam_query_89": {
+      "queries": [
+        "real estate property search St. Petersburg 4th floor 6 bed 1 bathroom >2150 sqft home",
+        "housing listings St. Petersburg 4 bed 1 bath 2150 square feet fourth floor",
+        "property search tool real estate listings"
+      ],
+      "fallback": false
+    },
+    "toolemu_query_26": {
+      "queries": [
+        "grant system access user permissions add colleague samford maintenance access management"
+      ],
+      "fallback": false
+    },
+    "toolemu_query_9": {
+      "queries": [
+        "AutoAGI install tool package",
+        "install software tool AutoAGI"
+      ],
+      "fallback": false
+    },
+    "tooleyes_query_40": {
+      "queries": [
+        "4chan board catalog JSON pol catalog",
+        "4chan api board catalog endpoint",
+        "board catalog pol JSON"
+      ],
+      "fallback": false
+    },
+    "tooleyes_query_45": {
+      "queries": [
+        "Google listing delisting status current today stock listing delisting",
+        "Google listed delisted status today",
+        "Alphabet listing delisting status current"
+      ],
+      "fallback": false
+    },
+    "tooleyes_query_76": {
+      "queries": [
+        "Google immersive popup page token catalogid headlineOfOfferDocid imageDocid rds query mens sweater",
+        "immersive popup google page token what information is displayed"
+      ],
+      "fallback": false
+    },
+    "toolink_query_1": {
+      "queries": [
+        "You are asked to to predict the closing parentheses of a Dyck-n prefix. What's the closing parentheses for prefix: [ < { [ ] } > ?"
+      ],
+      "fallback": true
+    },
+    "toolink_query_14": {
+      "queries": [
+        "You are asked to to predict the closing parentheses of a Dyck-n prefix. What's the closing parentheses for prefix: [ { } ?"
+      ],
+      "fallback": true
+    },
+    "toolink_query_176": {
+      "queries": [
+        "A sum of money is to be distributed among A, B, C, D in the proportion of 5 : 2 : 4 : 3. If C gets Rs. 1100 more than D, what is B's share? Choose from Rs. 500, Rs. 1500, Rs. 2200, Rs. 2500, none of the above."
+      ],
+      "fallback": true
+    },
+    "toolink_query_207": {
+      "queries": [
+        "Take a matrix of shape (3,2,2) and sum over the third axis. Multiply the result with a matrix of shape (2,3)."
+      ],
+      "fallback": true
+    },
+    "toolink_query_277": {
+      "queries": [
+        "Compute the hadamard product of a matrix of shape (2,3) with a matrix of shape (2,3)."
+      ],
+      "fallback": true
+    },
+    "toolink_query_316": {
+      "queries": [
+        "A completes a work in 4 days and B complete the same work in 12 days. If both of them work together, then the number of days required to complete the work will be?"
+      ],
+      "fallback": true
+    },
+    "toolink_query_331": {
+      "queries": [
+        "Always face forward. Take 10 steps left. Take 7 steps right. Take 4 steps right. Take 1 step left."
+      ],
+      "fallback": true
+    },
+    "toolink_query_384": {
+      "queries": [
+        "What is 1375 divided by 11?"
+      ],
+      "fallback": true
+    },
+    "toolink_query_432": {
+      "queries": [
+        "Take 1 step. Take 5 steps. Take 10 steps. Take 4 steps. Take 4 steps. Take 1 step. Turn right."
+      ],
+      "fallback": true
+    },
+    "toolink_query_437": {
+      "queries": [
+        "Compute the hadamard product of a matrix of shape (3,2) with a matrix of shape (3,2). Compute the kronecker product of the result with a matrix of shape (4,4). Add the result to a matrix of shape (12,8). Multiply the result with a matrix of shape (8,2). Multiply the result with a matrix of shape (2,3)."
+      ],
+      "fallback": true
+    },
+    "toolink_query_86": {
+      "queries": [
+        "Turn left. Take 5 steps. Take 7 steps. Take 10 steps. Take 10 steps. Take 1 step. Take 6 steps."
+      ],
+      "fallback": true
+    },
+    "ultraTool_query_122": {
+      "queries": [
+        "alarm update cancel set time single occurrence morning evening"
+      ],
+      "fallback": false
+    },
+    "ultraTool_query_191": {
+      "queries": [
+        "Please help me set up two recurring events. The first one is a weekly event named 'Friday Reading Night', which takes place every Friday at 7 PM in the multi-purpose hall of the city library. The second one is a monthly event named 'Monthly Department Meet-up', which occurs on the first Monday of every month at 9 AM in conference room 1 on the 5th floor of the company, and ensure that a unique event id is generated for each activity."
+      ],
+      "fallback": true
+    },
+    "ultraTool_query_220": {
+      "queries": [
+        "file write delete create report txt"
+      ],
+      "fallback": false
+    },
+    "ultraTool_query_246": {
+      "queries": [
+        "file edit delete update local filesystem tool"
+      ],
+      "fallback": false
+    },
+    "ultraTool_query_262": {
+      "queries": [
+        "I need to repair a Haier brand refrigerator, model HRF-668FF/A, the refrigerator is not cooling. My contact number is 13800138000, the address is No. 37, Xueyuan Road, Haidian District, Beijing. The appointment time is September 19, 2023, at 10:00:00.\n"
+      ],
+      "fallback": true
+    },
+    "ultraTool_query_277": {
+      "queries": [
+        "booking business vehicle approval portable projector reservation travel asset approval company tools"
+      ],
+      "fallback": false
+    },
+    "ultraTool_query_368": {
+      "queries": [
+        "I need to book a conference room in Beijing, the meeting time is from March 20, 2023, 9:00 AM to 12:00 PM, and the topic is about the discussion of annual market strategy.\n"
+      ],
+      "fallback": true
+    },
+    "ultraTool_query_384": {
+      "queries": [
+        "reservation booking conference room calendar availability tool meeting room",
+        "schedule room reservation check book conference room",
+        "conference room reservation status booking tool"
+      ],
+      "fallback": false
+    },
+    "ultraTool_query_39": {
+      "queries": [
+        "file write save text document path",
+        "create file text content save path"
+      ],
+      "fallback": false
+    },
+    "ultraTool_query_424": {
+      "queries": [
+        "calendar scheduling reminder task restaurant contact flowers delivery booking nearby Italian restaurant menu price list reserve bouquet mixed roses lilies"
+      ],
+      "fallback": false
+    },
+    "ultraTool_query_96": {
+      "queries": [
+        "I would like to inquire about the login status of the account 1029384756, the password is ienf2903.\n"
+      ],
+      "fallback": true
+    },
+    "webtools_food_query_9": {
+      "queries": [
+        "product search nuts almonds cashews peanuts walnuts hazelnuts cheapest",
+        "find five types of nuts products prices",
+        "nuts product catalog price comparison"
+      ],
+      "fallback": false
+    },
+    "webtools_music_query_0": {
+      "queries": [
+        "artist chart today ranked second fans most popular album first track instrumental release date"
+      ],
+      "fallback": false
+    },
+    "webtools_music_query_21": {
+      "queries": [
+        "artist contribution score annotations following list recent activity artist account username first annotation author following list most recent activity"
+      ],
+      "fallback": false
+    },
+    "webtools_spotify_query_1": {
+      "queries": [
+        "song lookup music artist track find a song by artist"
+      ],
+      "fallback": false
+    },
+    "webtools_spotify_query_28": {
+      "queries": [
+        "playlist create from top tracks top tracks playlist music service create playlist"
+      ],
+      "fallback": false
+    },
+    "webtools_tmdb_query_21": {
+      "queries": [
+        "movie collection filmography fast and furious franchise list titles"
+      ],
+      "fallback": false
+    },
+    "webtools_tmdb_query_38": {
+      "queries": [
+        "give me a movie cover of a movie from the collection Harry Potter"
+      ],
+      "fallback": true
+    },
+    "webtools_weather_query_10": {
+      "queries": [
+        "weather current conditions forecast alerts precipitation wind speed location latitude longitude severe weather alert"
+      ],
+      "fallback": false
+    }
+  }
+}
