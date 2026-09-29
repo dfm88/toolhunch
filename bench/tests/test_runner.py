@@ -1,99 +1,31 @@
 import json
-import re
-from collections.abc import Sequence
 from pathlib import Path
 from statistics import mean
+from typing import Any
 
 import pytest
 from inline_snapshot import snapshot
 
-from toolhunch import ToolCard, ToolCatalog
-from toolhunch.retrieval import EmbeddingBatch, EmbeddingKind
-from toolhunch_bench.datasets.toolret import ToolRetData, ToolRetTask
+from toolhunch_bench.datasets.toolret import ToolRetData
 from toolhunch_bench.metrics import ndcg_at_k, precision_at_1, recall_at_k
 from toolhunch_bench.report import build_report
 from toolhunch_bench.retrieval import build_arms, run_arms
 
 pytestmark = pytest.mark.anyio
 
-AXES = ("weather", "email", "calendar", "diary", "image", "user")
 
-
-class AxisEmbedder:
-    """One axis per topic word; one billed token per word. Records every call."""
-
-    def __init__(self) -> None:
-        self.calls: list[tuple[EmbeddingKind, list[str]]] = []
-
-    @property
-    def model_id(self) -> str:
-        return "axis-model"
-
-    async def embed(self, texts: Sequence[str], /, *, kind: EmbeddingKind) -> EmbeddingBatch:
-        self.calls.append((kind, list(texts)))
-        words = [re.findall(r"[a-z]+", text.lower()) for text in texts]
-        return EmbeddingBatch(
-            vectors=tuple(tuple(float(ws.count(axis)) + 0.01 for axis in AXES) for ws in words),
-            input_tokens=sum(len(ws) for ws in words),
-        )
-
-
-TOOLS = {
-    f"web_tool_{i}": {"name": name, "description": description}
-    for i, (name, description) in enumerate(
-        [
-            ("get_weather", "Weather forecast for a city."),
-            ("weather_alerts", "Severe weather alerts."),
-            ("send_email", "Send an email."),
-            ("read_email", "Read the email inbox."),
-            ("list_calendar", "List calendar events."),
-            ("add_calendar_event", "Add an event to the calendar."),
-            ("get_diary_day", "Read one day of the diary."),
-            ("write_diary", "Write a diary entry."),
-            ("resize_image", "Resize an image."),
-            ("describe_image", "Describe an image in words."),
-            ("get_user", "Get a user by id."),
-            ("list_users", "List every user."),
-            ("stock_price", "Stock price for a ticker."),
-            ("translate", "Translate text."),
-            ("http_get", "HTTP GET request."),
-            ("ocr", "Read text in a picture."),
-            ("timer", "Start a timer."),
-            ("calculator", "Evaluate arithmetic."),
-            ("news", "Latest news headlines."),
-            ("maps", "Directions between places."),
-        ]
-    )
-}
-RAW_TEXT = {doc_id: json.dumps(doc) for doc_id, doc in TOOLS.items()}
-
-
-def task(number: int, query: str, topic: str, *relevant: int) -> ToolRetTask:
-    instruction = f"Given a `{topic}` task, retrieve {topic} tools"
-    return ToolRetTask(f"t_query_{number}", "t", query, instruction, frozenset(f"web_tool_{i}" for i in relevant))
-
-
-TASKS = (
-    task(0, "will it rain in Rome", "weather", 0, 1),
-    task(1, "mail my boss", "email", 2),
-    task(2, "what did I do on Monday", "diary", 6),
-    task(3, "who is user 42", "user", 10),
-)
-DATA = ToolRetData(
-    catalog=ToolCatalog(ToolCard(id=i, name=d["name"], description=d["description"]) for i, d in TOOLS.items()),
-    raw_text=RAW_TEXT,
-    tasks=TASKS,
-    mapping_stats={"name": 1.0, "description": 1.0, "properties": 0.0},
-)
-
-
-async def test_run_writes_provenance_and_the_report_recomputes_the_metrics(tmp_path: Path) -> None:
+async def test_run_writes_provenance_and_the_report_recomputes_the_metrics(
+    tmp_path: Path, toolret_data: ToolRetData, axis_embedder: Any
+) -> None:
+    data = toolret_data
     task_file = tmp_path / "tasks.json"
-    task_file.write_text(json.dumps({"seed": 0, "n": 4, "ids": [t.id for t in TASKS]}))
-    embedder = AxisEmbedder()
-    arms = build_arms(["keywords", "bm25", "bm25s-toolret", "dense", "hybrid"], embedder=embedder, raw_text=RAW_TEXT)
+    task_file.write_text(json.dumps({"seed": 0, "n": 4, "ids": [t.id for t in data.tasks]}))
+    embedder = axis_embedder()
+    arms = build_arms(
+        ["keywords", "bm25", "bm25s-toolret", "dense", "hybrid"], embedder=embedder, raw_text=data.raw_text
+    )
 
-    run_dir = await run_arms(arms, DATA, TASKS, out_dir=tmp_path / "runs", task_file=task_file)
+    run_dir = await run_arms(arms, data, data.tasks, out_dir=tmp_path / "runs", task_file=task_file)
 
     manifest = json.loads((run_dir / "manifest.json").read_text())
     assert sorted(manifest) == snapshot(

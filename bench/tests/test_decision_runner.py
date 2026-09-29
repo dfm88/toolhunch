@@ -1,0 +1,455 @@
+import hashlib
+import json
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Any
+
+import anyio
+import httpx2
+import pytest
+from genai_prices import Usage, calc_price
+from inline_snapshot import snapshot
+
+from toolhunch import (
+    BM25Retriever,
+    DenseRetriever,
+    DetailLevel,
+    HybridRetriever,
+    ToolCard,
+    ToolCatalog,
+    default_search_text,
+)
+from toolhunch.decision import CLM_LIMITS, JEV_LIMITS, LOGPROB_LIMITS, clm
+from toolhunch.retrieval import Retrieval
+from toolhunch_bench.datasets.model_queries import WrittenQueries, save_model_queries
+from toolhunch_bench.datasets.toolret import ToolRetData, write_task_file
+from toolhunch_bench.decision import (
+    CLM_DEPLOYMENT,
+    JEV_REQUEST_OVERHEAD_TOKENS,
+    LOGPROB_MODEL,
+    CacheOnlyRetrieval,
+    EstimateLine,
+    ExcludingRetriever,
+    SharedRetrieval,
+    build_decision_arms,
+    estimate_decisions,
+    run_decisions,
+    warm_up_clm,
+)
+from toolhunch_bench.embedding_cache import CachedEmbedder
+from toolhunch_bench.retrieval import build_arms
+
+pytestmark = pytest.mark.anyio
+
+
+class RecordingRetriever:
+    """Passes every request to `inner` and records its queries and `k`."""
+
+    def __init__(self, inner: Any) -> None:
+        self.inner = inner
+        self.calls: list[tuple[tuple[str, ...], int]] = []
+
+    async def retrieve(self, queries: Sequence[str], catalog: ToolCatalog, *, k: int) -> Retrieval:
+        self.calls.append((tuple(queries), k))
+        return await self.inner.retrieve(queries, catalog, k=k)
+
+
+def ids(retrieval: Retrieval) -> list[str]:
+    return [match.card.id for match in retrieval.matches]
+
+
+def read_run(run_dir: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    manifest = json.loads((run_dir / "manifest.json").read_text())
+    return manifest, [json.loads(line) for line in (run_dir / "run.jsonl").read_text().splitlines()]
+
+
+# What an agent searched for on each task; "mail my boss" made no search, so its queries are the request itself.
+WRITTEN = {
+    "t_query_0": WrittenQueries("t_query_0", ("weather forecast", "rain alerts"), fallback=False),
+    "t_query_1": WrittenQueries("t_query_1", ("mail my boss",), fallback=True),
+    "t_query_2": WrittenQueries("t_query_2", ("diary entry",), fallback=False),
+    "t_query_3": WrittenQueries("t_query_3", ("get user", "user lookup"), fallback=False),
+}
+
+
+async def test_excluding_retriever_drops_gold_and_keeps_k(toolret_data: ToolRetData) -> None:
+    catalog = toolret_data.catalog
+    inner = RecordingRetriever(BM25Retriever())
+    full = ids(await inner.retrieve(["weather forecast"], catalog, k=7))
+    gold = {"web_tool_0", "web_tool_1"}  # get_weather and weather_alerts, the two best matches
+    assert gold <= set(full[:2])
+
+    excluding = ExcludingRetriever(inner, exclude=gold)
+    kept = ids(await excluding.retrieve(["weather forecast"], catalog, k=5))
+
+    assert inner.calls[-1] == (("weather forecast",), 7)  # k plus one per excluded id
+    assert kept == [card_id for card_id in full if card_id not in gold][:5]  # the rest, in retrieval order
+    # An excluded id the retriever does not return leaves the first k as they are.
+    far = ExcludingRetriever(inner, exclude={"web_tool_17"})
+    assert ids(await far.retrieve(["weather forecast"], catalog, k=3)) == full[:3]
+
+
+async def test_shared_retrieval_calls_the_inner_retriever_once_per_query(axis_embedder: Any) -> None:
+    topics = ("weather", "email", "calendar", "diary", "image", "user")
+    catalog = ToolCatalog(
+        ToolCard(id=f"tool_{i:03}", name=f"tool_{i:03}", description=f"{topics[i % 6]} and {topics[i * 7 % 5]} {i}")
+        for i in range(120)
+    )
+
+    def hybrid() -> HybridRetriever:
+        return HybridRetriever([BM25Retriever(), DenseRetriever(axis_embedder())])
+
+    inner = RecordingRetriever(hybrid())
+    shared = SharedRetrieval(inner)
+
+    top_20 = await shared.retrieve(["weather email"], catalog, k=20)
+    top_50 = await shared.retrieve(["weather email"], catalog, k=50)
+    await shared.retrieve(["diary"], catalog, k=20)
+    await shared.retrieve(["weather email"], catalog, k=20)
+
+    assert inner.calls == [(("weather email",), 100), (("diary",), 100)]
+    # The first k of the depth-100 retrieval are what the hybrid retriever returns for k itself.
+    fresh = hybrid()
+    assert ids(top_20) == ids(await fresh.retrieve(["weather email"], catalog, k=20))
+    assert ids(top_50) == ids(await fresh.retrieve(["weather email"], catalog, k=50))
+    assert shared.first_seconds(["weather email"]) > 0
+    # Deeper than what was kept: the inner retriever is asked again, at the new depth.
+    assert len((await shared.retrieve(["diary"], catalog, k=110)).matches) == 110
+    assert inner.calls[-1] == (("diary",), 110)
+
+
+@pytest.fixture
+def run_files(tmp_path: Path, toolret_data: ToolRetData) -> tuple[Path, Path]:
+    """The task file and the model-queries file of `toolret_data`'s tasks."""
+    task_file = tmp_path / "tasks.json"
+    write_task_file(task_file, toolret_data.tasks, seed=0)
+    queries_file = tmp_path / "tasks.model-queries.json"
+    save_model_queries(queries_file, list(WRITTEN.values()), writer={"model": "writer@test"})
+    return task_file, queries_file
+
+
+async def test_run_records_every_arm_source_variant_and_the_negatives_exclude_gold(
+    tmp_path: Path,
+    toolret_data: ToolRetData,
+    axis_embedder: Any,
+    fake_decision_model: Any,
+    run_files: tuple[Path, Path],
+) -> None:
+    data = toolret_data
+    task_file, queries_file = run_files
+    [hybrid] = build_arms(["hybrid"], embedder=axis_embedder(), raw_text=data.raw_text)
+    inner = RecordingRetriever(hybrid.retriever)
+    models = {
+        "jev": fake_decision_model(model_id="jev-fake@test", favourite="get_weather"),
+        "clm": fake_decision_model(model_id="clm-fake@test"),
+    }
+    arms = build_decision_arms(["jev", "clm"], ks=[3, 5], models=models, max_detail={"clm": DetailLevel.BRIEF})
+
+    run_dir = await run_decisions(
+        arms,
+        data,
+        data.tasks,
+        retriever=SharedRetrieval(inner, config=hybrid.config),
+        split="dev",
+        sources=("plain", "model"),
+        model_queries=WRITTEN,
+        negatives=True,
+        repeat=1,
+        out_dir=tmp_path / "runs",
+        task_file=task_file,
+        model_queries_file=queries_file,
+        run_id="run-1",
+    )
+
+    manifest, records = read_run(run_dir)
+    names = ["hybrid@3", "hybrid+jev@3", "hybrid+clm@3", "hybrid@5", "hybrid+jev@5", "hybrid+clm@5"]
+    assert [arm.name for arm in arms] == names
+    # Arm-major: each arm's 16 searches (2 sources x 4 tasks x 2 variants), then its own record.
+    assert [record["arm"] for record in records] == [name for name in names for _ in range(17)]
+    arm_records = [record for record in records if record["record"] == "arm"]
+    assert [(r["arm"], r["searches"], r["errors"]) for r in arm_records] == [(name, 16, 0) for name in names]
+    searches = [record for record in records if record["record"] == "search"]
+    assert len(searches) == len(arms) * 2 * 4 * 2
+
+    for record in searches:
+        relevant = set(record["relevant"])
+        assert record["context"] == data.tasks[int(record["task"][-1])].query
+        assert record["gold_in_candidates"] == bool(relevant & set(record["candidates"]))
+        if record["variant"] == "negative":
+            assert not relevant & set(record["candidates"])
+            assert len(record["candidates"]) == record["k"]
+        if record["source"] == "model":
+            written = WRITTEN[record["task"]]
+            assert (record["queries"], record["fallback"]) == (list(written.queries), written.fallback)
+        else:
+            assert (record["queries"], record["fallback"]) == ([record["context"]], None)
+        if record["decider"] is None:
+            assert record["ranked"] == record["candidates"]
+            assert record["probabilities"] == {}
+            assert record["key"] is record["abstained"] is record["exchanges"] is record["usage"] is None
+        else:
+            assert sorted(record["ranked"]) == sorted(record["candidates"])
+            assert record["key"].startswith(f"{record['decider']}-fake@test|tool-choice-v1|")
+    assert sum(record["gold_in_candidates"] for record in searches if record["variant"] == "positive") > 0
+    # Every arm, source and variant searched one list of queries through one retrieval: 4 plain lists and 3 written
+    # ones (the fallback's is the plain one), each at depth 100.
+    assert sorted(inner.calls) == sorted({(tuple(record["queries"]), 100) for record in searches})
+    assert len(inner.calls) == 7
+
+    [weather] = [
+        r
+        for r in searches
+        if (r["arm"], r["source"], r["variant"], r["task"]) == ("hybrid+jev@3", "model", "positive", "t_query_0")
+    ]
+    assert weather["retrieval_seconds"] > 0
+    del weather["retrieval_seconds"]
+    assert weather == snapshot(
+        {
+            "record": "search",
+            "arm": "hybrid+jev@3",
+            "decider": "jev",
+            "k": 3,
+            "source": "model",
+            "split": "dev",
+            "variant": "positive",
+            "repeat": 0,
+            "task": "t_query_0",
+            "queries": ["weather forecast", "rain alerts"],
+            "fallback": False,
+            "context": "will it rain in Rome",
+            "candidates": ["web_tool_0", "web_tool_1", "web_tool_12"],
+            "relevant": ["web_tool_0", "web_tool_1"],
+            "gold_in_candidates": True,
+            "ranked": ["web_tool_0", "web_tool_1", "web_tool_12"],
+            "probabilities": {
+                "web_tool_0": 0.7272727272727273,
+                "web_tool_1": 0.09090909090909091,
+                "web_tool_12": 0.09090909090909091,
+            },
+            "none_probability": 0.09090909090909091,
+            "abstained": False,
+            "key": "jev-fake@test|tool-choice-v1|1edb74d749cc426c|choice",
+            "shape": {
+                "candidates": 3,
+                "questions": [[4]],
+                "reserved_option": True,
+                "max_detail": "FULL",
+                "finalists_per_chunk": 2,
+                "questions_per_request": 1,
+                "option_keys": "names-v1",
+            },
+            "state_cut": False,
+            "exchanges": [
+                {
+                    "round": 1,
+                    "detail": "FULL",
+                    "estimated_input_tokens": 134,
+                    "input_tokens": 10,
+                    "output_tokens": 1,
+                    "seconds": 0.1,
+                    "server_seconds": 0.01,
+                }
+            ],
+            "usage": {"requests": 1, "input_tokens": 10, "output_tokens": 1},
+            "decision_seconds": 0.1,
+            "server_seconds": 0.01,
+            "error": None,
+        }
+    )
+
+    assert manifest["split"] == "dev"
+    assert manifest["sources"] == ["plain", "model"]
+    assert (manifest["negatives"], manifest["repeat"]) == (True, 1)
+    assert manifest["model_queries"] == {
+        "file": queries_file.name,  # outside the repository: the name alone
+        "sha256": hashlib.sha256(queries_file.read_bytes()).hexdigest(),
+        "writer": {"model": "writer@test"},
+    }
+    assert {name: arm["model_id"] for name, arm in manifest["arms"].items()} == {
+        "hybrid@3": None,
+        "hybrid+jev@3": "jev-fake@test",
+        "hybrid+clm@3": "clm-fake@test",
+        "hybrid@5": None,
+        "hybrid+jev@5": "jev-fake@test",
+        "hybrid+clm@5": "clm-fake@test",
+    }
+    assert manifest["arms"]["hybrid+clm@5"] == snapshot(
+        {
+            "k": 5,
+            "decider": "clm",
+            "model_id": "clm-fake@test",
+            "model": "FakeDecisionModel('clm-fake@test')",
+            "limits": {
+                "max_options_per_choice": None,
+                "max_request_tokens": None,
+                "max_state_plus_question_tokens": None,
+                "max_text_tokens": None,
+                "max_questions_per_request": None,
+                "score_levels": None,
+                "price_input_per_mtok": None,
+                "price_output_per_mtok": None,
+                "source": "test",
+                "checked": "2026-09-29",
+            },
+            "prompt_version": "tool-choice-v1",
+            "max_detail": "BRIEF",
+            "reserved_option": True,
+        }
+    )
+    assert manifest["retriever"] == {**hybrid.config, "shared_depth": 100}
+    assert manifest["clm_deployment"] == CLM_DEPLOYMENT
+
+
+async def test_a_decision_error_is_recorded_and_the_run_goes_on(
+    tmp_path: Path,
+    toolret_data: ToolRetData,
+    axis_embedder: Any,
+    fake_decision_model: Any,
+    run_files: tuple[Path, Path],
+) -> None:
+    data = toolret_data
+    task_file, _ = run_files
+    [hybrid] = build_arms(["hybrid"], embedder=axis_embedder(), raw_text=data.raw_text)
+    inner = RecordingRetriever(hybrid.retriever)
+    jev = fake_decision_model(fail_on="boss")  # nothing usable for "mail my boss"
+    arms = build_decision_arms(["jev"], ks=[3], models={"jev": jev}, max_detail={})
+
+    run_dir = await run_decisions(
+        arms,
+        data,
+        data.tasks,
+        retriever=SharedRetrieval(inner, config=hybrid.config),
+        split="heldout",
+        sources=("plain",),
+        model_queries=None,
+        negatives=True,
+        repeat=1,
+        out_dir=tmp_path / "runs",
+        task_file=task_file,
+        model_queries_file=None,
+    )
+
+    manifest, records = read_run(run_dir)
+    searches = [record for record in records if record["record"] == "search"]
+    failed = [record for record in searches if record["error"] is not None]
+    assert [(r["arm"], r["task"], r["variant"]) for r in failed] == [
+        ("hybrid+jev@3", "t_query_1", "positive"),
+        ("hybrid+jev@3", "t_query_1", "negative"),
+    ]
+    for record in failed:
+        assert record["error"] == "fake@test: no option letter among the top logprobs"
+        [baseline] = [
+            r
+            for r in searches
+            if (r["arm"], r["task"], r["variant"]) == ("hybrid@3", record["task"], record["variant"])
+        ]
+        assert record["candidates"] == baseline["candidates"]  # the candidates the decider was given
+        assert (record["ranked"], record["probabilities"], record["abstained"], record["key"]) == (None, {}, None, None)
+    # The searches after the failed ones were decided.
+    later = [r for r in searches if r["arm"] == "hybrid+jev@3" and r["task"] in ("t_query_2", "t_query_3")]
+    assert len(later) == 4
+    assert all(r["error"] is None and r["key"] is not None for r in later)
+    [jev_arm] = [record for record in records if record["record"] == "arm" and record["arm"] == "hybrid+jev@3"]
+    assert (jev_arm["searches"], jev_arm["errors"]) == (8, 2)
+    assert len(inner.calls) == 4  # the failed searches' candidates came from the shared retrieval
+    assert (manifest["split"], manifest["sources"], manifest["model_queries"]) == ("heldout", ["plain"], None)
+    assert manifest["clm_deployment"] is None  # no CLM arm
+
+
+async def test_warm_up_waits_for_health_then_sends_one_request() -> None:
+    seen: list[tuple[str, str]] = []
+    health = iter([503, 503, 200])
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        seen.append((request.method, request.url.path))
+        if request.url.path == "/health":
+            return httpx2.Response(next(health))
+        [(question_id, question)] = json.loads(request.content)["questions"].items()
+        options = list(question["criteria"])
+        answer = {"type": "choice", "probabilities": {key: 1 / len(options) for key in options}}
+        return httpx2.Response(200, json={"answers": {question_id: answer}, "usage": {"input_tokens": 12}})
+
+    slept: list[float] = []
+
+    async def sleep(seconds: float) -> None:
+        slept.append(seconds)
+        await anyio.lowlevel.checkpoint()
+
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as client:
+        model = clm("http://clm.test", api_key_env=None, http_client=client)
+        waited = await warm_up_clm(model, base_url="http://clm.test", poll=10.0, client=client, sleep=sleep)
+
+    assert seen == [("GET", "/health")] * 3 + [("POST", "/v1/systemone")]
+    assert slept == [10.0, 10.0]
+    assert waited >= 0.0
+
+
+async def test_the_estimate_counts_every_ask_and_asks_no_model(
+    toolret_data: ToolRetData, axis_embedder: Any, fake_decision_model: Any
+) -> None:
+    data = toolret_data
+    models = {
+        "jev": fake_decision_model(limits=JEV_LIMITS),
+        "clm": fake_decision_model(limits=CLM_LIMITS),
+        "logprob": fake_decision_model(limits=LOGPROB_LIMITS, prompt_version="letters-v1"),
+    }
+
+    async def estimate(k: int) -> list[EstimateLine]:
+        return await estimate_decisions(
+            build_decision_arms(["jev", "clm", "logprob"], ks=[k], models=models, max_detail={}),
+            data,
+            data.tasks,
+            retriever=SharedRetrieval(DenseRetriever(axis_embedder())),  # it ranks every tool, not just matching ones
+            sources=("plain",),
+            model_queries=None,
+            negatives=True,
+            repeat=3,
+        )
+
+    jev, clm_line, logprob = await estimate(20)
+
+    assert all(model.asks == [] for model in models.values())
+    # Every one of the 20 tools is a candidate of a positive search: 21 options with the reserved one, over the
+    # logprob model's cap of 20, so it asks in two rounds. A negative search has at most 19 candidates: one question.
+    searches = 4 * 2 * 3  # tasks x variants x repeats
+    assert (jev.provider, jev.model, jev.calls) == ("typesafe", "jev-1.13.0", searches)
+    assert (clm_line.provider, clm_line.model, clm_line.calls, clm_line.usd) == ("modal", "clm-latest", searches, None)
+    assert (logprob.provider, logprob.model, logprob.calls) == ("openai", LOGPROB_MODEL, 4 * (2 + 1) * 3)
+    # Jev and CLM are asked the same questions here, and CLM's line counts their tokens without an overhead.
+    assert jev.input_tokens == clm_line.input_tokens + JEV_REQUEST_OVERHEAD_TOKENS * jev.calls
+    assert jev.usd == pytest.approx(jev.input_tokens * 0.042 / 1_000_000)
+    usage = Usage(input_tokens=logprob.input_tokens, output_tokens=logprob.calls)  # one output token per call
+    price = calc_price(usage, model_ref=LOGPROB_MODEL, provider_id="openai")
+    assert logprob.usd == pytest.approx(float(price.total_price))  # pyright: ignore[reportUnknownMemberType]
+    assert "7 GPU seconds" in clm_line.note  # 24 calls at 0.3 s
+    # At K = 5 every decider asks one question per search, the same one: logprob adds 120 tokens per ask.
+    _, clm_line, logprob = await estimate(5)
+    assert logprob.calls == clm_line.calls == searches
+    assert logprob.input_tokens == clm_line.input_tokens + 120 * logprob.calls
+
+
+async def test_the_estimate_retrieval_embeds_nothing(
+    tmp_path: Path, toolret_data: ToolRetData, axis_embedder: Any
+) -> None:
+    catalog = toolret_data.catalog
+    paid = axis_embedder()
+    cache = CachedEmbedder(paid, path=tmp_path / "embeddings.sqlite")
+    await cache.embed([default_search_text(card) for card in catalog], kind="document")
+    await cache.embed(["weather forecast"], kind="query")
+    embedded = len(paid.calls)
+    hybrid = HybridRetriever([BM25Retriever(), DenseRetriever(cache)])
+    free = CacheOnlyRetrieval(hybrid, stand_in=BM25Retriever(), embeddings=cache)
+
+    cached = await free.retrieve(["weather forecast"], catalog, k=5)
+    uncached = await free.retrieve(["email inbox"], catalog, k=5)
+    extended = ToolCatalog([*catalog, ToolCard(name="rain_radar", description="Weather radar.")])
+    new_card = await free.retrieve(["weather forecast"], extended, k=5)
+
+    assert len(paid.calls) == embedded  # nothing reached the paid embedder
+    assert ids(cached) == ids(await hybrid.retrieve(["weather forecast"], catalog, k=5))
+    # A query, or a card, the cache has no vector for: BM25 alone finds the candidates.
+    assert ids(uncached) == ids(await BM25Retriever().retrieve(["email inbox"], catalog, k=5))
+    assert ids(new_card) == ids(await BM25Retriever().retrieve(["weather forecast"], extended, k=5))
+    assert free.stand_in_queries == {("email inbox",), ("weather forecast",)}
+    assert len(paid.calls) == embedded
+    cache.close()

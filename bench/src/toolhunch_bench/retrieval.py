@@ -34,7 +34,9 @@ __all__ = [
     "QueryMode",
     "build_arms",
     "query_text",
+    "repo_path",
     "run_arms",
+    "run_provenance",
 ]
 
 type QueryMode = Literal["plain", "instructed"]
@@ -216,6 +218,21 @@ def _manifest(
     task_file: Path,
     run_id: str,
 ) -> dict[str, Any]:
+    manifest = run_provenance(data, tasks, task_file=task_file, run_id=run_id)
+    manifest["seeds"]["keywords_order"] = 0
+    return manifest | {
+        "modes": list(modes),
+        "query_formats": QUERY_FORMATS,
+        "k_max": k_max,
+        "embedding_model": next(
+            (arm.config["embedding_model"] for arm in arms if "embedding_model" in arm.config), None
+        ),
+        "arms": {arm.name: {"query_kind": arm.query_kind, **arm.config} for arm in arms},
+    }
+
+
+def run_provenance(data: ToolRetData, tasks: Sequence[ToolRetTask], *, task_file: Path, run_id: str) -> dict[str, Any]:
+    """The fields every run manifest starts with: the run, the code, the machine, the dataset and the tasks."""
     packages = ("toolhunch", "toolhunch-bench", "pydantic-ai-slim", "bm25s", "tiktoken", "genai-prices")
     return {
         "run_id": run_id,
@@ -232,18 +249,11 @@ def _manifest(
             "mapping_stats": dict(data.mapping_stats),
         },
         "tasks": {
-            "file": _repo_path(task_file),
+            "file": repo_path(task_file),
             "sha256": hashlib.sha256(task_file.read_bytes()).hexdigest(),
             "count": len(tasks),
         },
-        "seeds": {"sample": json.loads(task_file.read_text()).get("seed"), "keywords_order": 0},
-        "modes": list(modes),
-        "query_formats": QUERY_FORMATS,
-        "k_max": k_max,
-        "embedding_model": next(
-            (arm.config["embedding_model"] for arm in arms if "embedding_model" in arm.config), None
-        ),
-        "arms": {arm.name: {"query_kind": arm.query_kind, **arm.config} for arm in arms},
+        "seeds": {"sample": json.loads(task_file.read_text()).get("seed")},
     }
 
 
@@ -257,7 +267,7 @@ def _git_state() -> dict[str, Any]:
         return {"commit": None, "dirty": None}
 
 
-def _repo_path(path: Path) -> str:
+def repo_path(path: Path) -> str:
     """`path` relative to the repository, so no local directory leaks into committed results."""
     try:
         return path.resolve().relative_to(BENCH_DIR.parent).as_posix()

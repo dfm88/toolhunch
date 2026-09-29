@@ -1,5 +1,6 @@
 import json
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -14,10 +15,17 @@ from pydantic_ai.usage import RequestUsage
 from typer.testing import CliRunner
 
 from toolhunch import ToolCard, ToolCatalog
+from toolhunch.decision import CLM_LIMITS, JEV_LIMITS, LOGPROB_LIMITS
 from toolhunch_bench import cli
-from toolhunch_bench.datasets.model_queries import WRITER_MODEL, WRITER_SETTINGS, model_queries_path
+from toolhunch_bench.datasets.model_queries import (
+    WRITER_MODEL,
+    WRITER_SETTINGS,
+    WrittenQueries,
+    model_queries_path,
+    save_model_queries,
+)
 from toolhunch_bench.datasets.toolret import ToolRetData, ToolRetTask, write_task_file
-from toolhunch_bench.ledger import LedgerEntry, append_ledger, read_ledger
+from toolhunch_bench.ledger import LedgerEntry, append_ledger, f2a_spend, read_ledger
 
 TOOLS = {"web_tool_0": ("get_weather", "Weather forecast."), "web_tool_1": ("send_email", "Send an email.")}
 DATA = ToolRetData(
@@ -76,6 +84,8 @@ def test_sample_leaves_out_the_ids_of_an_exclude_file(tmp_path: Path, monkeypatc
 
 class WordEncoding:
     """A stand-in for a tiktoken encoding, so that the estimate never downloads a vocabulary."""
+
+    name = "words"
 
     def encode(self, text: str, *, disallowed_special: Any = ()) -> list[int]:
         return list(range(len(text.split())))
@@ -233,3 +243,197 @@ def test_a_failing_writer_run_still_records_what_it_billed(
     [entry] = read_ledger(writer_ledger)
     assert (entry.input_tokens, entry.output_tokens) == (300, 40)  # the task that got an answer
     assert not model_queries_path(writer_task_file).exists()  # a partial file would read as a complete one
+
+
+@dataclass
+class DecisionSetup:
+    """What the `decision` command was given: its task file, its ledger and the models it would pay for."""
+
+    task_file: Path
+    ledger: Path
+    runs: Path
+    decision_cache: Path
+    models: dict[str, Any]
+    embedders: list[Any]
+    warmed: list[tuple[Any, str]]
+
+
+@pytest.fixture
+def decision_setup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    toolret_data: ToolRetData,
+    axis_embedder: Any,
+    fake_decision_model: Any,
+) -> DecisionSetup:
+    """The `decision` command kept off the network, the real ledger, the real caches and `.env`.
+
+    Fakes with each real model's limits stand where the command builds Jev, CLM, the logprob model and the embedder,
+    and where it warms CLM up, so a test can check that none of them was asked anything.
+    """
+
+    def load_toolret(*, cache_dir: Path) -> ToolRetData:
+        return toolret_data
+
+    task_file = tmp_path / "tasks.json"
+    write_task_file(task_file, toolret_data.tasks, seed=0)
+    written = [
+        WrittenQueries(
+            task.id, ("weather forecast",) if task.id == "t_query_0" else (task.query,), task.id != "t_query_0"
+        )
+        for task in toolret_data.tasks
+    ]
+    save_model_queries(model_queries_path(task_file), written, writer={"model": "writer@test"})
+    models = {
+        "jev": fake_decision_model(model_id="jev-1.13.0@api.typesafe.ai", limits=JEV_LIMITS),
+        "clm": fake_decision_model(model_id="clm-latest@clm.test", limits=CLM_LIMITS),
+        "logprob": fake_decision_model(
+            model_id="gpt-4.1-mini-2025-04-14@api.openai.com", limits=LOGPROB_LIMITS, prompt_version="letters-v1"
+        ),
+    }
+    embedders: list[Any] = []
+
+    def model(name: str) -> Callable[..., Any]:
+        def build(*args: object, **kwargs: object) -> Any:
+            return models[name]
+
+        return build
+
+    def embedder(model_name: str, **settings: object) -> Any:
+        embedders.append(axis_embedder(model_id=model_name))
+        return embedders[-1]
+
+    warmed: list[tuple[Any, str]] = []
+
+    async def warm_up_clm(model: Any, *, base_url: str) -> float:
+        warmed.append((model, base_url))
+        return 42.0
+
+    setup = DecisionSetup(
+        task_file=task_file,
+        ledger=tmp_path / "cost-ledger.jsonl",
+        runs=tmp_path / "runs",
+        decision_cache=tmp_path / "decisions.sqlite",
+        models=models,
+        embedders=embedders,
+        warmed=warmed,
+    )
+    monkeypatch.setattr(cli, "load_toolret", load_toolret)
+    monkeypatch.setattr(cli, "LEDGER_PATH", setup.ledger)
+    monkeypatch.setattr(cli, "RUNS_DIR", setup.runs)
+    monkeypatch.setattr(cli, "EMBEDDING_CACHE_PATH", tmp_path / "embeddings.sqlite")
+    monkeypatch.setattr(cli, "DECISION_CACHE_PATH", setup.decision_cache)
+    monkeypatch.setattr(cli, "load_dotenv", no_dotenv)
+    monkeypatch.setattr(tiktoken, "get_encoding", word_encoding)
+    monkeypatch.setattr(cli, "jev", model("jev"))
+    monkeypatch.setattr(cli, "clm", model("clm"))
+    monkeypatch.setattr(cli, "OpenAILogprobModel", model("logprob"))
+    monkeypatch.setattr(cli, "OpenAIEmbedder", embedder)
+    monkeypatch.setattr(cli, "warm_up_clm", warm_up_clm)
+    monkeypatch.setenv("CLM_BASE_URL", "http://clm.test")
+    return setup
+
+
+def decide(setup: DecisionSetup, *options: str) -> Any:
+    arguments = ["decision", "--tasks", str(setup.task_file), "--split", "dev", "--deciders", "jev,clm,logprob"]
+    return CliRunner().invoke(cli.app, [*arguments, "--k", "3,5", "--sources", "plain,model", *options])
+
+
+def spent_nothing(setup: DecisionSetup) -> bool:
+    """No model was asked, no text embedded and CLM not woken; no run was written and no decision cache opened."""
+    asked = any(model.asks for model in setup.models.values()) or any(e.calls for e in setup.embedders)
+    return not asked and not setup.warmed and not setup.runs.exists() and not setup.decision_cache.exists()
+
+
+def test_decision_dry_run_prints_an_estimate_and_spends_nothing(decision_setup: DecisionSetup) -> None:
+    append_ledger(f2a_entry(1.5), path=decision_setup.ledger)
+    before = decision_setup.ledger.read_text()
+
+    result = decide(decision_setup, "--dry-run")
+
+    assert result.exit_code == 0, result.output
+    assert "estimate" in result.output.lower()
+    for line in ("typesafe jev-1.13.0: $", "openai gpt-4.1-mini-2025-04-14: $", "modal clm-latest: Modal credits"):
+        assert line in result.output
+    assert "GPU seconds" in result.output  # CLM is counted in time, not in dollars
+    assert "BM25 alone" in result.output  # the cache holds no query embedding yet
+    assert "$1.5000" in result.output  # the F2a total the cap is checked against
+    assert "$7.00 cap" in result.output
+    assert decision_setup.ledger.read_text() == before
+    assert spent_nothing(decision_setup)
+
+
+def test_decision_stops_before_spending_when_the_ledger_is_over_the_cap(decision_setup: DecisionSetup) -> None:
+    append_ledger(f2a_entry(7.5), path=decision_setup.ledger)
+    before = decision_setup.ledger.read_text()
+
+    result = decide(decision_setup)  # a paid run, not a dry run
+
+    assert result.exit_code == 2
+    assert "Over the cap: nothing was spent. F2a total $7.5000, estimate $" in result.output
+    assert decision_setup.ledger.read_text() == before
+    assert spent_nothing(decision_setup)
+
+
+def test_a_decision_run_warms_clm_up_and_records_what_it_billed(
+    decision_setup: DecisionSetup, fake_decision_model: Any
+) -> None:
+    append_ledger(f2a_entry(1.5), path=decision_setup.ledger)
+    # Jev answers nothing usable for "mail my boss": 2 arms x 2 sources x 2 variants of that task end in an error.
+    jev_model = fake_decision_model(model_id="jev-1.13.0@api.typesafe.ai", limits=JEV_LIMITS, fail_on="boss")
+    decision_setup.models["jev"] = jev_model
+
+    result = decide(decision_setup)
+
+    assert result.exit_code == 0, result.output
+    models = decision_setup.models
+    # CLM was woken once, through the model itself: an answer replayed from the cache would wake nothing.
+    assert decision_setup.warmed == [(models["clm"], "http://clm.test")]
+    [run_dir] = decision_setup.runs.iterdir()
+    records = [json.loads(line) for line in (run_dir / "run.jsonl").read_text().splitlines()]
+    earlier, *entries = read_ledger(decision_setup.ledger)
+    assert earlier == f2a_entry(1.5)
+    assert {entry.purpose for entry in entries} == {
+        "F2a: decision dev (jev, clm, logprob; k 3/5; plain/model) on tasks.json"
+    }
+    by_model = {(entry.provider, entry.model): entry for entry in entries}
+    assert sorted(by_model) == [
+        ("modal", "clm-latest"),
+        ("openai", "gpt-4.1-mini-2025-04-14"),
+        ("openai", "text-embedding-3-small"),
+        ("typesafe", "jev-1.13.0"),
+    ]
+    jev = by_model["typesafe", "jev-1.13.0"]
+    assert jev.input_tokens == 10 * (len(jev_model.asks) - 8)  # 10 input tokens for every ask it answered
+    assert jev.usd == pytest.approx(jev.input_tokens * 0.042 / 1_000_000)
+    assert "8 searches ended in a DecisionError" in jev.note  # billed by Jev, maybe, but not in the usage
+    logprob = by_model["openai", "gpt-4.1-mini-2025-04-14"]
+    usage = Usage(input_tokens=logprob.input_tokens, output_tokens=logprob.output_tokens)
+    price = calc_price(usage, model_ref="gpt-4.1-mini-2025-04-14", provider_id="openai")
+    assert logprob.usd == pytest.approx(float(price.total_price))  # pyright: ignore[reportUnknownMemberType]
+    modal = by_model["modal", "clm-latest"]
+    clm_seconds = sum(r["wall_seconds"] for r in records if r["record"] == "arm" and "+clm@" in r["arm"])
+    assert modal.usd == pytest.approx(clm_seconds * 0.80 / 3600)
+    assert modal.note.startswith("Modal credits: ")
+    assert f2a_spend(read_ledger(decision_setup.ledger)).modal_usd == pytest.approx(modal.usd)  # apart from the cap
+    assert by_model["openai", "text-embedding-3-small"].input_tokens > 0  # the texts the fresh cache lacked
+    assert all(model.closed for model in models.values())
+    assert all(embedder.closed for embedder in decision_setup.embedders)
+    assert "F2a total now: $" in result.output
+
+
+def test_a_failing_decision_run_still_records_what_it_billed(
+    decision_setup: DecisionSetup, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def gone(request: Any, /, **options: Any) -> Any:
+        raise RuntimeError("the API went away")
+
+    monkeypatch.setattr(decision_setup.models["logprob"], "ask", gone)
+
+    result = decide(decision_setup)
+
+    assert isinstance(result.exception, RuntimeError)
+    # The arms before the first logprob one had run: Jev, CLM and the query embeddings were paid for.
+    billed = sorted((entry.provider, entry.model) for entry in read_ledger(decision_setup.ledger))
+    assert billed == [("modal", "clm-latest"), ("openai", "text-embedding-3-small"), ("typesafe", "jev-1.13.0")]
+    assert all(model.closed for model in decision_setup.models.values())
