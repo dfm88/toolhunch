@@ -105,24 +105,66 @@ def default_search_text(card: ToolCard) -> str:
 
 @dataclass(frozen=True, slots=True)
 class RenderedCards:
-    """Cards rendered at one level of detail, with their total token count."""
+    """Cards rendered at one level of detail, except any that dropped lower to fit a per-text cap.
+
+    Attributes:
+        detail: The level the cards are rendered at, except the ones in `reduced`.
+        texts: One text per card, in the order the cards were given.
+        tokens: The sum of the per-text token counts of `texts`.
+        reduced: Indexes into the cards given, ascending, of the cards rendered below `detail` because their
+            text at `detail` was over the per-text cap.
+    """
 
     detail: DetailLevel
     texts: tuple[str, ...]
     tokens: int
+    reduced: tuple[int, ...] = ()
 
 
-def render_within_budget(cards: Sequence[ToolCard], *, max_tokens: int, tokenizer: Tokenizer) -> RenderedCards | None:
+def render_within_budget(
+    cards: Sequence[ToolCard],
+    *,
+    max_tokens: int | None,
+    tokenizer: Tokenizer,
+    max_tokens_per_text: int | None = None,
+    max_detail: DetailLevel = DetailLevel.FULL,
+) -> RenderedCards | None:
     """Render every card at the most detailed level whose total fits in `max_tokens`.
 
-    All cards share one level. `tokens` is the sum of per-text counts; separators and any framing
-    are the caller's to budget. Returns `None` when even names alone do not fit.
+    Levels are tried from `max_detail` down to `DetailLevel.NAME` and the first whose total fits wins;
+    with `max_tokens=None` there is no total limit, so the first level tried wins. `tokens` is the sum
+    of per-text counts; separators and any framing are the caller's to budget. Returns `None` when even
+    names alone do not fit.
+
+    All cards share that level, except those whose text is over `max_tokens_per_text`, what one text may
+    take in the model that reads it (`None` for no per-text cap). Each of those drops alone to the most
+    detailed lower level whose text fits, so one very long card does not pull the others down; its index
+    goes to `RenderedCards.reduced`, and the total is counted on the texts as they come back.
+
+    Raises:
+        ValueError: A card's name alone is over `max_tokens_per_text`; the message names the card's id.
     """
-    for detail in sorted(DetailLevel, reverse=True):
-        texts = tuple(card.render(detail) for card in cards)
-        tokens = sum(tokenizer.count(text) for text in texts)
-        if tokens <= max_tokens:
-            return RenderedCards(detail=detail, texts=texts, tokens=tokens)
+    levels = sorted((level for level in DetailLevel if level <= max_detail), reverse=True)
+    for start, detail in enumerate(levels):
+        texts: list[str] = []
+        reduced: list[int] = []
+        tokens = 0
+        for index, card in enumerate(cards):
+            # Walk the card down from `detail` to the first text within the per-text cap; the `else` runs
+            # only when even its name is over it.
+            for level in levels[start:]:
+                text = card.render(level)
+                count = tokenizer.count(text)
+                if max_tokens_per_text is None or count <= max_tokens_per_text:
+                    break
+            else:
+                raise ValueError(f"card {card.id!r}: its name alone is over max_tokens_per_text={max_tokens_per_text}")
+            if level is not detail:
+                reduced.append(index)
+            texts.append(text)
+            tokens += count
+        if max_tokens is None or tokens <= max_tokens:
+            return RenderedCards(detail=detail, texts=tuple(texts), tokens=tokens, reduced=tuple(reduced))
     return None
 
 
