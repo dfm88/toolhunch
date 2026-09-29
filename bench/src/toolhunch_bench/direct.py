@@ -22,8 +22,8 @@ from toolhunch_bench.direct_agent import (
     AGENT_MAX_OUTPUT_TOKENS,
     AGENT_PROMPT_VERSION,
     CachedAgent,
-    agent_payload,
     function_cards,
+    wire_request,
 )
 from toolhunch_bench.direct_cost import (
     AGENT_MODEL,
@@ -149,7 +149,7 @@ async def estimate_direct(
 ) -> DirectEstimate:
     """Estimate identical planned requests without contacting a decision model or a missing embedding.
 
-    Jev planning uses the existing decision estimator. Agent input is tokenized from its canonical function request;
+    Jev planning uses the existing decision estimator. Agent input is tokenized from prompt-bearing wire fields;
     output is bounded by its configured limit and cache savings are not assumed. Replay savings are not assumed.
     """
     import tiktoken
@@ -206,14 +206,15 @@ async def estimate_direct(
                     row["usd"] += line.usd or 0.0
             retrieved = await retriever.retrieve([task.query], catalog, k=20)
             candidates = [match.card for match in retrieved.matches]
-            for cards in (candidates, list(catalog)):
-                payload = agent_payload(task.query, function_cards(cards), catalog_name=selected.source)
+            for agent_arm, cards in (("agent@20", candidates), ("agent-all", list(catalog))):
+                payload = wire_request(task.query, function_cards(cards))
                 tokens = len(encoding.encode(json.dumps(payload, ensure_ascii=False), disallowed_special=())) + 120
                 row = counts.setdefault(
-                    "agent",
+                    agent_arm,
                     {
                         "provider": "openai",
                         "model": AGENT_MODEL,
+                        "arm": agent_arm,
                         "requests": 0,
                         "input_tokens": 0,
                         "output_tokens": 0,
@@ -375,6 +376,7 @@ class DirectRunner:
             "search_usd": 0.0,
             "decision_seconds": None,
             "extra_calls": 0,
+            "text_is_none": None,
             "detail": [],
             "decision_key": None,
             "historical_usage": None,
@@ -417,6 +419,7 @@ class DirectRunner:
                     "pick": answer.pick,
                     "abstained": answer.pick is None,
                     "extra_calls": answer.extra_calls,
+                    "text_is_none": answer.text_is_none,
                     "replayed": replayed,
                     "detail": ["FULL"],
                     "historical_usage": {

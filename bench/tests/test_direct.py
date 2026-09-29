@@ -6,8 +6,11 @@ from typing import Any
 
 import pytest
 import tiktoken
+from pydantic_ai.exceptions import ModelHTTPError
 from pydantic_ai.messages import ModelMessage, ModelResponse, ModelResponsePart, TextPart, ToolCallPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.usage import RequestUsage
 from typer.testing import CliRunner
 
@@ -17,11 +20,12 @@ from toolhunch_bench import cli
 from toolhunch_bench.datasets.toolret import ToolRetData, ToolRetTask
 from toolhunch_bench.decision_cache import CachedDecisionModel
 from toolhunch_bench.direct import CATALOGS, DirectRunner, direct_catalogs, estimate_direct
-from toolhunch_bench.direct_agent import CachedAgent, function_cards
+from toolhunch_bench.direct_agent import CachedAgent, function_cards, wire_request
 from toolhunch_bench.direct_cost import (
     AGENT_MODEL,
     GuardedDecisionModel,
     GuardedEmbedder,
+    ProviderFailure,
     SpendGuard,
     SpendLimit,
     openai_usd,
@@ -93,7 +97,21 @@ def test_catalog_selection_negatives_and_name_mapping() -> None:
     assert direct_catalogs(altered)[0].dropped == 1
 
 
-@pytest.mark.parametrize("kind", ["pick", "none", "multiple"])
+async def test_estimate_wire_mapping_matches_pydantic_ai_without_internal_fields() -> None:
+    functions = function_cards(list(direct_catalogs(data())[0].catalog))
+    payload = wire_request("weather", functions)
+    model = OpenAIChatModel(AGENT_MODEL, provider=OpenAIProvider(api_key="test"))
+    try:
+        mapped = model._map_tool_definition(functions.tools[0], {})  # pyright: ignore[reportPrivateUsage]
+        assert payload["tools"][0] == mapped
+        assert set(payload) == {"messages", "tools"}
+        assert set(payload["tools"][0]["function"]) == {"name", "description", "parameters"}
+        assert "strict" not in payload["tools"][0]["function"]
+    finally:
+        await model.client.close()
+
+
+@pytest.mark.parametrize("kind", ["pick", "none", "multiple", "other_text"])
 async def test_agent_outcomes_and_replay_never_add_usage(tmp_path: Path, kind: str) -> None:
     calls = 0
 
@@ -105,7 +123,9 @@ async def test_agent_outcomes_and_replay_never_add_usage(tmp_path: Path, kind: s
         assert "parallel_tool_calls" in info.model_settings
         assert info.model_settings["parallel_tool_calls"] is False
         parts: list[ModelResponsePart] = (
-            [TextPart("none")] if kind == "none" else [ToolCallPart(info.function_tools[0].name, {})]
+            [TextPart("none" if kind == "none" else "Please clarify.")]
+            if kind in {"none", "other_text"}
+            else [ToolCallPart(info.function_tools[0].name, {})]
         )
         if kind == "multiple":
             parts.append(ToolCallPart(info.function_tools[1].name, {}))
@@ -117,8 +137,9 @@ async def test_agent_outcomes_and_replay_never_add_usage(tmp_path: Path, kind: s
     try:
         result, replayed = await agent.ask("weather", functions, catalog_name="test")
         assert not replayed
-        assert result.pick == (None if kind == "none" else functions.card_ids[functions.tools[0].name])
+        assert result.pick == (None if kind in {"none", "other_text"} else functions.card_ids[functions.tools[0].name])
         assert result.extra_calls == (1 if kind == "multiple" else 0)
+        assert result.text_is_none == (kind == "none")
         cost, usage_count = guard.run_usd, len(guard.calls)
         cached, replayed = await agent.ask("weather", functions, catalog_name="test")
         assert replayed
@@ -126,6 +147,42 @@ async def test_agent_outcomes_and_replay_never_add_usage(tmp_path: Path, kind: s
         assert (guard.run_usd, len(guard.calls), calls) == (cost, usage_count, 1)
         assert guard.calls[0]["cache_read_tokens"] == 60
         assert guard.calls[0]["usd"] < guard.calls[0]["list_usd"]
+    finally:
+        agent.close()
+
+
+@pytest.mark.parametrize(
+    ("body", "expected"),
+    [
+        ({"code": "x", "param": "tools", "message": "sk-SECRET"}, "ModelHTTPError 400 code=x param=tools"),
+        (
+            {"error": {"code": "array_above_max_length", "param": "tools", "message": "sk-SECRET"}},
+            "ModelHTTPError 400 code=array_above_max_length param=tools",
+        ),
+        (
+            {"code": "sk-SECRET", "param": "sk-SECRET", "message": "sk-SECRET"},
+            "ModelHTTPError 400 code=redacted param=redacted",
+        ),
+    ],
+)
+async def test_http_diagnostics_keep_only_safe_fields(
+    tmp_path: Path,
+    body: dict[str, Any],
+    expected: str,
+) -> None:
+    def answer(messages: Sequence[ModelMessage], info: AgentInfo) -> ModelResponse:
+        raise ModelHTTPError(status_code=400, model_name=AGENT_MODEL, body=body)
+
+    guard = SpendGuard()
+    agent = CachedAgent(FunctionModel(answer), path=tmp_path / "agent.sqlite", guard=guard)
+    try:
+        with pytest.raises(ProviderFailure) as failure:
+            await agent.ask("weather", function_cards(list(direct_catalogs(data())[0].catalog)), catalog_name="test")
+        assert str(failure.value) == expected
+        assert len(guard.calls) == 1
+        assert guard.calls[0]["error"] == expected
+        assert "sk-" not in json.dumps(guard.calls)
+        assert "message" not in json.dumps(guard.calls)
     finally:
         agent.close()
 
@@ -237,6 +294,8 @@ async def test_runner_report_symmetric_scoring_and_replay_exclusion(tmp_path: Pa
             assert pooled["agent-all"]["relevant_pick_rate"]["value"] == 1
             assert pooled["hybrid@20+jev"]["ranking_ignoring_abstention"]["value"] == 1
             assert pooled["hybrid@20+jev"]["none_option"]["abstained"] == 3
+            assert pooled["agent-all"]["agent_text_none"] == 1
+            assert pooled["agent-all"]["agent_other_text_abstentions"] == 0
             if suffix == "replay":
                 assert not guard.calls
                 assert summary["run_cost"]["verified_usd"] == 0
@@ -265,4 +324,7 @@ def test_dry_run_has_no_provider_or_ledger_side_effects(tmp_path: Path, monkeypa
     estimates = json.loads(output.read_text())
     assert estimates["full"]["requests_per_arm"] == 22
     assert estimates["full"]["usd"] > 0
+    agent_lines = {line["arm"]: line for line in estimates["full"]["lines"] if "arm" in line}
+    assert set(agent_lines) == {"agent@20", "agent-all"}
+    assert all(line["requests"] == estimates["full"]["requests_per_arm"] for line in agent_lines.values())
     assert not (tmp_path / "ledger.jsonl").exists()

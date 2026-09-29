@@ -130,6 +130,8 @@ def _row(
         "none_option": none,
         "detail_counts": {level: sum(level in r["detail"] for r in records) for level in ("FULL", "BRIEF", "NAME")},
         "multi_calls": sum(r["extra_calls"] > 0 for r in records),
+        "agent_text_none": sum(r.get("text_is_none") is True for r in parsed),
+        "agent_other_text_abstentions": sum(r["abstained"] and r.get("text_is_none") is False for r in parsed),
         "positive_cost": {phase: _cost(records, phase=phase, arm=arm) for phase in ("cold", "warm")},
         "negative_cost": _cost(records, phase="negative", arm=arm),
     }

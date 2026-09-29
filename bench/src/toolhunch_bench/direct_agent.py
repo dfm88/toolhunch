@@ -8,11 +8,11 @@ import re
 import sqlite3
 import time
 from dataclasses import asdict, dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from pydantic_ai.direct import model_request
 from pydantic_ai.exceptions import ModelHTTPError
-from pydantic_ai.messages import ModelRequest, SystemPromptPart, ToolCallPart, UserPromptPart
+from pydantic_ai.messages import ModelRequest, SystemPromptPart, TextPart, ToolCallPart, UserPromptPart
 from pydantic_ai.models import ModelRequestParameters
 from pydantic_ai.tools import ToolDefinition
 
@@ -48,6 +48,7 @@ class AgentAnswer:
     cache_read_tokens: int
     output_tokens: int
     seconds: float
+    text_is_none: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,7 +88,7 @@ def function_cards(cards: Sequence[ToolCard]) -> FunctionCards:
 
 
 def agent_payload(query: str, functions: FunctionCards, *, catalog_name: str) -> dict[str, Any]:
-    """Canonical request content used by both replay keys and cost estimates."""
+    """Canonical request content for replay keys and the conservative runtime guard reservation."""
     return {
         "model": AGENT_MODEL,
         "api": "openai-chat-completions",
@@ -96,6 +97,24 @@ def agent_payload(query: str, functions: FunctionCards, *, catalog_name: str) ->
         "tools": [asdict(tool) for tool in functions.tools],
         "settings": dict(AGENT_SETTINGS) | {"openai_prompt_cache_key": catalog_name},
         "allow_text_output": True,
+    }
+
+
+def wire_request(query: str, functions: FunctionCards) -> dict[str, Any]:
+    """Prompt-bearing Chat Completions fields for definitions produced by `function_cards`."""
+    return {
+        "messages": [{"role": "system", "content": AGENT_INSTRUCTION}, {"role": "user", "content": query}],
+        "tools": [
+            {
+                "type": "function",
+                "function": {
+                    "name": tool.name,
+                    "description": tool.description or "",
+                    "parameters": tool.parameters_json_schema,
+                },
+            }
+            for tool in functions.tools
+        ],
     }
 
 
@@ -116,6 +135,52 @@ class CachedAgent:
     def close(self) -> None:
         """Close the replay database, leaving the supplied model owned by the caller."""
         self._db.close()
+
+    @staticmethod
+    def _failure_message(error: Exception) -> str:
+        if not isinstance(error, ModelHTTPError):
+            return type(error).__name__
+        # Provider fields are untrusted too. Only recognized diagnostic labels are ever retained; arbitrary strings
+        # can contain secrets even when they are returned under `code` or `param` instead of `message`.
+        raw_body = error.body
+        body: Mapping[str, object] = cast("Mapping[str, object]", raw_body) if isinstance(raw_body, dict) else {}
+        if isinstance(nested := body.get("error"), dict):
+            body = cast("Mapping[str, object]", nested)
+        codes = {
+            "x",
+            "invalid_request_error",
+            "invalid_value",
+            "array_above_max_length",
+            "context_length_exceeded",
+            "unsupported_parameter",
+            "unsupported_value",
+            "invalid_api_key",
+            "rate_limit_exceeded",
+            "insufficient_quota",
+            "model_not_found",
+            "server_error",
+            "invalid_type",
+            "missing_required_parameter",
+        }
+        params = {
+            "tools",
+            "messages",
+            "model",
+            "max_tokens",
+            "max_completion_tokens",
+            "temperature",
+            "top_p",
+            "parallel_tool_calls",
+            "tool_choice",
+            "prompt_cache_key",
+            "response_format",
+            "stream",
+            "seed",
+        }
+        code, param = body.get("code"), body.get("param")
+        safe_code = code if isinstance(code, str) and code in codes else "none" if code is None else "redacted"
+        safe_param = param if isinstance(param, str) and param in params else "none" if param is None else "redacted"
+        return f"ModelHTTPError {error.status_code} code={safe_code} param={safe_param}"
 
     async def ask(self, query: str, functions: FunctionCards, *, catalog_name: str) -> tuple[AgentAnswer, bool]:
         """Return a parsed answer and whether it came from local replay."""
@@ -151,6 +216,7 @@ class CachedAgent:
                     instrument=False,
                 )
             except Exception as error:
+                diagnostic = self._failure_message(error)
                 self._guard.record(
                     ProviderCall(
                         provider="openai",
@@ -162,13 +228,13 @@ class CachedAgent:
                         usd=None,
                         list_usd=None,
                         budget_charge_usd=upper,
-                        error=type(error).__name__,
+                        error=diagnostic,
                     )
                 )
                 if attempt or (
                     isinstance(error, ModelHTTPError) and error.status_code not in {429, 500, 502, 503, 504}
                 ):
-                    raise ProviderFailure(type(error).__name__) from None
+                    raise ProviderFailure(diagnostic) from None
             else:
                 seconds = time.perf_counter() - started
                 usage = response.usage
@@ -205,6 +271,9 @@ class CachedAgent:
                     cache_read_tokens=usage.cache_read_tokens,
                     output_tokens=usage.output_tokens,
                     seconds=seconds,
+                    text_is_none=not calls
+                    and "".join(part.content for part in response.parts if isinstance(part, TextPart)).strip()
+                    == "none",
                 )
                 self.misses += 1
                 self._db.execute("INSERT INTO agent_responses VALUES (?, ?)", (key, json.dumps(asdict(answer))))
