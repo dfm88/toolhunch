@@ -1,0 +1,27 @@
+{
+  "source": "clm-serve 0.1.0 (clm-latest) on Modal L4, vllm 0.30.0, recorded 2026-09-28",
+  "request": {
+    "state": "Request: Book me a table for two at an Italian place tonight at 8.",
+    "model": "jev-latest",
+    "questions": {
+      "tool": {
+        "type": "choice",
+        "instructions": "Which tool should the assistant call next to fulfil the request?",
+        "criteria": {
+          "get_weather": "get_weather: Get the current weather and the forecast for a city.",
+          "book_restaurant": "book_restaurant: Reserve a table at a restaurant for a given date, time and party size.",
+          "order_food_delivery": "order_food_delivery: Order food for home delivery from a nearby restaurant.",
+          "send_email": "send_email: Send an email to a recipient with a subject and a body.",
+          "none": "None of these tools can fulfil the request."
+        }
+      }
+    }
+  },
+  "status": 422,
+  "headers": {
+    "x-clm-latency-ms": null
+  },
+  "response": {
+    "detail": "unknown model 'jev-latest'; available: ['clm-latest', 'clm-raw']"
+  }
+}

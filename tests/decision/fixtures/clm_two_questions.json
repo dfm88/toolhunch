@@ -1,0 +1,55 @@
+{
+  "source": "clm-serve 0.1.0 (clm-latest) on Modal L4, vllm 0.30.0, recorded 2026-09-28",
+  "request": {
+    "state": "Request: Book me a table for two at an Italian place tonight at 8.",
+    "model": "clm-latest",
+    "questions": {
+      "q1": {
+        "type": "noul",
+        "instructions": "Is this about food?"
+      },
+      "q2": {
+        "type": "score",
+        "instructions": "How urgent is it?",
+        "criteria": [
+          "not urgent",
+          "urgent",
+          "very urgent"
+        ]
+      }
+    }
+  },
+  "status": 200,
+  "headers": {
+    "x-clm-latency-ms": "287.0"
+  },
+  "response": {
+    "model": "clm-latest",
+    "answers": {
+      "q1": {
+        "type": "noul",
+        "noul": 0.6630462255250644
+      },
+      "q2": {
+        "type": "score",
+        "score": 1.1872323498091752,
+        "confidence": 0.38900046863931337,
+        "legend": {
+          "0": "not urgent",
+          "1": "urgent",
+          "2": "very urgent"
+        },
+        "probabilities": {
+          "0": 0.40543462928370033,
+          "1": 0.0018983916234241167,
+          "2": 0.5926669790928756
+        }
+      }
+    },
+    "usage": {
+      "billing_units": 2,
+      "input_tokens": 75,
+      "output_tokens": 0
+    }
+  }
+}

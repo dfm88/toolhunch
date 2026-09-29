@@ -1,0 +1,51 @@
+{
+  "source": "api.typesafe.ai, model jev-latest (answered jev-1.13.0), recorded 2026-09-28",
+  "request": {
+    "state": "Request: Book me a table for two at an Italian place tonight at 8.",
+    "model": "jev-latest",
+    "questions": {
+      "q1": {
+        "type": "noul",
+        "instructions": "Is this about food?"
+      },
+      "q2": {
+        "type": "score",
+        "instructions": "How urgent is it?",
+        "criteria": [
+          "not urgent",
+          "urgent",
+          "very urgent"
+        ]
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "q1": {
+        "type": "noul",
+        "noul": 0.97
+      },
+      "q2": {
+        "type": "score",
+        "score": 1.16,
+        "confidence": 0.59,
+        "legend": {
+          "0": "not urgent",
+          "1": "urgent",
+          "2": "very urgent"
+        },
+        "probabilities": {
+          "0": 0.06,
+          "1": 0.72,
+          "2": 0.22
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 326,
+      "output_tokens": 35
+    }
+  }
+}

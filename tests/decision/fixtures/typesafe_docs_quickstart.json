@@ -1,0 +1,65 @@
+{
+  "source": "https://docs.typesafe.ai/introduction/quickstart (read 2026-09-28)",
+  "request": {
+    "state": "Hi, I've been trying to connect my Stripe account for 3 days and it keeps failing. I'm losing sales. Please help ASAP.",
+    "model": "jev-latest",
+    "questions": {
+      "department": {
+        "type": "choice",
+        "instructions": "Which team should handle this",
+        "criteria": {
+          "billing": "Payment or subscription issues",
+          "technical": "Bugs or integration problems",
+          "sales": "Pricing or account questions"
+        }
+      },
+      "frustration": {
+        "type": "score",
+        "instructions": "How frustrated the customer appears",
+        "criteria": [
+          "Calm, just stating facts",
+          "Frustrated but civil",
+          "Very angry, strong language"
+        ]
+      },
+      "is_urgent": {
+        "type": "noul",
+        "instructions": "The message conveys urgency or time-sensitivity"
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "jev-latest",
+    "answers": {
+      "department": {
+        "type": "choice",
+        "choice": "technical",
+        "probabilities": {
+          "billing": 0.159,
+          "technical": 0.84,
+          "sales": 0.001
+        },
+        "confidence": 0.596
+      },
+      "frustration": {
+        "type": "score",
+        "score": 1.035,
+        "legend": {
+          "0": "Calm, just stating facts",
+          "1": "Frustrated but civil",
+          "2": "Very angry, strong language"
+        },
+        "confidence": 0.842
+      },
+      "is_urgent": {
+        "type": "noul",
+        "noul": 0.999
+      }
+    },
+    "usage": {
+      "input_tokens": 312,
+      "output_tokens": 48
+    }
+  }
+}

@@ -19,8 +19,11 @@ from toolhunch.decision.base import (
     check_request,
     choice_answer,
 )
+from toolhunch.decision.jev_wire import CLM_LIMITS, JEV_LIMITS, JevWireModel, clm, jev
 
 __all__ = [
+    "CLM_LIMITS",
+    "JEV_LIMITS",
     "Answer",
     "BinaryAnswer",
     "BinaryQuestion",
@@ -31,6 +34,7 @@ __all__ = [
     "DecisionRequest",
     "DecisionResponse",
     "DecisionUsage",
+    "JevWireModel",
     "ModelLimits",
     "Question",
     "QuestionKind",
@@ -38,4 +42,6 @@ __all__ = [
     "ScoreQuestion",
     "check_request",
     "choice_answer",
+    "clm",
+    "jev",
 ]
