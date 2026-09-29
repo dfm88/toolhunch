@@ -32,3 +32,6 @@ All notable changes to this project are documented here. The format follows
   `ChoiceDecider`, which plans questions within each model's limits and can abstain.
   `ToolSearchPipeline` takes `decider=` and `top_n=`, and `search()` takes `context=`. The reveal
   strategy passes the user prompt and reveals nothing when the decider abstains.
+- ToolRet decision results: abstention thresholds chosen on dev only, then held-out numbers on 200 tasks
+  (precision@1, abstention, latency, cost per 1,000 searches, run-to-run variation)
+  (`bench/results/2026-09-toolret-decision/`).
