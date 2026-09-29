@@ -133,6 +133,21 @@ def test_sample_is_stratified_and_reproducible() -> None:
         sample_tasks(tasks, n=34, seed=0)
 
 
+def test_sample_excludes_ids() -> None:
+    tasks = synthetic_tasks()
+    excluded = {task.id for task in sample_tasks(tasks, n=200, seed=1)}
+
+    again = sample_tasks(tasks, n=200, seed=1, exclude=excluded)
+
+    # Excluding a whole earlier draw still leaves a full sample: the ids go before the draw, not after it.
+    assert len(again) == 200
+    assert not {task.id for task in again} & excluded
+    assert [task.id for task in again] == sorted(task.id for task in again)
+    # Asking for more than is left returns what is left, and none of the excluded.
+    rest = sample_tasks(tasks, n=len(tasks), seed=1, exclude=excluded)
+    assert {task.id for task in rest} == {task.id for task in tasks} - excluded
+
+
 def parquet_bytes(rows: Sequence[Mapping[str, object]]) -> bytes:
     arrow: Any = pa  # untyped
     parquet: Any = pq

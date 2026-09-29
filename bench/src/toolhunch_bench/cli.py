@@ -79,10 +79,15 @@ def sample(
     out: Annotated[Path, typer.Option(help="Task file to write.")],
     n: Annotated[int, typer.Option(help="Number of tasks.")] = 50,
     seed: Annotated[int, typer.Option(help="Random seed.")] = 0,
+    exclude: Annotated[
+        Path | None,
+        typer.Option(help="Task file whose ids are left out of the sample.", exists=True, dir_okay=False),
+    ] = None,
 ) -> None:
-    """Write a stratified sample of task ids."""
+    """Write a stratified sample of task ids, leaving out those of the `--exclude` task file."""
     data = load_toolret(cache_dir=TOOLRET_CACHE)
-    tasks = sample_tasks(data.tasks, n=n, seed=seed)
+    left_out = read_task_file(exclude, data) if exclude is not None else []
+    tasks = sample_tasks(data.tasks, n=n, seed=seed, exclude={task.id for task in left_out})
     write_task_file(out, tasks, seed=seed)
     typer.echo(f"{len(tasks)} task ids written to {out}")
 

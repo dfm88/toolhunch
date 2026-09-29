@@ -44,3 +44,20 @@ def test_sample_run_report_and_check_from_the_command_line(tmp_path: Path, monke
     assert (tmp_path / "report" / "README.md").read_text().count("| bm25 |") == 2
     invoke("check", "bm25", "--tasks", str(task_file), "--out", str(tmp_path / "checks.json"))
     assert json.loads((tmp_path / "checks.json").read_text())["bm25"]["max_relative_difference"] < 1e-4
+
+
+def test_sample_leaves_out_the_ids_of_an_exclude_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def load_toolret(*, cache_dir: Path) -> ToolRetData:
+        return DATA
+
+    monkeypatch.setattr(cli, "load_toolret", load_toolret)
+    dev, heldout = tmp_path / "dev.json", tmp_path / "heldout.json"
+
+    for arguments in (["--out", str(dev)], ["--exclude", str(dev), "--out", str(heldout)]):
+        result = CliRunner().invoke(cli.app, ["toolret", "sample", "--n", "2", *arguments])
+        assert result.exit_code == 0, result.output
+
+    dev_ids = set(json.loads(dev.read_text())["ids"])
+    heldout_ids = set(json.loads(heldout.read_text())["ids"])
+    assert len(heldout_ids) == 2  # the two tasks the dev sample left, one per subtask
+    assert not dev_ids & heldout_ids

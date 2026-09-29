@@ -34,7 +34,7 @@ import pyarrow.parquet as pq  # pyright: ignore[reportMissingTypeStubs]
 from toolhunch import ToolCard, ToolCatalog
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Collection, Mapping, Sequence
     from pathlib import Path
 
 __all__ = [
@@ -259,23 +259,29 @@ def _mapping_stats(catalog: ToolCatalog) -> dict[str, float]:
     }
 
 
-def sample_tasks(tasks: Sequence[ToolRetTask], *, n: int, seed: int) -> list[ToolRetTask]:
+def sample_tasks(
+    tasks: Sequence[ToolRetTask], *, n: int, seed: int, exclude: Collection[str] = frozenset()
+) -> list[ToolRetTask]:
     """Draw a stratified sample of `n` tasks, sorted by id.
 
-    Every subtask gets one task; the other `n - subtasks` places are shared in proportion to the
-    tasks each subtask has left (largest remainder, ties broken by subtask name). Within a subtask,
+    Tasks whose id is in `exclude` are dropped before anything else, so the sample is drawn from, and
+    stratified over, the tasks left; this keeps a held-out sample clear of the tasks a system was tuned
+    on. Every subtask left gets one task; the other `n - subtasks` places are shared in proportion to
+    the tasks each subtask has left (largest remainder, ties broken by subtask name). Within a subtask,
     tasks are drawn by a `random.Random` seeded with `seed` and the subtask name.
 
     Raises:
-        ValueError: `n` is smaller than the number of subtasks.
+        ValueError: `n` is smaller than the number of subtasks left.
     """
+    excluded = frozenset(exclude)
+    remaining = sorted((task for task in tasks if task.id not in excluded), key=lambda task: task.id)
     by_subtask: defaultdict[str, list[ToolRetTask]] = defaultdict(list)
-    for task in sorted(tasks, key=lambda task: task.id):
+    for task in remaining:
         by_subtask[task.subtask].append(task)
     if n < len(by_subtask):
         raise ValueError(f"n={n} is less than the {len(by_subtask)} subtasks, which need one task each")
-    if n >= len(tasks):
-        return sorted(tasks, key=lambda task: task.id)
+    if n >= len(remaining):
+        return remaining
     left = {subtask: len(group) - 1 for subtask, group in by_subtask.items()}
     quotas = {subtask: (n - len(by_subtask)) * count / sum(left.values()) for subtask, count in left.items()}
     counts = {subtask: 1 + math.floor(quota) for subtask, quota in quotas.items()}
