@@ -19,6 +19,7 @@ from toolhunch.decision.base import (
     check_request,
     choice_answer,
 )
+from toolhunch.decision.decider import Abstention, ChoiceDecider, Decider, Decision, Exchange, ThresholdKey
 from toolhunch.decision.jev_wire import CLM_LIMITS, JEV_LIMITS, JevWireModel, clm, jev
 from toolhunch.decision.logprobs import LOGPROB_LIMITS, OpenAILogprobModel
 
@@ -26,16 +27,21 @@ __all__ = [
     "CLM_LIMITS",
     "JEV_LIMITS",
     "LOGPROB_LIMITS",
+    "Abstention",
     "Answer",
     "BinaryAnswer",
     "BinaryQuestion",
     "ChoiceAnswer",
+    "ChoiceDecider",
     "ChoiceQuestion",
+    "Decider",
+    "Decision",
     "DecisionError",
     "DecisionModel",
     "DecisionRequest",
     "DecisionResponse",
     "DecisionUsage",
+    "Exchange",
     "JevWireModel",
     "ModelLimits",
     "OpenAILogprobModel",
@@ -43,6 +49,7 @@ __all__ = [
     "QuestionKind",
     "ScoreAnswer",
     "ScoreQuestion",
+    "ThresholdKey",
     "check_request",
     "choice_answer",
     "clm",
