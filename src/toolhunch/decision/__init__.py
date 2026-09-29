@@ -20,10 +20,12 @@ from toolhunch.decision.base import (
     choice_answer,
 )
 from toolhunch.decision.jev_wire import CLM_LIMITS, JEV_LIMITS, JevWireModel, clm, jev
+from toolhunch.decision.logprobs import LOGPROB_LIMITS, OpenAILogprobModel
 
 __all__ = [
     "CLM_LIMITS",
     "JEV_LIMITS",
+    "LOGPROB_LIMITS",
     "Answer",
     "BinaryAnswer",
     "BinaryQuestion",
@@ -36,6 +38,7 @@ __all__ = [
     "DecisionUsage",
     "JevWireModel",
     "ModelLimits",
+    "OpenAILogprobModel",
     "Question",
     "QuestionKind",
     "ScoreAnswer",

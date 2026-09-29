@@ -1,0 +1,208 @@
+{
+  "source": "api.openai.com chat/completions, gpt-4.1-mini, max_tokens 1, top_logprobs 20, recorded 2026-09-28; prompt: letters over the five tool options of jev_tool_choice",
+  "status": 200,
+  "response": {
+    "id": "chatcmpl-ETCa7SEBOxP7F8u1SYCQBPI5ECexU",
+    "object": "chat.completion",
+    "created": 1790628583,
+    "model": "gpt-4.1-mini-2025-04-14",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "B",
+          "refusal": null,
+          "annotations": []
+        },
+        "logprobs": {
+          "content": [
+            {
+              "token": "B",
+              "logprob": 0.0,
+              "bytes": [
+                66
+              ],
+              "top_logprobs": [
+                {
+                  "token": "B",
+                  "logprob": 0.0,
+                  "bytes": [
+                    66
+                  ]
+                },
+                {
+                  "token": "b",
+                  "logprob": -21.125,
+                  "bytes": [
+                    98
+                  ]
+                },
+                {
+                  "token": "\"B",
+                  "logprob": -21.125,
+                  "bytes": [
+                    34,
+                    66
+                  ]
+                },
+                {
+                  "token": " B",
+                  "logprob": -21.5,
+                  "bytes": [
+                    32,
+                    66
+                  ]
+                },
+                {
+                  "token": "(B",
+                  "logprob": -21.875,
+                  "bytes": [
+                    40,
+                    66
+                  ]
+                },
+                {
+                  "token": "-B",
+                  "logprob": -22.125,
+                  "bytes": [
+                    45,
+                    66
+                  ]
+                },
+                {
+                  "token": "\tB",
+                  "logprob": -22.75,
+                  "bytes": [
+                    9,
+                    66
+                  ]
+                },
+                {
+                  "token": "_B",
+                  "logprob": -22.875,
+                  "bytes": [
+                    95,
+                    66
+                  ]
+                },
+                {
+                  "token": "D",
+                  "logprob": -23.0,
+                  "bytes": [
+                    68
+                  ]
+                },
+                {
+                  "token": "E",
+                  "logprob": -23.75,
+                  "bytes": [
+                    69
+                  ]
+                },
+                {
+                  "token": "[B",
+                  "logprob": -24.25,
+                  "bytes": [
+                    91,
+                    66
+                  ]
+                },
+                {
+                  "token": "A",
+                  "logprob": -24.25,
+                  "bytes": [
+                    65
+                  ]
+                },
+                {
+                  "token": "<B",
+                  "logprob": -24.375,
+                  "bytes": [
+                    60,
+                    66
+                  ]
+                },
+                {
+                  "token": ":B",
+                  "logprob": -24.5,
+                  "bytes": [
+                    58,
+                    66
+                  ]
+                },
+                {
+                  "token": "BCD",
+                  "logprob": -24.625,
+                  "bytes": [
+                    66,
+                    67,
+                    68
+                  ]
+                },
+                {
+                  "token": ".B",
+                  "logprob": -24.75,
+                  "bytes": [
+                    46,
+                    66
+                  ]
+                },
+                {
+                  "token": ">B",
+                  "logprob": -24.875,
+                  "bytes": [
+                    62,
+                    66
+                  ]
+                },
+                {
+                  "token": "Б",
+                  "logprob": -24.875,
+                  "bytes": [
+                    208,
+                    145
+                  ]
+                },
+                {
+                  "token": "%B",
+                  "logprob": -24.875,
+                  "bytes": [
+                    37,
+                    66
+                  ]
+                },
+                {
+                  "token": "C",
+                  "logprob": -24.875,
+                  "bytes": [
+                    67
+                  ]
+                }
+              ]
+            }
+          ],
+          "refusal": null
+        },
+        "finish_reason": "length"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 151,
+      "completion_tokens": 1,
+      "total_tokens": 152,
+      "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "audio_tokens": 0
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 0,
+        "audio_tokens": 0,
+        "accepted_prediction_tokens": 0,
+        "rejected_prediction_tokens": 0
+      }
+    },
+    "service_tier": "default",
+    "system_fingerprint": "fp_040c5594d7"
+  }
+}

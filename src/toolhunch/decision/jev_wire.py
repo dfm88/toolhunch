@@ -7,11 +7,10 @@ import math
 import sys
 from datetime import date
 from typing import TYPE_CHECKING, Any, cast
-from urllib.parse import urlsplit
 
 from pydantic import BaseModel, Field, ValidationError
 
-from toolhunch.decision._http import JsonPoster
+from toolhunch.decision._http import Endpoint, JsonPoster
 from toolhunch.decision.base import (
     BinaryAnswer,
     ChoiceQuestion,
@@ -80,9 +79,10 @@ class JevWireModel:
     One class serves Jev itself (see `jev`) and any server that implements the same protocol, such as
     CLM (see `clm`). It answers choice, binary and score questions.
 
-    The identity `model_id` is `"<model>@<host>"`, taken from `model` and `base_url`. The `model` and
-    `confidence` fields of a response are never used; they stay in `DecisionResponse.raw`. `limits` is
-    declared data: a request beyond it raises `ValueError` before anything is sent.
+    `base_url` must be an absolute http(s) URL without credentials: `ValueError` otherwise, so pass the
+    key as `api_key`. The identity `model_id` is `"<model>@<host>"`, taken from `model` and `base_url`. The
+    `model` and `confidence` fields of a response are never used; they stay in `DecisionResponse.raw`.
+    `limits` is declared data: a request beyond it raises `ValueError` before anything is sent.
 
     `extra_body` and the `**options` of `ask` are merged into the top level of the payload, shallowly and
     last write wins, so either can override any field, `model` included; the identity does not follow.
@@ -112,12 +112,10 @@ class JevWireModel:
         max_retries: int = 3,
     ) -> None:
         """Configure the endpoint; `base_url` is the API root, such as `https://api.typesafe.ai/v1`."""
-        parts = urlsplit(base_url)
-        if parts.scheme not in ("http", "https") or not parts.netloc:
-            raise ValueError(f"base_url must be an absolute http(s) URL, got {base_url!r}")
+        endpoint = Endpoint.parse(base_url, model=model)
         self._model = model
-        self._base_url = base_url.rstrip("/")
-        self._model_id = f"{model}@{parts.netloc}"
+        self._base_url = endpoint.base_url
+        self._model_id = endpoint.model_id
         self._limits = limits
         self._extra_body = dict(extra_body or {})
         self._latency_header = latency_header

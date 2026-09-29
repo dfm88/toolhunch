@@ -338,6 +338,26 @@ def test_a_base_url_that_is_not_an_absolute_http_url_is_refused(base_url: str) -
         JevWireModel("m", base_url=base_url, api_key_env=None, limits=CLM_LIMITS)
 
 
+@pytest.mark.parametrize(
+    ("base_url", "must_say"),
+    [
+        ("https://user:hunter2@api.example.com/v1", "pass the key as api_key"),
+        ("https://hunter2@api.example.com/v1", "pass the key as api_key"),  # a token as the user name
+        ("user:hunter2@localhost:8000/v1", "absolute http(s) URL"),  # no scheme: parsed as a path, and still not quoted
+    ],
+    ids=["user and password", "user only", "no scheme"],
+)
+def test_a_base_url_with_credentials_is_refused_and_never_quoted(base_url: str, must_say: str) -> None:
+    # A secret in the URL would reach repr, the model id, threshold keys and manifests: it must not get that far.
+    with pytest.raises(ValueError, match="base_url") as error:
+        JevWireModel("m", base_url=base_url, api_key_env=None, limits=CLM_LIMITS)
+    assert must_say in str(error.value)
+    assert "hunter2" not in str(error.value)
+    with pytest.raises(ValueError, match="base_url") as from_preset:  # the presets go through the same check
+        clm(base_url)
+    assert "hunter2" not in str(from_preset.value)
+
+
 async def test_extra_body_and_options_merge_last_write_wins() -> None:
     requests: list[httpx2.Request] = []
     model = clm(

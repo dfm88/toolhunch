@@ -1,4 +1,4 @@
-"""Private JSON-over-HTTP helper for decision models: auth, retries and redaction."""
+"""Private helpers for decision models that speak JSON over HTTP: the endpoint, auth, retries and redaction."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import re
 import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
+from urllib.parse import urlsplit
 
 import anyio
 import httpx2
@@ -17,7 +18,7 @@ from toolhunch.decision.base import DecisionError
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Mapping
 
-__all__ = ["RETRY_STATUSES", "JsonPoster", "JsonReply"]
+__all__ = ["RETRY_STATUSES", "Endpoint", "JsonPoster", "JsonReply"]
 
 RETRY_STATUSES = frozenset({429, 500, 502, 503, 504, 529})
 """Rate limiting and transient server faults; any other status outside 2xx is final."""
@@ -26,6 +27,37 @@ _BACKOFF_SECONDS = 0.5
 _MAX_RETRY_AFTER_SECONDS = 30.0
 _BODY_CHARACTERS = 500
 _VISIBLE_ASCII = re.compile(r"[\x21-\x7e]+")
+
+
+@dataclass(frozen=True, slots=True)
+class Endpoint:
+    """The API root a decision model talks to, and the identity derived from it.
+
+    Attributes:
+        base_url: The API root, without a trailing slash.
+        model_id: `"<model>@<host>"`; the host keeps its port, as in `localhost:8000`.
+    """
+
+    base_url: str
+    model_id: str
+
+    @classmethod
+    def parse(cls, base_url: str, *, model: str) -> Endpoint:
+        """Check `base_url` and derive the identity of `model` behind it.
+
+        Raises:
+            ValueError: `base_url` is not an absolute http(s) URL, or it carries credentials
+                (`user:password@host`). A secret there would reach `repr`, the model id, threshold keys
+                and manifests, so the URL is refused, and never quoted in the message.
+        """
+        parts = urlsplit(base_url)
+        if "@" in parts.netloc:
+            raise ValueError("base_url must not carry credentials (user:password@host): pass the key as api_key")
+        if parts.scheme not in ("http", "https") or not parts.netloc:
+            # Without a scheme, "user:secret@host" has no netloc for the check above to find: do not quote it.
+            shown = "" if "@" in base_url else f", got {base_url!r}"
+            raise ValueError(f"base_url must be an absolute http(s) URL{shown}")
+        return cls(base_url=base_url.rstrip("/"), model_id=f"{model}@{parts.netloc}")
 
 
 @dataclass(frozen=True, slots=True)
