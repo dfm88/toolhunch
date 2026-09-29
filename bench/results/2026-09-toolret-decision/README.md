@@ -38,77 +38,77 @@ Model-written queries of `20260929T153251Z`: `bench/tasks/toolret-heldout-200.mo
 
 | arm | source | positives | P@1 (95% CI) | hybrid P@1 | Δ vs hybrid (95% CI) | ceiling |
 |---|---|---:|---:|---:|---:|---:|
-| hybrid@20 | plain | 200 | 0.220 (0.17-0.28) | 0.220 | - | 0.590 |
-| hybrid@20 | model | 200 | 0.215 (0.16-0.27) | 0.215 | - | 0.600 |
-| hybrid@20 | model (searched) | 119 | 0.202 (0.13-0.28) | 0.202 | - | 0.647 |
-| hybrid+jev@20 | plain | 200 | 0.320 (0.26-0.39) | 0.220 | +0.100 (0.04-0.15) | 0.590 |
-| hybrid+jev@20 | model | 200 | 0.325 (0.26-0.39) | 0.215 | +0.110 (0.05-0.17) | 0.600 |
-| hybrid+jev@20 | model (searched) | 119 | 0.328 (0.24-0.41) | 0.202 | +0.126 (0.05-0.20) | 0.647 |
-| hybrid+clm@20 | plain | 200 | 0.135 (0.09-0.18) | 0.220 | -0.085 (-0.15--0.02) | 0.590 |
-| hybrid+clm@20 | model | 200 | 0.125 (0.09-0.17) | 0.215 | -0.090 (-0.15--0.03) | 0.600 |
-| hybrid+clm@20 | model (searched) | 119 | 0.109 (0.06-0.17) | 0.202 | -0.092 (-0.17--0.02) | 0.647 |
-| hybrid+logprob@20 | plain | 200 | 0.330 (0.27-0.40) | 0.220 | +0.110 (0.05-0.17) | 0.590 |
-| hybrid+logprob@20 | model | 200 | 0.335 (0.27-0.40) | 0.215 | +0.120 (0.06-0.18) | 0.600 |
-| hybrid+logprob@20 | model (searched) | 119 | 0.319 (0.24-0.40) | 0.202 | +0.118 (0.03-0.20) | 0.647 |
-| hybrid@50 | plain | 200 | 0.220 (0.17-0.28) | 0.220 | - | 0.715 |
-| hybrid@50 | model | 200 | 0.215 (0.16-0.27) | 0.215 | - | 0.720 |
-| hybrid@50 | model (searched) | 119 | 0.202 (0.13-0.28) | 0.202 | - | 0.748 |
-| hybrid+jev@50 | plain | 200 | 0.370 (0.30-0.43) | 0.220 | +0.150 (0.09-0.21) | 0.715 |
-| hybrid+jev@50 | model | 200 | 0.350 (0.28-0.41) | 0.215 | +0.135 (0.07-0.20) | 0.720 |
-| hybrid+jev@50 | model (searched) | 119 | 0.319 (0.24-0.40) | 0.202 | +0.118 (0.04-0.20) | 0.748 |
-| hybrid+clm@50 | plain | 200 | 0.105 (0.07-0.15) | 0.220 | -0.115 (-0.17--0.05) | 0.715 |
-| hybrid+clm@50 | model | 200 | 0.085 (0.05-0.12) | 0.215 | -0.130 (-0.19--0.07) | 0.720 |
-| hybrid+clm@50 | model (searched) | 119 | 0.076 (0.03-0.13) | 0.202 | -0.126 (-0.20--0.04) | 0.748 |
-| hybrid+logprob@50 | plain | 200 | 0.345 (0.28-0.41) | 0.220 | +0.125 (0.06-0.19) | 0.715 |
-| hybrid+logprob@50 | model | 200 | 0.350 (0.28-0.41) | 0.215 | +0.135 (0.07-0.20) | 0.720 |
-| hybrid+logprob@50 | model (searched) | 119 | 0.311 (0.23-0.39) | 0.202 | +0.109 (0.03-0.19) | 0.748 |
+| hybrid@20 | plain | 200 | 0.220 (0.17 to 0.28) | 0.220 | - | 0.590 |
+| hybrid@20 | model | 200 | 0.215 (0.16 to 0.27) | 0.215 | - | 0.600 |
+| hybrid@20 | model (searched) | 119 | 0.202 (0.13 to 0.28) | 0.202 | - | 0.647 |
+| hybrid+jev@20 | plain | 200 | 0.320 (0.26 to 0.39) | 0.220 | +0.100 (0.04 to 0.15) | 0.590 |
+| hybrid+jev@20 | model | 200 | 0.325 (0.26 to 0.39) | 0.215 | +0.110 (0.05 to 0.17) | 0.600 |
+| hybrid+jev@20 | model (searched) | 119 | 0.328 (0.24 to 0.41) | 0.202 | +0.126 (0.05 to 0.20) | 0.647 |
+| hybrid+clm@20 | plain | 200 | 0.135 (0.09 to 0.18) | 0.220 | -0.085 (-0.15 to -0.02) | 0.590 |
+| hybrid+clm@20 | model | 200 | 0.125 (0.09 to 0.17) | 0.215 | -0.090 (-0.15 to -0.03) | 0.600 |
+| hybrid+clm@20 | model (searched) | 119 | 0.109 (0.06 to 0.17) | 0.202 | -0.092 (-0.17 to -0.02) | 0.647 |
+| hybrid+logprob@20 | plain | 200 | 0.330 (0.27 to 0.40) | 0.220 | +0.110 (0.05 to 0.17) | 0.590 |
+| hybrid+logprob@20 | model | 200 | 0.335 (0.27 to 0.40) | 0.215 | +0.120 (0.06 to 0.18) | 0.600 |
+| hybrid+logprob@20 | model (searched) | 119 | 0.319 (0.24 to 0.40) | 0.202 | +0.118 (0.03 to 0.20) | 0.647 |
+| hybrid@50 | plain | 200 | 0.220 (0.17 to 0.28) | 0.220 | - | 0.715 |
+| hybrid@50 | model | 200 | 0.215 (0.16 to 0.27) | 0.215 | - | 0.720 |
+| hybrid@50 | model (searched) | 119 | 0.202 (0.13 to 0.28) | 0.202 | - | 0.748 |
+| hybrid+jev@50 | plain | 200 | 0.370 (0.30 to 0.43) | 0.220 | +0.150 (0.09 to 0.21) | 0.715 |
+| hybrid+jev@50 | model | 200 | 0.350 (0.28 to 0.41) | 0.215 | +0.135 (0.07 to 0.20) | 0.720 |
+| hybrid+jev@50 | model (searched) | 119 | 0.319 (0.24 to 0.40) | 0.202 | +0.118 (0.04 to 0.20) | 0.748 |
+| hybrid+clm@50 | plain | 200 | 0.105 (0.07 to 0.15) | 0.220 | -0.115 (-0.17 to -0.05) | 0.715 |
+| hybrid+clm@50 | model | 200 | 0.085 (0.05 to 0.12) | 0.215 | -0.130 (-0.19 to -0.07) | 0.720 |
+| hybrid+clm@50 | model (searched) | 119 | 0.076 (0.03 to 0.13) | 0.202 | -0.126 (-0.20 to -0.04) | 0.748 |
+| hybrid+logprob@50 | plain | 200 | 0.345 (0.28 to 0.41) | 0.220 | +0.125 (0.06 to 0.19) | 0.715 |
+| hybrid+logprob@50 | model | 200 | 0.350 (0.28 to 0.41) | 0.215 | +0.135 (0.07 to 0.20) | 0.720 |
+| hybrid+logprob@50 | model (searched) | 119 | 0.311 (0.23 to 0.39) | 0.202 | +0.109 (0.03 to 0.19) | 0.748 |
 
 ### Abstention
 
 | arm | source | rule | τ | searches | errors | coverage | selective accuracy | wrong-tool rate (95% CI) | abstention precision | abstention recall |
 |---|---|---|---|---:|---:|---:|---:|---:|---:|---:|
-| hybrid@20 | plain | none: answers every search | - | 400 | 0 | 1.000 | 0.110 | 0.890 (0.86-0.92) | n/a | 0.000 |
-| hybrid@20 | model | none: answers every search | - | 400 | 0 | 1.000 | 0.107 | 0.892 (0.86-0.92) | n/a | 0.000 |
-| hybrid@20 | model (searched) | none: answers every search | - | 238 | 0 | 1.000 | 0.101 | 0.899 (0.86-0.93) | n/a | 0.000 |
-| hybrid+jev@20 | plain | reserved | - | 400 | 0 | 0.823 | 0.195 | 0.662 (0.61-0.72) | 0.972 | 0.245 |
-| hybrid+jev@20 | plain | reserved + dev τ | 0.95 | 400 | 0 | 0.122 | 0.408 | 0.072 (0.04-0.10) | 0.735 | 0.915 |
-| hybrid+jev@20 | model | reserved | - | 400 | 0 | 0.858 | 0.190 | 0.695 (0.64-0.74) | 0.965 | 0.196 |
-| hybrid+jev@20 | model | reserved + dev τ | 0.95 | 400 | 0 | 0.083 | 0.455 | 0.045 (0.02-0.07) | 0.725 | 0.950 |
-| hybrid+jev@20 | model (searched) | reserved | - | 238 | 0 | 0.962 | 0.170 | 0.798 (0.74-0.85) | 0.889 | 0.050 |
-| hybrid+jev@20 | model (searched) | reserved + dev τ | 0.95 | 238 | 0 | 0.063 | 0.533 | 0.029 (0.01-0.06) | 0.700 | 0.969 |
-| hybrid+clm@20 | plain | reserved | - | 400 | 0 | 0.938 | 0.067 | 0.875 (0.83-0.91) | 0.760 | 0.067 |
-| hybrid+clm@20 | plain | reserved + dev τ | 0.90 | 400 | 0 | 0.020 | 0.250 | 0.015 (0.00-0.03) | 0.704 | 0.979 |
-| hybrid+clm@20 | model | reserved | - | 400 | 0 | 0.927 | 0.062 | 0.870 (0.83-0.91) | 0.793 | 0.082 |
-| hybrid+clm@20 | model | reserved + dev τ | 0.90 | 400 | 0 | 0.025 | 0.200 | 0.020 (0.01-0.04) | 0.697 | 0.971 |
-| hybrid+clm@20 | model (searched) | reserved | - | 238 | 0 | 0.966 | 0.057 | 0.912 (0.87-0.95) | 0.875 | 0.043 |
-| hybrid+clm@20 | model (searched) | reserved + dev τ | 0.90 | 238 | 0 | 0.008 | 0.000 | 0.008 (0.00-0.03) | 0.674 | 0.988 |
-| hybrid+logprob@20 | plain | reserved | - | 400 | 0 | 0.833 | 0.183 | 0.680 (0.62-0.73) | 0.910 | 0.216 |
-| hybrid+logprob@20 | plain | reserved + dev τ | 0.95 | 400 | 0 | 0.667 | 0.195 | 0.537 (0.47-0.60) | 0.789 | 0.372 |
-| hybrid+logprob@20 | model | reserved | - | 400 | 0 | 0.863 | 0.183 | 0.705 (0.65-0.76) | 0.891 | 0.175 |
-| hybrid+logprob@20 | model | reserved + dev τ | 0.95 | 400 | 0 | 0.718 | 0.192 | 0.580 (0.52-0.64) | 0.796 | 0.321 |
-| hybrid+logprob@20 | model (searched) | reserved | - | 238 | 0 | 0.954 | 0.159 | 0.803 (0.75-0.86) | 0.727 | 0.050 |
-| hybrid+logprob@20 | model (searched) | reserved + dev τ | 0.95 | 238 | 0 | 0.790 | 0.176 | 0.651 (0.58-0.72) | 0.740 | 0.230 |
-| hybrid@50 | plain | none: answers every search | - | 400 | 0 | 1.000 | 0.110 | 0.890 (0.86-0.92) | n/a | 0.000 |
-| hybrid@50 | model | none: answers every search | - | 400 | 0 | 1.000 | 0.107 | 0.892 (0.86-0.92) | n/a | 0.000 |
-| hybrid@50 | model (searched) | none: answers every search | - | 238 | 0 | 1.000 | 0.101 | 0.899 (0.86-0.93) | n/a | 0.000 |
-| hybrid+jev@50 | plain | reserved | - | 400 | 0 | 0.920 | 0.201 | 0.735 (0.69-0.78) | 0.969 | 0.121 |
-| hybrid+jev@50 | plain | reserved + dev τ | 0.95 | 400 | 0 | 0.102 | 0.512 | 0.050 (0.03-0.07) | 0.671 | 0.938 |
-| hybrid+jev@50 | model | reserved | - | 400 | 0 | 0.927 | 0.189 | 0.752 (0.70-0.80) | 0.966 | 0.109 |
-| hybrid+jev@50 | model | reserved + dev τ | 0.95 | 400 | 0 | 0.085 | 0.529 | 0.040 (0.02-0.07) | 0.667 | 0.953 |
-| hybrid+jev@50 | model (searched) | reserved | - | 238 | 0 | 0.979 | 0.163 | 0.819 (0.77-0.87) | 1.000 | 0.034 |
-| hybrid+jev@50 | model (searched) | reserved + dev τ | 0.95 | 238 | 0 | 0.071 | 0.588 | 0.029 (0.00-0.06) | 0.652 | 0.966 |
-| hybrid+clm@50 | plain | reserved | - | 400 | 0 | 0.960 | 0.052 | 0.910 (0.87-0.94) | 0.625 | 0.039 |
-| hybrid+clm@50 | plain | reserved + dev τ | 0.90 | 400 | 0 | 0.005 | 0.000 | 0.005 (0.00-0.01) | 0.641 | 0.992 |
-| hybrid+clm@50 | model | reserved | - | 400 | 0 | 0.950 | 0.042 | 0.910 (0.87-0.94) | 0.700 | 0.055 |
-| hybrid+clm@50 | model | reserved + dev τ | 0.90 | 400 | 0 | 0.005 | 0.000 | 0.005 (0.00-0.01) | 0.638 | 0.992 |
-| hybrid+clm@50 | model (searched) | reserved | - | 238 | 0 | 0.983 | 0.038 | 0.945 (0.91-0.97) | 1.000 | 0.027 |
-| hybrid+clm@50 | model (searched) | reserved + dev τ | 0.90 | 238 | 0 | 0.000 | n/a | 0.000 (0.00-0.00) | 0.626 | 1.000 |
-| hybrid+logprob@50 | plain | reserved | - | 400 | 0 | 0.915 | 0.186 | 0.745 (0.70-0.79) | 0.882 | 0.117 |
-| hybrid+logprob@50 | plain | reserved + dev τ | 0.95 | 400 | 0 | 0.695 | 0.212 | 0.547 (0.49-0.61) | 0.730 | 0.346 |
-| hybrid+logprob@50 | model | reserved | - | 400 | 0 | 0.925 | 0.186 | 0.752 (0.70-0.80) | 0.900 | 0.105 |
-| hybrid+logprob@50 | model | reserved + dev τ | 0.95 | 400 | 0 | 0.693 | 0.213 | 0.545 (0.49-0.60) | 0.707 | 0.340 |
-| hybrid+logprob@50 | model (searched) | reserved | - | 238 | 0 | 0.971 | 0.160 | 0.815 (0.76-0.87) | 1.000 | 0.047 |
-| hybrid+logprob@50 | model (searched) | reserved + dev τ | 0.95 | 238 | 0 | 0.689 | 0.183 | 0.563 (0.49-0.63) | 0.635 | 0.315 |
+| hybrid@20 | plain | none: answers every search | - | 400 | 0 | 1.000 | 0.110 | 0.890 (0.86 to 0.92) | n/a | 0.000 |
+| hybrid@20 | model | none: answers every search | - | 400 | 0 | 1.000 | 0.107 | 0.892 (0.86 to 0.92) | n/a | 0.000 |
+| hybrid@20 | model (searched) | none: answers every search | - | 238 | 0 | 1.000 | 0.101 | 0.899 (0.86 to 0.93) | n/a | 0.000 |
+| hybrid+jev@20 | plain | reserved | - | 400 | 0 | 0.823 | 0.195 | 0.662 (0.61 to 0.72) | 0.972 | 0.245 |
+| hybrid+jev@20 | plain | reserved + dev τ | 0.95 | 400 | 0 | 0.122 | 0.408 | 0.072 (0.04 to 0.10) | 0.735 | 0.915 |
+| hybrid+jev@20 | model | reserved | - | 400 | 0 | 0.858 | 0.190 | 0.695 (0.64 to 0.74) | 0.965 | 0.196 |
+| hybrid+jev@20 | model | reserved + dev τ | 0.95 | 400 | 0 | 0.083 | 0.455 | 0.045 (0.02 to 0.07) | 0.725 | 0.950 |
+| hybrid+jev@20 | model (searched) | reserved | - | 238 | 0 | 0.962 | 0.170 | 0.798 (0.74 to 0.85) | 0.889 | 0.050 |
+| hybrid+jev@20 | model (searched) | reserved + dev τ | 0.95 | 238 | 0 | 0.063 | 0.533 | 0.029 (0.01 to 0.06) | 0.700 | 0.969 |
+| hybrid+clm@20 | plain | reserved | - | 400 | 0 | 0.938 | 0.067 | 0.875 (0.83 to 0.91) | 0.760 | 0.067 |
+| hybrid+clm@20 | plain | reserved + dev τ | 0.90 | 400 | 0 | 0.020 | 0.250 | 0.015 (0.00 to 0.03) | 0.704 | 0.979 |
+| hybrid+clm@20 | model | reserved | - | 400 | 0 | 0.927 | 0.062 | 0.870 (0.83 to 0.91) | 0.793 | 0.082 |
+| hybrid+clm@20 | model | reserved + dev τ | 0.90 | 400 | 0 | 0.025 | 0.200 | 0.020 (0.01 to 0.04) | 0.697 | 0.971 |
+| hybrid+clm@20 | model (searched) | reserved | - | 238 | 0 | 0.966 | 0.057 | 0.912 (0.87 to 0.95) | 0.875 | 0.043 |
+| hybrid+clm@20 | model (searched) | reserved + dev τ | 0.90 | 238 | 0 | 0.008 | 0.000 | 0.008 (0.00 to 0.03) | 0.674 | 0.988 |
+| hybrid+logprob@20 | plain | reserved | - | 400 | 0 | 0.833 | 0.183 | 0.680 (0.62 to 0.73) | 0.910 | 0.216 |
+| hybrid+logprob@20 | plain | reserved + dev τ | 0.95 | 400 | 0 | 0.667 | 0.195 | 0.537 (0.47 to 0.60) | 0.789 | 0.372 |
+| hybrid+logprob@20 | model | reserved | - | 400 | 0 | 0.863 | 0.183 | 0.705 (0.65 to 0.76) | 0.891 | 0.175 |
+| hybrid+logprob@20 | model | reserved + dev τ | 0.95 | 400 | 0 | 0.718 | 0.192 | 0.580 (0.52 to 0.64) | 0.796 | 0.321 |
+| hybrid+logprob@20 | model (searched) | reserved | - | 238 | 0 | 0.954 | 0.159 | 0.803 (0.75 to 0.86) | 0.727 | 0.050 |
+| hybrid+logprob@20 | model (searched) | reserved + dev τ | 0.95 | 238 | 0 | 0.790 | 0.176 | 0.651 (0.58 to 0.72) | 0.740 | 0.230 |
+| hybrid@50 | plain | none: answers every search | - | 400 | 0 | 1.000 | 0.110 | 0.890 (0.86 to 0.92) | n/a | 0.000 |
+| hybrid@50 | model | none: answers every search | - | 400 | 0 | 1.000 | 0.107 | 0.892 (0.86 to 0.92) | n/a | 0.000 |
+| hybrid@50 | model (searched) | none: answers every search | - | 238 | 0 | 1.000 | 0.101 | 0.899 (0.86 to 0.93) | n/a | 0.000 |
+| hybrid+jev@50 | plain | reserved | - | 400 | 0 | 0.920 | 0.201 | 0.735 (0.69 to 0.78) | 0.969 | 0.121 |
+| hybrid+jev@50 | plain | reserved + dev τ | 0.95 | 400 | 0 | 0.102 | 0.512 | 0.050 (0.03 to 0.07) | 0.671 | 0.938 |
+| hybrid+jev@50 | model | reserved | - | 400 | 0 | 0.927 | 0.189 | 0.752 (0.70 to 0.80) | 0.966 | 0.109 |
+| hybrid+jev@50 | model | reserved + dev τ | 0.95 | 400 | 0 | 0.085 | 0.529 | 0.040 (0.02 to 0.07) | 0.667 | 0.953 |
+| hybrid+jev@50 | model (searched) | reserved | - | 238 | 0 | 0.979 | 0.163 | 0.819 (0.77 to 0.87) | 1.000 | 0.034 |
+| hybrid+jev@50 | model (searched) | reserved + dev τ | 0.95 | 238 | 0 | 0.071 | 0.588 | 0.029 (0.00 to 0.06) | 0.652 | 0.966 |
+| hybrid+clm@50 | plain | reserved | - | 400 | 0 | 0.960 | 0.052 | 0.910 (0.87 to 0.94) | 0.625 | 0.039 |
+| hybrid+clm@50 | plain | reserved + dev τ | 0.90 | 400 | 0 | 0.005 | 0.000 | 0.005 (0.00 to 0.01) | 0.641 | 0.992 |
+| hybrid+clm@50 | model | reserved | - | 400 | 0 | 0.950 | 0.042 | 0.910 (0.87 to 0.94) | 0.700 | 0.055 |
+| hybrid+clm@50 | model | reserved + dev τ | 0.90 | 400 | 0 | 0.005 | 0.000 | 0.005 (0.00 to 0.01) | 0.638 | 0.992 |
+| hybrid+clm@50 | model (searched) | reserved | - | 238 | 0 | 0.983 | 0.038 | 0.945 (0.91 to 0.97) | 1.000 | 0.027 |
+| hybrid+clm@50 | model (searched) | reserved + dev τ | 0.90 | 238 | 0 | 0.000 | n/a | 0.000 (0.00 to 0.00) | 0.626 | 1.000 |
+| hybrid+logprob@50 | plain | reserved | - | 400 | 0 | 0.915 | 0.186 | 0.745 (0.70 to 0.79) | 0.882 | 0.117 |
+| hybrid+logprob@50 | plain | reserved + dev τ | 0.95 | 400 | 0 | 0.695 | 0.212 | 0.547 (0.49 to 0.61) | 0.730 | 0.346 |
+| hybrid+logprob@50 | model | reserved | - | 400 | 0 | 0.925 | 0.186 | 0.752 (0.70 to 0.80) | 0.900 | 0.105 |
+| hybrid+logprob@50 | model | reserved + dev τ | 0.95 | 400 | 0 | 0.693 | 0.213 | 0.545 (0.49 to 0.60) | 0.707 | 0.340 |
+| hybrid+logprob@50 | model (searched) | reserved | - | 238 | 0 | 0.971 | 0.160 | 0.815 (0.76 to 0.87) | 1.000 | 0.047 |
+| hybrid+logprob@50 | model (searched) | reserved + dev τ | 0.95 | 238 | 0 | 0.689 | 0.183 | 0.563 (0.49 to 0.63) | 0.635 | 0.315 |
 
 ### Latency
 
