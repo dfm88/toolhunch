@@ -94,7 +94,7 @@ convention = "google"
 [tool.pyright]
 pythonVersion = "3.12"
 typeCheckingMode = "strict"
-include = ["src", "tests", "bench/src", "bench/tests"]
+include = ["src", "tests", "bench/src", "bench/tests", "examples"]
 venvPath = "."
 venv = ".venv"
 
