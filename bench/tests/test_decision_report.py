@@ -459,13 +459,13 @@ def test_paired_difference_interval_comes_from_paired_differences(tmp_path: Path
     low, high = row["p_at_1_ci95"]
     assert high - low >= 0.5
     assert "| arm | source | positives | P@1 (95% CI) | hybrid P@1 | Δ vs hybrid (95% CI) | ceiling |" in readme
-    assert f"| {JEV} | plain | 4 | 0.500 ({low:.2f}-{high:.2f}) | 0.500 | +0.000 (0.00-0.00) | 1.000 |" in readme
+    assert f"| {JEV} | plain | 4 | 0.500 ({low:.2f} to {high:.2f}) | 0.500 | +0.000 (0.00 to 0.00) | 1.000 |" in readme
     assert "the decider's P@1 minus retrieval's own P@1 on the same positives" in readme
 
 
 def test_paired_difference_is_signed_and_its_interval_follows_the_pairs(tmp_path: Path) -> None:
-    # Two tasks the decider gains (+1), three it loses (-1) and one both get wrong (0).
-    kinds = {"g1": (True, False), "g2": (True, False), "l1": (False, True), "l2": (False, True), "l3": (False, True)}
+    # One task the decider gains (+1), six it loses (-1) and one both get wrong (0).
+    kinds = {"g1": (True, False)} | {f"l{i}": (False, True) for i in range(1, 7)}
     searches = [
         decided(JEV, task, best=0.9, none=0.05, first_right=won, retrieval_right=retrieval)
         for task, (won, retrieval) in kinds.items()
@@ -474,12 +474,12 @@ def test_paired_difference_is_signed_and_its_interval_follows_the_pairs(tmp_path
     summary, readme = one_arm_report(tmp_path, searches)
 
     row = rows(summary, JEV)["plain"]
-    assert row["delta_p_at_1"] == pytest.approx(-1 / 6)
-    assert row["delta_p_at_1_ci95"] == list(
-        cluster_bootstrap_ci([[1.0], [1.0], [-1.0], [-1.0], [-1.0], [0.0]], resamples=2000, seed=0)
-    )
+    assert row["delta_p_at_1"] == pytest.approx(-5 / 8)
+    pairs = [[1.0]] + [[-1.0]] * 6 + [[0.0]]
+    assert row["delta_p_at_1_ci95"] == list(cluster_bootstrap_ci(pairs, resamples=2000, seed=0))
     low, high = row["delta_p_at_1_ci95"]
-    assert f"| -0.167 ({low:.2f}-{high:.2f}) |" in readme
+    assert low < high < 0  # both bounds negative: they read as "-0.xx to -0.xx", not as a double minus
+    assert f"| -0.625 ({low:.2f} to {high:.2f}) |" in readme
 
 
 def test_intervals_resample_tasks(tmp_path: Path) -> None:
@@ -495,9 +495,11 @@ def test_intervals_resample_tasks(tmp_path: Path) -> None:
         for variant in ("positive", "negative")
     ]
 
-    summary, _ = one_arm_report(tmp_path, searches)
+    summary, readme = one_arm_report(tmp_path, searches)
 
-    published = rows(summary, JEV)["plain"]["rules"]["reserved"]["wrong_tool_rate_ci95"]
+    reserved = rows(summary, JEV)["plain"]["rules"]["reserved"]
+    published = reserved["wrong_tool_rate_ci95"]
+    assert f"{reserved['wrong_tool_rate']:.3f} ({published[0]:.2f} to {published[1]:.2f})" in readme
     by_task = [[1.0, 1.0]] * 3 + [[0.0, 1.0]] * 3
     by_search = [[value] for cluster in by_task for value in cluster]
     resampling = {"resamples": 2000, "seed": 0}

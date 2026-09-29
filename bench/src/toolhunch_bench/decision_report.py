@@ -1123,7 +1123,7 @@ def _with_ci(value: float | None, interval: Sequence[float] | None, *, signed: b
     if value is None:
         return "n/a"
     shown = f"{value:+.3f}" if signed else f"{value:.3f}"
-    return shown if interval is None else f"{shown} ({interval[0]:.2f}-{interval[1]:.2f})"
+    return shown if interval is None else f"{shown} ({interval[0]:.2f} to {interval[1]:.2f})"
 
 
 def _whole(value: int | None) -> str:
