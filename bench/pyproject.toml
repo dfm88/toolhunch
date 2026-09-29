@@ -7,6 +7,7 @@ classifiers = ["Private :: Do Not Upload"]
 dependencies = [
     "bm25s>=0.3.11",
     "genai-prices>=0.1.9",
+    "matplotlib>=3.10",
     "pyarrow>=25.0.1",
     "pydantic-ai-slim[openai]>=2.50",
     "python-dotenv>=1.2.3",

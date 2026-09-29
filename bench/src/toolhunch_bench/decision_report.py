@@ -169,6 +169,12 @@ def _outcomes(records: Sequence[Record], tau: float) -> list[Outcome]:
     return [_outcome(record, tau=tau) for record in records]
 
 
+def _counts(outcomes: Sequence[Outcome]) -> dict[str, int]:
+    correct = sum(outcome.correct for outcome in outcomes)
+    answered = sum(outcome.answered for outcome in outcomes)
+    return {"correct": correct, "wrong": answered - correct, "abstained": len(outcomes) - answered}
+
+
 def _ok(records: Iterable[Record]) -> list[Record]:
     """The searches that did not fail: a failed search counts as an error and stays out of every rate."""
     return [record for record in records if record["error"] is None]
@@ -259,7 +265,9 @@ def _grid(records: Sequence[Record]) -> list[dict[str, Any]]:
     points: list[dict[str, Any]] = []
     for tau in THRESHOLD_GRID:
         outcomes = _outcomes(records, tau)
-        points.append({"tau": tau, **asdict(selective_metrics(outcomes)), "utility": utility(outcomes)})
+        points.append(
+            {"tau": tau, **asdict(selective_metrics(outcomes)), **_counts(outcomes), "utility": utility(outcomes)}
+        )
     return points
 
 
@@ -411,6 +419,7 @@ def _repeat_row(
                 "repeat": index,
                 "p_at_1": _share([_first_right(record) for record in positives]),
                 "reserved_and_dev_tau": {
+                    **_counts(outcomes),
                     "coverage": metrics.coverage,
                     "wrong_tool_rate": metrics.wrong_tool_rate,
                     "utility": utility(outcomes),
@@ -472,6 +481,7 @@ def _row(run: _Run, *, arm: str, source: str, taus: dict[str, float]) -> dict[st
         "errors": len(records) - len(ok),
         "fallbacks": sum(record["fallback"] is True for record in ok) if source in ("model", SEARCHED) else None,
         "positives": len(positives),
+        "negatives": sum(record["variant"] == "negative" for record in ok),
         "p_at_1": _share([_first_right(record) for record in positives]),
         "p_at_1_ci95": _interval(positives, [float(_first_right(record)) for record in positives]),
         "hybrid_p_at_1": _share([_retrieval_right(record) for record in positives]),
@@ -479,11 +489,13 @@ def _row(run: _Run, *, arm: str, source: str, taus: dict[str, float]) -> dict[st
         "delta_p_at_1_ci95": _interval(positives, differences) if paired else None,
         "ceiling": _share([record["gold_in_candidates"] for record in positives]),
         "rules": {
+            "answer_always": _rule(ok, [0.0] * len(ok), answer_always=True),
             "reserved": _rule(ok, [0.0] * len(ok)),
             "reserved_and_dev_tau": None
             if reserved_and_tau is None
             else reserved_and_tau | {"taus": sorted(set(applied)), "without_dev_tau": len(decided) - len(applied)},
         },
+        "risk_coverage": {"grid": _grid(decided), "dev_taus": sorted(set(applied))} if decided else None,
         "latency_ms": {
             "decision": _percentiles([record["decision_seconds"] for record in ok]),
             "server": _percentiles([record["server_seconds"] for record in ok]),
@@ -503,13 +515,19 @@ def _search_count(records: Iterable[Record]) -> int:
     return len({(record["source"], record["task"], record["variant"]) for record in records})
 
 
-def _rule(records: Sequence[Record], thresholds: Sequence[float]) -> dict[str, Any] | None:
+def _rule(
+    records: Sequence[Record], thresholds: Sequence[float], *, answer_always: bool = False
+) -> dict[str, Any] | None:
     """The abstention metrics of `records`, each at its own threshold, with an interval for the wrong-tool rate."""
     if not records:
         return None
-    outcomes = [_outcome(record, tau=tau) for record, tau in zip(records, thresholds, strict=True)]
+    outcomes = (
+        [Outcome(True, _first_right(record), record["gold_in_candidates"]) for record in records]
+        if answer_always
+        else [_outcome(record, tau=tau) for record, tau in zip(records, thresholds, strict=True)]
+    )
     wrong = [float(outcome.answered and not outcome.correct) for outcome in outcomes]
-    return asdict(selective_metrics(outcomes)) | {"wrong_tool_rate_ci95": _interval(records, wrong)}
+    return asdict(selective_metrics(outcomes)) | _counts(outcomes) | {"wrong_tool_rate_ci95": _interval(records, wrong)}
 
 
 def _interval(records: Sequence[Record], values: Sequence[float]) -> list[float] | None:
@@ -610,7 +628,12 @@ def _curve(run: _Run, *, arm: str, taus: dict[str, float]) -> dict[str, Any] | N
         return None
     applied = {taus.get(record["key"]) for record in decided}
     dev_tau = next(iter(applied)) if len(applied) == 1 else None
-    return {"arm": arm, "dev_tau": dev_tau, "grid": _grid(decided)}
+    return {
+        "arm": arm,
+        "dev_tau": dev_tau,
+        "grid": _grid(decided),
+        "negative_share": sum(record["variant"] == "negative" for record in decided) / len(decided),
+    }
 
 
 def _tokenizer(split: str, runs: Sequence[_Run]) -> dict[str, Any]:
@@ -699,7 +722,9 @@ def _markdown(summary: dict[str, Any], *, fallbacks_in_tau: bool) -> str:
         *_tokenizer_section(summary["tokenizer"]),
         *_notes(fallbacks_in_tau=fallbacks_in_tau),
     ]
-    return "\n".join([*lines, *_risk_coverage_section(summary)]) + "\n"
+    return "\n".join(
+        [*lines, *_risk_coverage_section(summary), "Not affiliated with TypeSafe, OpenAI or Pydantic.", ""]
+    )
 
 
 def _intro(summary: dict[str, Any]) -> str:
@@ -791,11 +816,34 @@ def _heldout_section(heldout: dict[str, Any], *, runs: Sequence[dict[str, Any]])
             "",
         ]
     header = ["arm", "source", "positives", "P@1 (95% CI)", "hybrid P@1", "Δ vs hybrid (95% CI)", "ceiling"]
-    lines += ["### P@1", "", *_table(header, [_precision_row(row) for row in rows], align="llrrrrr"), ""]
+    lines += [
+        "### P@1",
+        "",
+        "P@1 measures a relevant tool first on positive requests, ignoring abstention; "
+        "it does not measure task completion.",
+        "",
+        *_table(header, [_precision_row(row) for row in rows], align="llrrrrr"),
+        "",
+    ]
     header = ["arm", "source", "rule", "τ", "searches", "errors", "coverage", "selective accuracy"]
-    header += ["wrong-tool rate (95% CI)", "abstention precision", "abstention recall"]
+    header += [
+        "correct",
+        "wrong",
+        "abstained",
+        "negatives",
+        "wrong-tool rate (95% CI)",
+        "abstention precision",
+        "abstention recall",
+    ]
     abstention = [cells for row in rows for cells in _abstention_rows(row)]
-    lines += ["### Abstention", "", *_table(header, abstention, align="llllrrrrrrr"), ""]
+    lines += [
+        "### Abstention",
+        "",
+        "Positive and negative requests are pooled below; the negative share is shown beside every row.",
+        "",
+        *_table(header, abstention, align="llll" + "r" * 11),
+        "",
+    ]
     if any(row["records"] != row["searches"] for row in rows):
         lines += [
             "Rates are over records: a search the run repeats counts once in `searches` and once per repeat in every "
@@ -888,23 +936,26 @@ def _arm_row(arm: dict[str, Any]) -> list[str]:
 def _abstention_rows(row: dict[str, Any]) -> list[list[str]]:
     rules, first, counts = row["rules"], [row["arm"], row["source"]], [f"{row['searches']:,}", f"{row['errors']:,}"]
     if rules["reserved"] is None:
-        return [[*first, "-", "-", *counts, *["n/a"] * 5]]
+        return [[*first, "-", "-", *counts, *["n/a"] * 9]]
+    share = f"{row['negatives'] / row['records']:.0%}"
     if row["decider"] is None:
-        return [[*first, "none: answers every search", "-", *counts, *_rule_cells(rules["reserved"])]]
+        return [[*first, "answer always", "-", *counts, *_rule_cells(rules["answer_always"], negatives=share)]]
     frozen = rules["reserved_and_dev_tau"]
     taus = ", ".join(f"{tau:.2f}" for tau in frozen["taus"]) or "no dev τ"
     if frozen["taus"] and frozen["without_dev_tau"]:
         taus += f" ({frozen['without_dev_tau']:,} searches without)"
     return [
-        [*first, "reserved", "-", *counts, *_rule_cells(rules["reserved"])],
-        [*first, "reserved + dev τ", taus, *counts, *_rule_cells(frozen)],
+        [*first, "answer always", "-", *counts, *_rule_cells(rules["answer_always"], negatives=share)],
+        [*first, "reserved", "-", *counts, *_rule_cells(rules["reserved"], negatives=share)],
+        [*first, "with an abstention threshold", taus, *counts, *_rule_cells(frozen, negatives=share)],
     ]
 
 
-def _rule_cells(metrics: dict[str, Any]) -> list[str]:
+def _rule_cells(metrics: dict[str, Any], *, negatives: str) -> list[str]:
     wrong = _with_ci(metrics["wrong_tool_rate"], metrics["wrong_tool_rate_ci95"])
     abstention = [_fixed(metrics["abstention_precision"]), _fixed(metrics["abstention_recall"])]
-    return [_fixed(metrics["coverage"]), _fixed(metrics["selective_accuracy"]), wrong, *abstention]
+    counts = [str(metrics[key]) for key in ("correct", "wrong", "abstained")]
+    return [_fixed(metrics["coverage"]), _fixed(metrics["selective_accuracy"]), *counts, negatives, wrong, *abstention]
 
 
 def _latency_cells(latency: dict[str, dict[str, float] | None]) -> list[str]:
@@ -1031,8 +1082,12 @@ def _notes(*, fallbacks_in_tau: bool) -> list[str]:
         "them with a gold tool among the K candidates. `Δ vs hybrid` is the decider's P@1 minus retrieval's own P@1 "
         "on the same positives. Its interval resamples tasks with both answers drawn together, so it says whether "
         "the decision helped even where the two separate intervals overlap.",
+        "- **Answer always.** This reinterprets the same ranking obtained with the none option available: its first "
+        "card is chosen, ignoring abstention. It does not show what the model would answer without that option. "
+        "The dev ablation tested that setting separately; for logprob it also changed the number of rounds.",
         '- **Rules.** `reserved`: the decider abstains when its reserved "none of these" option is at least as '
-        "likely as its best card. `reserved + dev τ`: it also abstains when that card's probability is below τ, the "
+        "likely as its best card. `with an abstention threshold`: it also abstains when that card's probability "
+        "is below τ, the "
         "threshold dev chose for the search's threshold key (model, prompt version, payload shape, question kind). "
         "Probabilities compare only within one question, so a τ never crosses keys.",
         "- **Rates.** coverage: answered / searches. Selective accuracy: correct / answered. Wrong-tool rate: "
@@ -1076,31 +1131,42 @@ def _notes(*, fallbacks_in_tau: bool) -> list[str]:
 def _risk_coverage_section(summary: dict[str, Any]) -> list[str]:
     lines = ["## Risk-coverage over the threshold grid", ""]
     for entry in summary["dev"]["thresholds"]:
-        lines += [f"### Dev: `{entry['key']}`", "", *_grid_table(entry["grid"], marked=entry["tau"]), ""]
+        lines += [
+            f"### Dev: `{entry['key']}`",
+            "",
+            *_grid_table(entry["grid"], marked=entry["tau"], negative_share=entry["negatives"] / entry["searches"]),
+            "",
+        ]
     if summary["heldout"] is not None:
         for curve in summary["heldout"]["risk_coverage"]:
             lines += [
                 f"### Held-out: {curve['arm']}, for reading only",
                 "",
-                *_grid_table(curve["grid"], marked=curve["dev_tau"]),
+                *_grid_table(curve["grid"], marked=curve["dev_tau"], negative_share=curve["negative_share"]),
                 "",
             ]
     return lines
 
 
-def _grid_table(grid: Sequence[dict[str, Any]], *, marked: float | None) -> list[str]:
+def _grid_table(grid: Sequence[dict[str, Any]], *, marked: float | None, negative_share: float) -> list[str]:
     """One row per τ; the τ chosen on dev is in bold."""
     rows = [
         [
             f"**{point['tau']:.2f}**" if point["tau"] == marked else f"{point['tau']:.2f}",
             _fixed(point["coverage"]),
             _fixed(point["selective_accuracy"]),
+            *[str(point[key]) for key in ("correct", "wrong", "abstained")],
+            f"{negative_share:.0%}",
             _fixed(point["wrong_tool_rate"]),
             f"{point['utility']:.3f}",
         ]
         for point in grid
     ]
-    return _table(["τ", "coverage", "selective accuracy", "wrong-tool rate", "U"], rows, align="rrrrr")
+    return _table(
+        ["τ", "coverage", "selective accuracy", "correct", "wrong", "abstained", "negatives", "wrong-tool rate", "U"],
+        rows,
+        align="r" * 9,
+    )
 
 
 def _table(header: Sequence[str], rows: Iterable[Sequence[str]], *, align: str) -> list[str]:

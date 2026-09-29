@@ -22,6 +22,7 @@ from pydantic_ai.usage import RunUsage
 from toolhunch import BM25Retriever, DetailLevel, Embedder, OpenAIEmbedder, default_search_text
 from toolhunch.decision import JevWireModel, OpenAILogprobModel, clm, jev
 from toolhunch_bench import BENCH_DIR
+from toolhunch_bench.charts import build_decision_charts
 from toolhunch_bench.checks import check_bm25, check_tokens
 from toolhunch_bench.datasets.model_queries import (
     WRITER_MODEL,
@@ -401,6 +402,16 @@ def decision_report(
     """Choose abstention thresholds on dev runs, apply them to a held-out run, and write the report."""
     build_decision_report(dev, heldout, out_dir=out, heldout_repeats=heldout_repeats)
     typer.echo(f"report written to {out}")
+
+
+@app.command("decision-charts")
+def decision_charts(
+    summary: Annotated[Path, typer.Argument(help="Generated decision summary JSON.", exists=True, dir_okay=False)],
+    out: Annotated[Path, typer.Option(help="Directory for the two SVG figures.")],
+) -> None:
+    """Draw held-out ranking-cost and coverage-accuracy charts without calling a provider."""
+    for path in build_decision_charts(summary, out_dir=out):
+        typer.echo(f"chart written to {path}")
 
 
 @check_app.command("bm25")

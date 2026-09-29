@@ -330,6 +330,10 @@ def test_report_freezes_tau_on_dev_and_applies_it_to_heldout(tmp_path: Path) -> 
     assert jev_row["delta_p_at_1"] == pytest.approx(1 / 3)
     assert jev_row["delta_p_at_1"] == pytest.approx(jev_row["p_at_1"] - jev_row["hybrid_p_at_1"])
     reserved, frozen = jev_row["rules"]["reserved"], jev_row["rules"]["reserved_and_dev_tau"]
+    always = jev_row["rules"]["answer_always"]
+    assert (always["coverage"], always["correct"], always["wrong"], always["abstained"]) == (1.0, 2, 2, 0)
+    assert (reserved["correct"], reserved["wrong"], reserved["abstained"]) == (2, 2, 0)
+    assert (frozen["correct"], frozen["wrong"], frozen["abstained"]) == (1, 1, 2)
     assert (reserved["coverage"], reserved["selective_accuracy"], reserved["wrong_tool_rate"]) == (1.0, 0.5, 0.5)
     assert (reserved["abstention_precision"], reserved["abstention_recall"]) == (None, 0.0)
     assert (frozen["taus"], frozen["without_dev_tau"]) == ([0.5], 0)
@@ -356,6 +360,8 @@ def test_report_freezes_tau_on_dev_and_applies_it_to_heldout(tmp_path: Path) -> 
         )
         assert (rule["abstention_precision"], rule["abstention_recall"]) == (1.0, 0.5)
     assert logprob_row["p_at_1"] == 0.5  # h4 ranked nothing
+    assert logprob_row["rules"]["answer_always"]["coverage"] == 1.0
+    assert logprob_row["rules"]["answer_always"]["wrong"] == 2  # an empty ranking is a miss
     assert summary["heldout"]["keys_without_dev_tau"] == [{"key": LOGPROB_KEY, "arms": [logprob], "searches": 3}]
     assert LOGPROB_KEY in readme
     assert "no dev" in readme.lower()
@@ -365,6 +371,26 @@ def test_report_freezes_tau_on_dev_and_applies_it_to_heldout(tmp_path: Path) -> 
         (jev, 1),
         (logprob, 0),
     ]
+
+
+def test_answer_always_reinterprets_the_ranking_when_none_wins(tmp_path: Path) -> None:
+    name = "hybrid+jev@3"
+    arms = {name: arm(3, "jev", JEV_ID)}
+    records = [
+        decided(name, "right", best=0.2, none=0.8, first_right=True),
+        decided(name, "wrong", best=0.3, none=0.7),
+        decided(name, "negative", best=0.1, none=0.9, gold=False, variant="negative"),
+    ]
+    dev = write_run(tmp_path, "dev", records, split="dev", arms=arms)
+    heldout = write_run(tmp_path, "heldout", records, split="heldout", arms=arms)
+    build_decision_report([dev], heldout, out_dir=tmp_path / "report")
+    summary, readme = report(tmp_path / "report")
+    rules = rows(summary, name)["plain"]["rules"]
+    assert (rules["answer_always"]["coverage"], rules["answer_always"]["correct"]) == (1.0, 1)
+    assert (rules["answer_always"]["wrong"], rules["answer_always"]["abstained"]) == (2, 0)
+    assert rules["reserved"]["abstained"] == 3
+    assert "reinterprets the same ranking" in readme
+    assert "without that option" in readme
 
 
 def test_heldout_rows_per_source_with_fallbacks_and_intervals(tmp_path: Path) -> None:
