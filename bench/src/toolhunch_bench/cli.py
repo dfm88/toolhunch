@@ -388,9 +388,18 @@ def decision_report(
     heldout: Annotated[
         Path | None, typer.Option("--heldout", help="The held-out run directory.", exists=True, file_okay=False)
     ] = None,
+    heldout_repeats: Annotated[
+        Path | None,
+        typer.Option(
+            "--heldout-repeats",
+            help="A held-out run that repeats its searches, for run-to-run variation.",
+            exists=True,
+            file_okay=False,
+        ),
+    ] = None,
 ) -> None:
     """Choose abstention thresholds on dev runs, apply them to a held-out run, and write the report."""
-    build_decision_report(dev, heldout, out_dir=out)
+    build_decision_report(dev, heldout, out_dir=out, heldout_repeats=heldout_repeats)
     typer.echo(f"report written to {out}")
 
 

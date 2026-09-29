@@ -1,5 +1,5 @@
 import json
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -304,6 +304,8 @@ def test_report_freezes_tau_on_dev_and_applies_it_to_heldout(tmp_path: Path) -> 
     summary, readme = report(tmp_path / "report")
     [threshold] = summary["dev"]["thresholds"]
     assert (threshold["key"], threshold["tau"]) == (JEV_KEY, 0.5)
+    assert summary["heldout"]["repeats"] is None
+    assert "Run-to-run variation" not in readme
     assert (threshold["searches"], threshold["positives"], threshold["negatives"]) == (6, 3, 3)
     expected_u = [0.0] * 9 + [1 / 6, 2 / 6] + [1 / 6] * 6 + [0.0] * 3
     assert [point["tau"] for point in threshold["grid"]] == list(THRESHOLD_GRID)
@@ -408,13 +410,21 @@ def test_heldout_rows_per_source_with_fallbacks_and_intervals(tmp_path: Path) ->
     with pytest.raises(ValueError, match="holds a heldout run, given as a dev run"):
         build_decision_report([tmp_path / "once" / "once"], None, out_dir=tmp_path / "wrong")
     # A search's repeats are resampled together: the same searches made twice give the same intervals.
-    twice = rows(heldout_report("twice", 2), jev)
-    assert twice["plain"]["searches"] == 24
+    twice_summary = heldout_report("twice", 2)
+    twice = rows(twice_summary, jev)
+    assert (twice["plain"]["searches"], twice["plain"]["records"]) == (12, 24)
     assert twice["plain"]["p_at_1_ci95"] == by_source["plain"]["p_at_1_ci95"]
     assert (
         twice["plain"]["rules"]["reserved"]["wrong_tool_rate_ci95"]
         == by_source["plain"]["rules"]["reserved"]["wrong_tool_rate_ci95"]
     )
+    # Searches are counted once, records once per repeat, in the rows and in the arm entries alike.
+    assert [(row["searches"], row["records"]) for row in by_source.values()] == [(12, 12), (6, 6), (4, 4)]
+    assert [(entry["searches"], entry["records"]) for entry in summary["heldout"]["arms"]] == [(18, 18)]
+    assert [(entry["searches"], entry["records"]) for entry in twice_summary["heldout"]["arms"]] == [(18, 36)]
+    note = "Rates are over records"
+    assert note not in (tmp_path / "once" / "report" / "README.md").read_text()
+    assert note in (tmp_path / "twice" / "report" / "README.md").read_text()
 
 
 def cost_run(root: Path) -> Path:
@@ -577,3 +587,179 @@ def test_report_checks_determinism_and_the_jev_tokenizer(tmp_path: Path) -> None
     assert (fit["median_ratio"], fit["share_under_1"]) == (pytest.approx(1.625), 0.25)
     assert summary["heldout"] is None
     assert "held-out" in readme.lower()
+
+
+JEV = "hybrid+jev@3"
+LOGPROB = "hybrid+logprob@3"
+# What a run started with --bypass-cache records for each decider arm's model.
+BYPASSED = "CachedDecisionModel(FakeModel(), bypass=True)"
+
+
+def edit_manifest(run_dir: Path, edit: Callable[[dict[str, Any]], object]) -> None:
+    path = run_dir / "manifest.json"
+    manifest: dict[str, Any] = json.loads(path.read_text())
+    edit(manifest)
+    path.write_text(json.dumps(manifest))
+
+
+def dev_and_main(root: Path) -> tuple[Path, Path]:
+    """A dev run whose only threshold is tau = 0.5 for Jev's key, and a held-out run that asks each search once."""
+    arms = {JEV: arm(3, "jev", JEV_ID)}
+    # A right answer at 0.80 and a negative answered at 0.45: U is 0 up to 0.45 and 1/2 from 0.50 to 0.80.
+    dev_searches = [
+        decided(JEV, "d1", best=0.8, none=0.1, first_right=True),
+        decided(JEV, "d2", best=0.45, none=0.1, gold=False, variant="negative"),
+    ]
+    main_searches = [
+        decided(JEV, "h1", best=0.9, none=0.05, first_right=True, exchanges=[(100, 350)]),
+        decided(JEV, "h2", best=0.9, none=0.05),
+        decided(JEV, "h3", best=0.9, none=0.05, gold=False, variant="negative"),
+    ]
+    dev = write_run(root, "dev", dev_searches, split="dev", arms=arms)
+    return dev, write_run(root, "heldout-main", main_searches, split="heldout", arms=arms)
+
+
+def repeats_run(root: Path, *, split: str = "heldout", repeat: int = 3, bypassed: str = BYPASSED) -> Path:
+    """A run that makes each search three times: Jev on h1, h2 and a negative h3, logprob on h1, and a failed h4."""
+
+    def jev(task: str, index: int, probabilities: dict[str, float], *, none: float, negative: bool = False) -> Any:
+        variant = "negative" if negative else "positive"
+        return decided(
+            JEV,
+            task,
+            best=0.0,
+            none=none,
+            probabilities=probabilities,
+            gold=not negative,
+            variant=variant,
+            repeat=index,
+            exchanges=[(400, 500)],
+        )
+
+    def logprob(index: int, probabilities: dict[str, float]) -> Any:
+        return decided(
+            LOGPROB,
+            "h1",
+            best=0.0,
+            none=None,
+            probabilities=probabilities,
+            decider="logprob",
+            key=LOGPROB_KEY,
+            repeat=index,
+        )
+
+    # Only the first card's probability and the reserved option's decide an outcome; the others make the spreads.
+    h1 = [{"g": 0.80, "x": 0.10, "y": 0.05}, {"g": 0.70, "x": 0.20, "y": 0.05}, {"g": 0.40, "x": 0.45, "y": 0.10}]
+    h2 = [{"g": 0.55, "x": 0.30, "y": 0.10}, {"g": 0.30, "x": 0.60, "y": 0.05}, {"g": 0.30, "x": 0.55, "y": 0.10}]
+    h3 = [{"x": 0.80, "y": 0.05, "z": 0.05}, {"x": 0.20, "y": 0.05, "z": 0.05}, {"x": 0.50, "y": 0.05, "z": 0.05}]
+    answers = [{"g": 0.30, "x": 0.20, "y": 0.10}, {"g": 0.30, "x": 0.20, "y": 0.10}, {"g": 0.25, "x": 0.35, "y": 0.10}]
+    records = [
+        *(jev("h1", index, probabilities, none=0.05) for index, probabilities in enumerate(h1)),
+        *(jev("h2", index, probabilities, none=0.05) for index, probabilities in enumerate(h2)),
+        *(jev("h3", index, probabilities, none=0.10, negative=True) for index, probabilities in enumerate(h3)),
+        failed(JEV, "h4", decider="jev", message=f"{JEV_ID}: HTTP 500") | {"repeat": 1},
+        *(logprob(index, probabilities) for index, probabilities in enumerate(answers)),
+    ]
+    arms = {
+        JEV: arm(3, "jev", JEV_ID, model=bypassed),
+        LOGPROB: arm(3, "logprob", LOGPROB_ID, model=bypassed),
+    }
+    records.reverse()  # the report orders repeats by their index, not by where their records sit in the file
+    return write_run(root, "heldout-repeats", records, split=split, arms=arms, repeat=repeat)
+
+
+def test_heldout_repeats_report_variation_per_repeat(tmp_path: Path) -> None:
+    dev, main = dev_and_main(tmp_path)
+    repeats = repeats_run(tmp_path)
+
+    build_decision_report([dev], main, out_dir=tmp_path / "report", heldout_repeats=repeats)
+    build_decision_report([dev], main, out_dir=tmp_path / "alone")
+    summary, readme = report(tmp_path / "report")
+
+    variation = summary["heldout"]["repeats"]
+    assert (variation["run_id"], variation["repeat"]) == ("heldout-repeats", 3)
+    jev_row, logprob_row = variation["rows"]
+    assert (jev_row["arm"], jev_row["decider"], jev_row["k"], jev_row["source"]) == (JEV, "jev", 3, "plain")
+    # Three searches made three times, and a failed one that is in neither count.
+    assert (jev_row["searches"], jev_row["records"], jev_row["errors"]) == (3, 9, 1)
+    # At the dev tau of 0.50, best card and outcome per repeat (h1, h2, h3):
+    #   0: right and answered, right and answered, a negative answered at 0.80: U = (2 - 1) / 3
+    #   1: right, wrong (x leads at 0.60), a negative at 0.20 that abstains:    U = (1 - 1) / 3
+    #   2: h1 abstains at 0.45, h2 wrong, the negative answered at exactly 0.50: U = (0 - 2) / 3
+    per_repeat = jev_row["per_repeat"]
+    assert [entry["repeat"] for entry in per_repeat] == [0, 1, 2]
+    assert [entry["p_at_1"] for entry in per_repeat] == [1.0, 0.5, 0.0]
+    frozen = [entry["reserved_and_dev_tau"] for entry in per_repeat]
+    assert [rule["coverage"] for rule in frozen] == pytest.approx([1.0, 2 / 3, 2 / 3])
+    assert [rule["wrong_tool_rate"] for rule in frozen] == pytest.approx([1 / 3, 1 / 3, 2 / 3])
+    assert [rule["utility"] for rule in frozen] == pytest.approx([1 / 3, 0.0, -2 / 3])
+    assert jev_row["p_at_1_range"] == [0.0, 1.0]
+    assert jev_row["utility_range"] == pytest.approx([-2 / 3, 1 / 3])
+    # The negative h3 moves most: card x goes 0.80, 0.20, 0.50.
+    assert jev_row["largest_abs_dp"] == pytest.approx(0.6)
+    assert jev_row["at"] == {"task": "h3", "variant": "negative"}
+    assert jev_row["main_p_at_1"] == rows(summary, JEV)["plain"]["p_at_1"] == 0.5
+
+    # Logprob has no dev tau, so every answer stands (a tau of 0.5 would have abstained on all of them), and the
+    # main run has no logprob arm to compare with.
+    assert [entry["p_at_1"] for entry in logprob_row["per_repeat"]] == [1.0, 1.0, 0.0]
+    assert [entry["reserved_and_dev_tau"]["utility"] for entry in logprob_row["per_repeat"]] == [1.0, 1.0, -1.0]
+    assert logprob_row["utility_range"] == [-1.0, 1.0]
+    assert logprob_row["largest_abs_dp"] == pytest.approx(0.15)
+    assert logprob_row["at"] == {"task": "h1", "variant": "positive"}
+    assert logprob_row["main_p_at_1"] is None
+
+    # The main tables, and the token check of Jev's exchanges, still come from the main run alone.
+    assert summary["heldout"] | {"repeats": None} == report(tmp_path / "alone")[0]["heldout"]
+    assert summary["tokenizer"] == report(tmp_path / "alone")[0]["tokenizer"]
+    assert [entry["exchanges"] for entry in summary["tokenizer"]] == [0, 1]
+    assert [(entry["split"], entry["role"], entry["run_id"]) for entry in summary["runs"]] == [
+        ("dev", "main", "dev"),
+        ("heldout", "main", "heldout-main"),
+        ("heldout", "repeats", "heldout-repeats"),
+    ]
+    assert "| heldout | repeats | `heldout-repeats` |" in readme
+    assert (
+        readme.index("### Cost per 1,000 searches") < readme.index("### Run-to-run variation") < readme.index("## Dev")
+    )
+    assert "The repeats run `heldout-repeats` makes each search 3 times with the decision cache bypassed." in readme
+    assert "| hybrid+jev@3 | plain | 3 | 1.000 / 0.500 / 0.000 | 0.500 | 0.333 / 0.000 / -0.667 | 0.6000 |" in readme
+    assert "| hybrid+logprob@3 | plain | 1 | 1.000 / 1.000 / 0.000 | n/a | 1.000 / 1.000 / -1.000 | 0.1500 |" in readme
+
+
+@pytest.mark.parametrize(
+    "case", ["no-heldout-run", "dev-split", "single-repeat", "other-tasks", "other-dataset", "cache-not-bypassed"]
+)
+def test_heldout_repeats_rejects_mismatched_runs(tmp_path: Path, case: str) -> None:
+    dev, main = dev_and_main(tmp_path)
+    repeats = repeats_run(
+        tmp_path,
+        split="dev" if case == "dev-split" else "heldout",
+        repeat=1 if case == "single-repeat" else 3,
+        bypassed=BYPASSED.replace("True", "False") if case == "cache-not-bypassed" else BYPASSED,
+    )
+    if case == "other-tasks":
+        edit_manifest(repeats, lambda manifest: manifest["tasks"].update(sha256="cd" * 32))
+    if case == "other-dataset":
+        edit_manifest(repeats, lambda manifest: manifest["dataset"].update(revision="0" * 40))
+
+    with pytest.raises(ValueError, match="heldout-repeats") as error:
+        build_decision_report(
+            [dev], None if case == "no-heldout-run" else main, out_dir=tmp_path / "report", heldout_repeats=repeats
+        )
+
+    assert str(repeats) in str(error.value)
+    assert not (tmp_path / "report").exists()  # nothing is written for a refused run
+
+
+def test_decision_report_command_takes_a_repeats_run(tmp_path: Path) -> None:
+    dev, main = dev_and_main(tmp_path)
+    repeats = repeats_run(tmp_path)
+    arguments = ["decision-report", "--dev", str(dev), "--heldout", str(main), "--out", str(tmp_path / "report")]
+
+    result = CliRunner().invoke(cli.app, [*arguments, "--heldout-repeats", str(repeats)])
+
+    assert result.exit_code == 0, result.output
+    assert report(tmp_path / "report")[0]["heldout"]["repeats"]["run_id"] == "heldout-repeats"
+    missing = CliRunner().invoke(cli.app, [*arguments, "--heldout-repeats", str(tmp_path / "nowhere")])
+    assert missing.exit_code == 2  # the option is checked like the other run directories

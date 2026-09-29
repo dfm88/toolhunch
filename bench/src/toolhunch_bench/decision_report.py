@@ -4,8 +4,9 @@
 `summary.json` and `README.md`. On dev it chooses one threshold per threshold key, sets the P@1 of every run side by
 side (the ablations next to the main run) and measures how far repeated searches drift. On held-out, per arm and
 query source, it reports P@1 against retrieval alone and the ceiling, the two abstention rules, latency, cost per
-1,000 searches, errors and the model source's fallbacks. Both come with the Jev token check and the provenance of
-every run. The CLM endpoint's host is published as `modal`.
+1,000 searches, errors and the model source's fallbacks; a second held-out run that repeats its searches adds how
+much each arm varies from one repeat to the next. Both come with the Jev token check and the provenance of every
+run. The CLM endpoint's host is published as `modal`.
 """
 
 from __future__ import annotations
@@ -62,7 +63,9 @@ class _Run:
         return self.manifest["run_id"]
 
 
-def build_decision_report(dev_runs: Sequence[Path], heldout_run: Path | None, *, out_dir: Path) -> None:
+def build_decision_report(
+    dev_runs: Sequence[Path], heldout_run: Path | None, *, out_dir: Path, heldout_repeats: Path | None = None
+) -> None:
     """Choose the abstention thresholds on `dev_runs`, apply them to `heldout_run`, and write the report to `out_dir`.
 
     One threshold τ is chosen per threshold key on the dev runs that made each search once: the τ of the grid with
@@ -70,30 +73,40 @@ def build_decision_report(dev_runs: Sequence[Path], heldout_run: Path | None, *,
     under the reserved option alone and under the reserved option plus the dev τ of their key; a held-out key without
     dev searches gets no τ. `summary.json` holds every figure and the runs' manifests, `README.md` the tables.
 
+    A repeats run makes the held-out searches again, several times each with the decision cache bypassed. It never
+    feeds the held-out tables: it adds, per arm and query source, how P@1 and U at the dev τ move between repeats and
+    the largest change of one probability, next to the main run's P@1.
+
     Args:
         dev_runs: Run directories of the dev split: the main run, its ablations, reruns and the determinism run.
         heldout_run: The run directory of the held-out split; without one, the report covers dev alone.
         out_dir: Where `summary.json` and `README.md` go; created when missing.
+        heldout_repeats: A held-out run that repeats its searches, on the tasks and the dataset of `heldout_run`.
 
     Raises:
-        ValueError: A run's manifest names another split than the one it is given as.
+        ValueError: A run's manifest names another split than the one it is given as. `heldout_repeats` comes without
+            `heldout_run`, repeats fewer than twice, runs other tasks or another dataset than `heldout_run`, or has a
+            decider arm that did not bypass the decision cache.
     """
+    if heldout_repeats is not None and heldout_run is None:
+        raise ValueError(f"{heldout_repeats} is a repeats run, given without a held-out run to compare it with")
     dev = [_read_run(path, split="dev") for path in dev_runs]
     heldout = None if heldout_run is None else _read_run(heldout_run, split="heldout")
+    repeats = None if heldout_repeats is None or heldout is None else _read_repeats(heldout_repeats, main=heldout)
     thresholds = _thresholds(dev)
     taus = {entry["key"]: entry["tau"] for entry in thresholds}
-    runs = [*dev, *([] if heldout is None else [heldout])]
+    runs = [*dev, *([] if heldout is None else [heldout]), *([] if repeats is None else [repeats])]
     summary: dict[str, Any] = {
         "bootstrap": {"resamples": BOOTSTRAP_RESAMPLES, "seed": BOOTSTRAP_SEED, "level": 0.95, "unit": "search"},
         "threshold_grid": list(THRESHOLD_GRID),
-        "runs": [_run_entry(run) for run in runs],
+        "runs": [_run_entry(run, role="repeats" if run is repeats else "main") for run in runs],
         "dev": {
             "thresholds": thresholds,
             "precision": _dev_precision(dev),
             "determinism": _determinism(dev),
             "errors": [_errors(run, arm) for run in dev for arm in run.manifest["arms"]],
         },
-        "heldout": None if heldout is None else _heldout(heldout, taus),
+        "heldout": None if heldout is None else _heldout(heldout, taus, repeats=repeats),
         "tokenizer": [_tokenizer("dev", dev), *([] if heldout is None else [_tokenizer("heldout", [heldout])])],
     }
     hosts = _clm_hosts(runs)
@@ -110,6 +123,23 @@ def _read_run(run_dir: Path, *, split: str) -> _Run:
     records: list[Record] = [json.loads(line) for line in lines if line.strip()]
     searches = [record for record in records if record["record"] == "search"]
     return _Run(manifest, searches, {record["arm"]: record for record in records if record["record"] == "arm"})
+
+
+def _read_repeats(run_dir: Path, *, main: _Run) -> _Run:
+    """The repeats run of `run_dir`, checked to be one that can stand next to the `main` held-out run."""
+    run = _read_run(run_dir, split="heldout")
+    manifest, reference = run.manifest, main.manifest
+    if manifest["repeat"] < 2:
+        raise ValueError(f"{run_dir} makes each search {manifest['repeat']} time, not a repeats run")
+    if manifest["tasks"]["sha256"] != reference["tasks"]["sha256"] or manifest["dataset"] != reference["dataset"]:
+        raise ValueError(f"{run_dir} runs other tasks or another dataset than the held-out run {main.run_id}")
+    for name, config in manifest["arms"].items():
+        # The manifest keeps the bypass only in the repr of the arm's model.
+        if config["decider"] is not None and "bypass=True" not in (config["model"] or ""):
+            raise ValueError(
+                f"{run_dir}: arm {name} did not bypass the decision cache, so its repeats replay one answer"
+            )
+    return run
 
 
 def _outcome(record: Record, *, tau: float) -> Outcome:
@@ -307,27 +337,108 @@ def _errors(run: _Run, arm: str) -> dict[str, Any]:
     return {"run_id": run.run_id, "arm": arm, "searches": len(own), "errors": len(own) - len(_ok(own))}
 
 
-def _heldout(run: _Run, taus: dict[str, float]) -> dict[str, Any]:
+def _heldout(run: _Run, taus: dict[str, float], *, repeats: _Run | None) -> dict[str, Any]:
     manifest = run.manifest
     without_tau: dict[str, list[Record]] = {}
     for record in _decided(run.searches):
         if record["key"] not in taus:
             without_tau.setdefault(record["key"], []).append(record)
+    rows = [
+        row
+        for arm in manifest["arms"]
+        for source in _sources(manifest)
+        if (row := _row(run, arm=arm, source=source, taus=taus)) is not None
+    ]
     return {
         "run_id": run.run_id,
         "keys_without_dev_tau": [
             {"key": key, "arms": _unique(record["arm"] for record in records), "searches": len(records)}
             for key, records in without_tau.items()
         ],
-        "rows": [
-            row
-            for arm in manifest["arms"]
-            for source in _sources(manifest)
-            if (row := _row(run, arm=arm, source=source, taus=taus)) is not None
-        ],
+        "rows": rows,
         "arms": [_arm_entry(run, arm) for arm in manifest["arms"]],
         "risk_coverage": [curve for arm in manifest["arms"] if (curve := _curve(run, arm=arm, taus=taus)) is not None],
+        "repeats": None if repeats is None else _variation(repeats, taus=taus, main_rows=rows),
     }
+
+
+def _variation(run: _Run, *, taus: dict[str, float], main_rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    """How far each arm and query source of the repeats `run` moves between the repeats of its searches.
+
+    `main_rows` are the held-out rows of the main run, for the P@1 it measured from one repetition of each search.
+    """
+    main = {(row["arm"], row["source"]): row["p_at_1"] for row in main_rows}
+    rows = [
+        row
+        for arm in run.manifest["arms"]
+        for source in _sources(run.manifest)
+        if (row := _repeat_row(run, arm=arm, source=source, taus=taus, main=main)) is not None
+    ]
+    return {"run_id": run.run_id, "repeat": run.manifest["repeat"], "rows": rows}
+
+
+def _repeat_row(
+    run: _Run, *, arm: str, source: str, taus: dict[str, float], main: dict[tuple[str, str], float | None]
+) -> dict[str, Any] | None:
+    """The figures of one arm and query source, repeat by repeat; `None` when the arm made no search from it.
+
+    `main` holds the P@1 of the main run by arm and source. A failed search is left out, so a repeat in which every
+    search of the arm failed has no entry.
+    """
+    records = [record for record in run.searches if record["arm"] == arm and _in_source(record, source)]
+    if not records:
+        return None
+    config = run.manifest["arms"][arm]
+    ok = _ok(records)
+    by_repeat: dict[int, list[Record]] = {}
+    for record in ok:
+        by_repeat.setdefault(record["repeat"], []).append(record)
+    per_repeat: list[dict[str, Any]] = []
+    for index, found in sorted(by_repeat.items()):
+        outcomes = [_outcome(record, tau=tau) for record, tau in zip(found, _dev_taus(found, taus), strict=True)]
+        metrics = selective_metrics(outcomes)
+        positives = [record for record in found if record["variant"] == "positive"]
+        per_repeat.append(
+            {
+                "repeat": index,
+                "p_at_1": _share([_first_right(record) for record in positives]),
+                "reserved_and_dev_tau": {
+                    "coverage": metrics.coverage,
+                    "wrong_tool_rate": metrics.wrong_tool_rate,
+                    "utility": utility(outcomes),
+                },
+            }
+        )
+    searches: dict[tuple[str, str], list[Record]] = {}
+    for record in _decided(ok):
+        searches.setdefault((record["task"], record["variant"]), []).append(record)
+    changes = [(_largest_change(found), search) for search, found in searches.items() if len(found) > 1]
+    largest: float | None = None
+    at: dict[str, str] | None = None
+    if changes:
+        largest, (task, variant) = max(changes, key=lambda item: item[0])
+        at = {"task": task, "variant": variant}
+    return {
+        "arm": arm,
+        "decider": config["decider"],
+        "k": config["k"],
+        "source": source,
+        "searches": _search_count(ok),
+        "records": len(ok),
+        "errors": len(records) - len(ok),
+        "per_repeat": per_repeat,
+        "p_at_1_range": _range([entry["p_at_1"] for entry in per_repeat]),
+        "utility_range": _range([entry["reserved_and_dev_tau"]["utility"] for entry in per_repeat]),
+        "largest_abs_dp": largest,
+        "at": at,
+        "main_p_at_1": main.get((arm, source)),
+    }
+
+
+def _range(values: Sequence[float | None]) -> list[float] | None:
+    """[min, max] of the values present; `None` when there is none."""
+    present = [value for value in values if value is not None]
+    return [min(present), max(present)] if present else None
 
 
 def _row(run: _Run, *, arm: str, source: str, taus: dict[str, float]) -> dict[str, Any] | None:
@@ -340,14 +451,14 @@ def _row(run: _Run, *, arm: str, source: str, taus: dict[str, float]) -> dict[st
     positives = [record for record in ok if record["variant"] == "positive"]
     decided = [record for record in ok if record["decider"] is not None]
     applied = [taus[record["key"]] for record in decided if record["key"] in taus]
-    frozen = [taus.get(record["key"], 0.0) if record["decider"] is not None else 0.0 for record in ok]
-    reserved_and_tau = _rule(ok, frozen)
+    reserved_and_tau = _rule(ok, _dev_taus(ok, taus))
     return {
         "arm": arm,
         "decider": config["decider"],
         "k": config["k"],
         "source": source,
-        "searches": len(ok),
+        "searches": _search_count(ok),
+        "records": len(ok),
         "errors": len(records) - len(ok),
         "fallbacks": sum(record["fallback"] is True for record in ok) if source in ("model", SEARCHED) else None,
         "positives": len(positives),
@@ -368,6 +479,16 @@ def _row(run: _Run, *, arm: str, source: str, taus: dict[str, float]) -> dict[st
         },
         "cost": _cost(ok, config=config, manifest=run.manifest),
     }
+
+
+def _dev_taus(records: Sequence[Record], taus: dict[str, float]) -> list[float]:
+    """The threshold each record is held to: the dev τ of its key, 0.0 without one and for retrieval alone."""
+    return [taus.get(record["key"], 0.0) if record["decider"] is not None else 0.0 for record in records]
+
+
+def _search_count(records: Iterable[Record]) -> int:
+    """How many searches `records` make: a search that the run repeats counts once."""
+    return len({(record["source"], record["task"], record["variant"]) for record in records})
 
 
 def _rule(records: Sequence[Record], thresholds: Sequence[float]) -> dict[str, Any] | None:
@@ -447,7 +568,7 @@ def _cost(records: Sequence[Record], *, config: dict[str, Any], manifest: dict[s
 
 
 def _arm_entry(run: _Run, arm: str) -> dict[str, Any]:
-    """An arm's searches and errors, the summed seconds of its decisions, and its arm record's clock and cache."""
+    """An arm's searches, records (one per repeat) and errors, the summed seconds of its decisions, clock and cache."""
     config = run.manifest["arms"][arm]
     own = [record for record in run.searches if record["arm"] == arm]
     decided = _decided(own)
@@ -456,7 +577,8 @@ def _arm_entry(run: _Run, arm: str) -> dict[str, Any]:
         "arm": arm,
         "decider": config["decider"],
         "k": config["k"],
-        "searches": len(own),
+        "searches": _search_count(own),
+        "records": len(own),
         "errors": len(own) - len(_ok(own)),
         "decision_seconds": sum(search["decision_seconds"] for search in decided) if decided else None,
         "wall_seconds": record.get("wall_seconds"),
@@ -504,11 +626,12 @@ def _tokenizer(split: str, runs: Sequence[_Run]) -> dict[str, Any]:
     return entry
 
 
-def _run_entry(run: _Run) -> dict[str, Any]:
-    """A run's manifest, and how many tasks of its model source fell back to the plain request."""
+def _run_entry(run: _Run, *, role: str) -> dict[str, Any]:
+    """A run's manifest and role, and how many tasks of its model source fell back to the plain request."""
     model = [record for record in run.searches if record["source"] == "model"]
     return {
         "split": run.manifest["split"],
+        "role": role,
         "run_id": run.run_id,
         "model_tasks": len({record["task"] for record in model}) if model else None,
         "fallback_tasks": len({record["task"] for record in model if record["fallback"]}) if model else None,
@@ -567,8 +690,7 @@ def _intro(summary: dict[str, Any]) -> str:
             f"Dev runs only ({dev_runs}): the thresholds, the P@1 of the ablations and the determinism check below "
             "settle the settings of the held-out run. None of these numbers is a held-out result."
         )
-    [entry] = [entry for entry in summary["runs"] if entry["split"] == "heldout"]
-    manifest = entry["manifest"]
+    manifest = _main_heldout(summary["runs"])["manifest"]
     dataset, tasks = manifest["dataset"], manifest["tasks"]
     return (
         f"Held-out run `{heldout['run_id']}`: {tasks['count']} tasks from `{tasks['file']}` (sha256 "
@@ -577,6 +699,12 @@ def _intro(summary: dict[str, Any]) -> str:
         f"commit `{_commit(manifest['git'])}`, Python {manifest['versions']['python']}. Every abstention threshold "
         f"applied here was chosen on the dev runs ({dev_runs}); no held-out search chose one."
     )
+
+
+def _main_heldout(runs: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    """The entry of the held-out run the tables come from, not the one that repeats its searches."""
+    [entry] = [entry for entry in runs if entry["split"] == "heldout" and entry["role"] == "main"]
+    return entry
 
 
 def _commit(git: dict[str, Any]) -> str:
@@ -593,6 +721,7 @@ def _runs_section(runs: Sequence[dict[str, Any]], *, deployments: Sequence[dict[
         rows.append(
             [
                 entry["split"],
+                entry["role"],
                 f"`{entry['run_id']}`",
                 f"{tasks['count']} (`{tasks['file']}`, sha256 `{tasks['sha256'][:12]}`)",
                 ", ".join(manifest["sources"]),
@@ -608,7 +737,7 @@ def _runs_section(runs: Sequence[dict[str, Any]], *, deployments: Sequence[dict[
         for config in deciders:
             declared = f"{config['limits']['source']} (checked {config['limits']['checked']})"
             models.append((config["decider"], f"`{config['model_id']}`", f"`{config['prompt_version']}`", declared))
-    header = ["split", "run", "tasks", "sources", "negatives", "repeat", "K", "deciders (max detail)"]
+    header = ["split", "role", "run", "tasks", "sources", "negatives", "repeat", "K", "deciders (max detail)"]
     header += ["reserved option", "model-source fallbacks", "commit"]
     lines = ["## Runs", "", *_table(header, rows, align="l" * len(header)), ""]
     if models:
@@ -632,7 +761,7 @@ def _runs_section(runs: Sequence[dict[str, Any]], *, deployments: Sequence[dict[
 
 def _heldout_section(heldout: dict[str, Any], *, runs: Sequence[dict[str, Any]]) -> list[str]:
     rows = heldout["rows"]
-    [entry] = [entry for entry in runs if entry["split"] == "heldout"]
+    entry = _main_heldout(runs)
     lines = ["## Held-out", ""]
     if entry["model_tasks"] is not None:
         lines += [
@@ -647,6 +776,12 @@ def _heldout_section(heldout: dict[str, Any], *, runs: Sequence[dict[str, Any]])
     header += ["wrong-tool rate (95% CI)", "abstention precision", "abstention recall"]
     abstention = [cells for row in rows for cells in _abstention_rows(row)]
     lines += ["### Abstention", "", *_table(header, abstention, align="llllrrrrrrr"), ""]
+    if any(row["records"] != row["searches"] for row in rows):
+        lines += [
+            "Rates are over records: a search the run repeats counts once in `searches` and once per repeat in every "
+            "rate.",
+            "",
+        ]
     if heldout["keys_without_dev_tau"]:
         lines += [
             "Held-out threshold keys with no dev τ (no dev search under the key in a run that made each search "
@@ -665,12 +800,49 @@ def _heldout_section(heldout: dict[str, Any], *, runs: Sequence[dict[str, Any]])
     header = ["arm", "source", "asks / search", "input tokens / search", "USD", "CLM busy USD", "CLM wall USD"]
     lines += ["### Cost per 1,000 searches", "", *_table(header, cost, align="llrrrrr"), ""]
     header = ["arm", "searches", "errors", "decision s", "arm clock s", "cache hits", "cache misses"]
-    return [
-        *lines,
+    lines += [
         "Per arm, all sources together: the summed seconds of its decisions, which CLM's wall figure prices, next "
         "to the arm's own clock time and the asks the decision cache replayed (hits) or sent (misses) during it.",
         "",
         *_table(header, [_arm_row(arm) for arm in heldout["arms"]], align="lrrrrrr"),
+        "",
+    ]
+    if any(arm["records"] != arm["searches"] for arm in heldout["arms"]):
+        lines += [
+            "Errors, seconds and cache counts are over records: a search the run repeats counts once in `searches` "
+            "and once per repeat in the rest.",
+            "",
+        ]
+    return [*lines, *([] if heldout["repeats"] is None else _variation_section(heldout["repeats"]))]
+
+
+def _variation_section(repeats: dict[str, Any]) -> list[str]:
+    header = ["arm", "source", "searches", "P@1 per repeat", "P@1 of the main run", "U at dev τ per repeat"]
+    header += ["largest abs Δp"]
+    rows = [
+        [
+            row["arm"],
+            row["source"],
+            f"{row['searches']:,}",
+            " / ".join(_fixed(entry["p_at_1"]) for entry in row["per_repeat"]) or "n/a",
+            _fixed(row["main_p_at_1"]),
+            " / ".join(_fixed(entry["reserved_and_dev_tau"]["utility"]) for entry in row["per_repeat"]) or "n/a",
+            _fixed(row["largest_abs_dp"], 4),
+        ]
+        for row in repeats["rows"]
+    ]
+    return [
+        "### Run-to-run variation",
+        "",
+        f"The repeats run `{repeats['run_id']}` makes each search {repeats['repeat']} times with the decision cache "
+        "bypassed. The tables above come from the main held-out run, which asks each search once.",
+        "",
+        *_table(header, rows, align="llrrrrr"),
+        "",
+        "P@1 is over the positives of each repeat; U = (correct - wrong) / searches under the reserved option plus "
+        "the dev τ of each search's key. `P@1 of the main run` is the single-run figure from the P@1 table. The last "
+        "column is the largest change of one probability (a card's or the reserved option's) between repeats of the "
+        "same search, over every repeated search of the arm and source.",
         "",
     ]
 
@@ -854,8 +1026,9 @@ def _notes() -> list[str]:
         "- **Cost.** Jev: reported input tokens at the price its declared limits give. Logprob: the reported usage, "
         "priced by genai-prices. CLM is paid in GPU time, at the list price in the run's manifest, two ways. Busy "
         "prices the server's own seconds per search, as if the GPU never sat idle: a lower bound. Wall prices the "
-        "seconds of the calls as the client saw them, as if one container served the searches one after another: an "
-        "upper bound for such traffic. Modal's CPU and memory charges come on top of both and are not included. "
+        "summed seconds of the arm's decision calls as the client saw them, as if one container served the searches "
+        "one after another. It leaves out the cold starts, the idle gaps between arms and the scale-down window, "
+        "which Modal also bills. Modal's CPU and memory charges come on top of both and are not included. "
         "Every arm also embeds its queries for hybrid retrieval, at the same cost for each arm, which the F1 "
         "retrieval results report.",
         "- **Negatives** stand in for a catalog without the gold tools: the gold ids are dropped from a deeper "
