@@ -272,7 +272,10 @@ class CachedAgent:
                     output_tokens=usage.output_tokens,
                     seconds=seconds,
                     text_is_none=not calls
-                    and "".join(part.content for part in response.parts if isinstance(part, TextPart)).strip()
+                    and "".join(part.content for part in response.parts if isinstance(part, TextPart))
+                    .strip()
+                    .strip("`'\". ")
+                    .lower()
                     == "none",
                 )
                 self.misses += 1

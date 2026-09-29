@@ -111,7 +111,7 @@ async def test_estimate_wire_mapping_matches_pydantic_ai_without_internal_fields
         await model.client.close()
 
 
-@pytest.mark.parametrize("kind", ["pick", "none", "multiple", "other_text"])
+@pytest.mark.parametrize("kind", ["pick", "none", "formatted_none", "multiple", "other_text"])
 async def test_agent_outcomes_and_replay_never_add_usage(tmp_path: Path, kind: str) -> None:
     calls = 0
 
@@ -122,10 +122,9 @@ async def test_agent_outcomes_and_replay_never_add_usage(tmp_path: Path, kind: s
         assert info.model_settings is not None
         assert "parallel_tool_calls" in info.model_settings
         assert info.model_settings["parallel_tool_calls"] is False
+        texts = {"none": "none", "formatted_none": "`None`.", "other_text": "Please clarify."}
         parts: list[ModelResponsePart] = (
-            [TextPart("none" if kind == "none" else "Please clarify.")]
-            if kind in {"none", "other_text"}
-            else [ToolCallPart(info.function_tools[0].name, {})]
+            [TextPart(texts[kind])] if kind in texts else [ToolCallPart(info.function_tools[0].name, {})]
         )
         if kind == "multiple":
             parts.append(ToolCallPart(info.function_tools[1].name, {}))
@@ -137,9 +136,11 @@ async def test_agent_outcomes_and_replay_never_add_usage(tmp_path: Path, kind: s
     try:
         result, replayed = await agent.ask("weather", functions, catalog_name="test")
         assert not replayed
-        assert result.pick == (None if kind in {"none", "other_text"} else functions.card_ids[functions.tools[0].name])
+        assert result.pick == (
+            None if kind in {"none", "formatted_none", "other_text"} else functions.card_ids[functions.tools[0].name]
+        )
         assert result.extra_calls == (1 if kind == "multiple" else 0)
-        assert result.text_is_none == (kind == "none")
+        assert result.text_is_none == (kind in {"none", "formatted_none"})
         cost, usage_count = guard.run_usd, len(guard.calls)
         cached, replayed = await agent.ask("weather", functions, catalog_name="test")
         assert replayed
