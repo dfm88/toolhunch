@@ -64,6 +64,7 @@ from toolhunch_bench.decision import (
     warm_up_clm,
 )
 from toolhunch_bench.decision_cache import DECISION_CACHE_PATH, CachedDecisionModel
+from toolhunch_bench.decision_report import build_decision_report
 from toolhunch_bench.embedding_cache import (
     EMBEDDING_CACHE_PATH,
     CachedEmbedder,
@@ -374,6 +375,22 @@ def report(
 ) -> None:
     """Compute the metrics and tables of a run."""
     build_report(run_dir, out_dir=out)
+    typer.echo(f"report written to {out}")
+
+
+@app.command("decision-report")
+def decision_report(
+    dev: Annotated[
+        list[Path],
+        typer.Option("--dev", help="A dev run directory; repeat for each run.", exists=True, file_okay=False),
+    ],
+    out: Annotated[Path, typer.Option(help="Directory for summary.json and README.md.")],
+    heldout: Annotated[
+        Path | None, typer.Option("--heldout", help="The held-out run directory.", exists=True, file_okay=False)
+    ] = None,
+) -> None:
+    """Choose abstention thresholds on dev runs, apply them to a held-out run, and write the report."""
+    build_decision_report(dev, heldout, out_dir=out)
     typer.echo(f"report written to {out}")
 
 
