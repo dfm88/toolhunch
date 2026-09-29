@@ -33,7 +33,7 @@ from toolhunch_bench.metrics import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Hashable, Iterable, Sequence
+    from collections.abc import Hashable, Iterable, Iterator, Sequence
     from pathlib import Path
 
 __all__ = ["build_decision_report"]
@@ -94,10 +94,11 @@ def build_decision_report(
     heldout = None if heldout_run is None else _read_run(heldout_run, split="heldout")
     repeats = None if heldout_repeats is None or heldout is None else _read_repeats(heldout_repeats, main=heldout)
     thresholds = _thresholds(dev)
+    fallbacks_in_tau = any(record["fallback"] is True for _, record in _tau_searches(dev))
     taus = {entry["key"]: entry["tau"] for entry in thresholds}
     runs = [*dev, *([] if heldout is None else [heldout]), *([] if repeats is None else [repeats])]
     summary: dict[str, Any] = {
-        "bootstrap": {"resamples": BOOTSTRAP_RESAMPLES, "seed": BOOTSTRAP_SEED, "level": 0.95, "unit": "search"},
+        "bootstrap": {"resamples": BOOTSTRAP_RESAMPLES, "seed": BOOTSTRAP_SEED, "level": 0.95, "unit": "task"},
         "threshold_grid": list(THRESHOLD_GRID),
         "runs": [_run_entry(run, role="repeats" if run is repeats else "main") for run in runs],
         "dev": {
@@ -112,7 +113,9 @@ def build_decision_report(
     hosts = _clm_hosts(runs)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "summary.json").write_text(_published(json.dumps(summary, indent=2) + "\n", hosts), encoding="utf-8")
-    (out_dir / "README.md").write_text(_published(_markdown(summary), hosts), encoding="utf-8")
+    (out_dir / "README.md").write_text(
+        _published(_markdown(summary, fallbacks_in_tau=fallbacks_in_tau), hosts), encoding="utf-8"
+    )
 
 
 def _read_run(run_dir: Path, *, split: str) -> _Run:
@@ -208,26 +211,31 @@ def _in_source(record: Record, source: str) -> bool:
     return record["source"] == source
 
 
-def _thresholds(runs: Sequence[_Run]) -> list[dict[str, Any]]:
-    """One τ per threshold key, chosen on the dev runs that made each search once, sources and variants pooled.
+def _tau_searches(runs: Sequence[_Run]) -> Iterator[tuple[_Run, Record]]:
+    """The decided searches of the dev runs that made each search once, each with the run it is taken from.
 
     A search that several of those runs made, such as a rerun of the same settings, counts once, from the first run.
     """
-    pooled: dict[str, list[Record]] = {}
-    contributors: dict[str, list[str]] = {}
     seen: set[tuple[str, str, str, str]] = set()
     for run in runs:
         if run.manifest["repeat"] != 1:
             continue
         for record in _decided(run.searches):
             search = (record["key"], record["source"], record["task"], record["variant"])
-            if search in seen:
-                continue
-            seen.add(search)
-            pooled.setdefault(record["key"], []).append(record)
-            contributors.setdefault(record["key"], [])
-            if run.run_id not in contributors[record["key"]]:
-                contributors[record["key"]].append(run.run_id)
+            if search not in seen:
+                seen.add(search)
+                yield run, record
+
+
+def _thresholds(runs: Sequence[_Run]) -> list[dict[str, Any]]:
+    """One τ per threshold key, chosen on the dev runs that made each search once, sources and variants pooled."""
+    pooled: dict[str, list[Record]] = {}
+    contributors: dict[str, list[str]] = {}
+    for run, record in _tau_searches(runs):
+        pooled.setdefault(record["key"], []).append(record)
+        contributors.setdefault(record["key"], [])
+        if run.run_id not in contributors[record["key"]]:
+            contributors[record["key"]].append(run.run_id)
     return [
         {
             "key": key,
@@ -452,6 +460,8 @@ def _row(run: _Run, *, arm: str, source: str, taus: dict[str, float]) -> dict[st
     decided = [record for record in ok if record["decider"] is not None]
     applied = [taus[record["key"]] for record in decided if record["key"] in taus]
     reserved_and_tau = _rule(ok, _dev_taus(ok, taus))
+    differences = [float(_first_right(record)) - float(_retrieval_right(record)) for record in positives]
+    paired = config["decider"] is not None and bool(differences)
     return {
         "arm": arm,
         "decider": config["decider"],
@@ -465,6 +475,8 @@ def _row(run: _Run, *, arm: str, source: str, taus: dict[str, float]) -> dict[st
         "p_at_1": _share([_first_right(record) for record in positives]),
         "p_at_1_ci95": _interval(positives, [float(_first_right(record)) for record in positives]),
         "hybrid_p_at_1": _share([_retrieval_right(record) for record in positives]),
+        "delta_p_at_1": statistics.fmean(differences) if paired else None,
+        "delta_p_at_1_ci95": _interval(positives, differences) if paired else None,
         "ceiling": _share([record["gold_in_candidates"] for record in positives]),
         "rules": {
             "reserved": _rule(ok, [0.0] * len(ok)),
@@ -501,13 +513,17 @@ def _rule(records: Sequence[Record], thresholds: Sequence[float]) -> dict[str, A
 
 
 def _interval(records: Sequence[Record], values: Sequence[float]) -> list[float] | None:
-    """The 95% bootstrap interval of the mean of `values`, one per record, resampling searches with their repeats."""
+    """The 95% bootstrap interval of the mean of `values`, one per record, resampling tasks.
+
+    A task's positive search, its negative and all their repeats are drawn together: when the gold tool is not among
+    the candidates the negative is the positive again, so the two are not independent.
+    """
     if not records:
         return None
-    searches: dict[tuple[str, str], list[float]] = {}
+    tasks: dict[str, list[float]] = {}
     for record, value in zip(records, values, strict=True):
-        searches.setdefault((record["task"], record["variant"]), []).append(value)
-    low, high = cluster_bootstrap_ci(list(searches.values()), resamples=BOOTSTRAP_RESAMPLES, seed=BOOTSTRAP_SEED)
+        tasks.setdefault(record["task"], []).append(value)
+    low, high = cluster_bootstrap_ci(list(tasks.values()), resamples=BOOTSTRAP_RESAMPLES, seed=BOOTSTRAP_SEED)
     return [low, high]
 
 
@@ -660,7 +676,7 @@ def _published(text: str, hosts: Sequence[str]) -> str:
 # Markdown
 
 
-def _markdown(summary: dict[str, Any]) -> str:
+def _markdown(summary: dict[str, Any], *, fallbacks_in_tau: bool) -> str:
     heldout = summary["heldout"]
     deployments: list[dict[str, Any]] = []
     for entry in summary["runs"]:
@@ -678,7 +694,11 @@ def _markdown(summary: dict[str, Any]) -> str:
     lines += _runs_section(summary["runs"], deployments=deployments)
     if heldout is not None:
         lines += _heldout_section(heldout, runs=summary["runs"])
-    lines += [*_dev_section(summary["dev"]), *_tokenizer_section(summary["tokenizer"]), *_notes()]
+    lines += [
+        *_dev_section(summary["dev"]),
+        *_tokenizer_section(summary["tokenizer"]),
+        *_notes(fallbacks_in_tau=fallbacks_in_tau),
+    ]
     return "\n".join([*lines, *_risk_coverage_section(summary)]) + "\n"
 
 
@@ -770,8 +790,8 @@ def _heldout_section(heldout: dict[str, Any], *, runs: Sequence[dict[str, Any]])
             f"{entry['model_tasks']} tasks it answered without searching, and the request itself was used.",
             "",
         ]
-    header = ["arm", "source", "positives", "P@1 (95% CI)", "hybrid P@1", "ceiling"]
-    lines += ["### P@1", "", *_table(header, [_precision_row(row) for row in rows], align="llrrrr"), ""]
+    header = ["arm", "source", "positives", "P@1 (95% CI)", "hybrid P@1", "Δ vs hybrid (95% CI)", "ceiling"]
+    lines += ["### P@1", "", *_table(header, [_precision_row(row) for row in rows], align="llrrrrr"), ""]
     header = ["arm", "source", "rule", "τ", "searches", "errors", "coverage", "selective accuracy"]
     header += ["wrong-tool rate (95% CI)", "abstention precision", "abstention recall"]
     abstention = [cells for row in rows for cells in _abstention_rows(row)]
@@ -849,7 +869,14 @@ def _variation_section(repeats: dict[str, Any]) -> list[str]:
 
 def _precision_row(row: dict[str, Any]) -> list[str]:
     first = [row["arm"], row["source"], f"{row['positives']:,}"]
-    return [*first, _with_ci(row["p_at_1"], row["p_at_1_ci95"]), _fixed(row["hybrid_p_at_1"]), _fixed(row["ceiling"])]
+    delta = "-" if row["delta_p_at_1"] is None else _with_ci(row["delta_p_at_1"], row["delta_p_at_1_ci95"], signed=True)
+    return [
+        *first,
+        _with_ci(row["p_at_1"], row["p_at_1_ci95"]),
+        _fixed(row["hybrid_p_at_1"]),
+        delta,
+        _fixed(row["ceiling"]),
+    ]
 
 
 def _arm_row(arm: dict[str, Any]) -> list[str]:
@@ -992,7 +1019,7 @@ def _tokenizer_row(entry: dict[str, Any]) -> list[str]:
     ]
 
 
-def _notes() -> list[str]:
+def _notes(*, fallbacks_in_tau: bool) -> list[str]:
     return [
         "## Notes",
         "",
@@ -1001,7 +1028,9 @@ def _notes() -> list[str]:
         "every answer to it is wrong.",
         "- **P@1** counts positives only and ignores abstention: is the first card of the decider's ranking a gold "
         "tool? `hybrid P@1` asks the same of retrieval order on the same searches, and `ceiling` is the share of "
-        "them with a gold tool among the K candidates.",
+        "them with a gold tool among the K candidates. `Δ vs hybrid` is the decider's P@1 minus retrieval's own P@1 "
+        "on the same positives. Its interval resamples tasks with both answers drawn together, so it says whether "
+        "the decision helped even where the two separate intervals overlap.",
         '- **Rules.** `reserved`: the decider abstains when its reserved "none of these" option is at least as '
         "likely as its best card. `reserved + dev τ`: it also abstains when that card's probability is below τ, the "
         "threshold dev chose for the search's threshold key (model, prompt version, payload shape, question kind). "
@@ -1013,9 +1042,16 @@ def _notes() -> list[str]:
         f"- **Choosing τ.** Per threshold key, on dev: of τ = 0.00, 0.05, ..., {THRESHOLD_GRID[-1]:.2f}, the one "
         "with the highest U = (correct - wrong) / searches, where abstaining counts 0; of equal U, the lower τ wins. "
         "It uses the dev runs that made each search once, both query sources, positives and negatives; a search that "
-        "several of those runs made counts once. The held-out risk-coverage tables are there to read, never to choose.",
+        "several of those runs made counts once. "
+        + (
+            "Fallback searches of the `model` source (its writer made no search, so the request was used) repeat "
+            "their `plain` search and count twice in U(τ) and in the searches counts of the thresholds table. "
+            if fallbacks_in_tau
+            else ""
+        )
+        + "The held-out risk-coverage tables are there to read, never to choose.",
         f"- **Intervals.** 95% percentile bootstrap, {BOOTSTRAP_RESAMPLES:,} resamples with seed {BOOTSTRAP_SEED}, "
-        "resampling searches; the repeats of a search are drawn together.",
+        "resampling tasks: a task's positive search, its negative and their repeats are drawn together.",
         "- **Errors.** A search whose decider raised `DecisionError` counts as an error and stays out of every rate, "
         "latency and cost figure.",
         "- **Latency.** Decision: the critical path of the decider's calls as the client timed them, network "
@@ -1083,10 +1119,11 @@ def _fixed(value: float | None, digits: int = 3, *, missing: str = "n/a") -> str
     return missing if value is None else f"{value:.{digits}f}"
 
 
-def _with_ci(value: float | None, interval: Sequence[float] | None) -> str:
+def _with_ci(value: float | None, interval: Sequence[float] | None, *, signed: bool = False) -> str:
     if value is None:
         return "n/a"
-    return f"{value:.3f}" if interval is None else f"{value:.3f} ({interval[0]:.2f}-{interval[1]:.2f})"
+    shown = f"{value:+.3f}" if signed else f"{value:.3f}"
+    return shown if interval is None else f"{shown} ({interval[0]:.2f}-{interval[1]:.2f})"
 
 
 def _whole(value: int | None) -> str:

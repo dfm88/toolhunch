@@ -105,7 +105,7 @@ def test_build_state() -> None:
     assert build_state(None, []) == ""
 
 
-def test_fit_state_cuts_the_context_and_keeps_the_queries() -> None:  # Review Focus 4
+def test_fit_state_cuts_the_context_and_keeps_the_queries() -> None:
     model = ModelLimits(max_text_tokens=60, source="t", checked=date(2026, 9, 28))
     state = build_state("word " * 500 + "tail-marker", ["restaurant booking"])
     text, cut = fit_state(state, limits=model, tokenizer=WORDS)
@@ -195,7 +195,7 @@ def test_the_queries_are_never_cut() -> None:
     assert fit_state(state, limits=model, tokenizer=WORDS) == (f" … \nSearch queries: {queries}", True)
 
 
-def test_option_keys_are_unique_names_with_the_reserved_key_first() -> None:  # Review Focus 1
+def test_option_keys_are_unique_names_with_the_reserved_key_first() -> None:
     cards = [card("search", id="a.search"), card("search", id="b.search"), card("none"), card("get")]
     assert option_keys(cards, reserved=True) == ["search", "search #2", "none #2", "get"]
     assert option_keys(cards, reserved=False) == ["search", "search #2", "none", "get"]
@@ -213,7 +213,7 @@ def test_option_keys_are_unique_names_with_the_reserved_key_first() -> None:  # 
     ]
 
 
-def test_duplicate_names_map_back_to_their_cards() -> None:  # Review Focus 1
+def test_duplicate_names_map_back_to_their_cards() -> None:
     cards = [
         card("search", id="web.search", description="Search the web."),
         card("none", id="x.none"),
@@ -304,7 +304,7 @@ def test_the_question_budget_is_the_smaller_of_the_state_and_request_limits() ->
     assert unlimited.detail is DetailLevel.BRIEF
 
 
-def test_clm_limits_keep_every_text_under_the_cap() -> None:  # Review Focus 3
+def test_clm_limits_keep_every_text_under_the_cap() -> None:
     long = card("archive", id="srv/archive", description="Search the archive. " + "word " * 3_000)
     cards = [card(f"t{i:02d}", id=f"c{i:02d}", description="Does one thing. Then a second.") for i in range(19)]
     cards.insert(7, long)

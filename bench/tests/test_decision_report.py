@@ -10,7 +10,7 @@ from typer.testing import CliRunner
 from toolhunch_bench import cli
 from toolhunch_bench.decision import CLM_DEPLOYMENT
 from toolhunch_bench.decision_report import build_decision_report
-from toolhunch_bench.metrics import THRESHOLD_GRID, bootstrap_ci
+from toolhunch_bench.metrics import THRESHOLD_GRID, bootstrap_ci, cluster_bootstrap_ci
 
 JEV_ID = "jev-1.13.0@api.typesafe.ai"
 CLM_HOST = "acme-workspace--clm-serve.modal.run"
@@ -326,6 +326,9 @@ def test_report_freezes_tau_on_dev_and_applies_it_to_heldout(tmp_path: Path) -> 
     assert (jev_row["searches"], jev_row["errors"], jev_row["positives"]) == (4, 1, 3)
     # P@1 on the positives h1, h2 and h4, abstentions ignored; hybrid's own first card is right on h1 only.
     assert (jev_row["p_at_1"], jev_row["hybrid_p_at_1"], jev_row["ceiling"]) == pytest.approx((2 / 3, 1 / 3, 2 / 3))
+    # Paired, task by task: h1 both right (0), h2 the decider right where retrieval was wrong (+1), h4 both wrong (0).
+    assert jev_row["delta_p_at_1"] == pytest.approx(1 / 3)
+    assert jev_row["delta_p_at_1"] == pytest.approx(jev_row["p_at_1"] - jev_row["hybrid_p_at_1"])
     reserved, frozen = jev_row["rules"]["reserved"], jev_row["rules"]["reserved_and_dev_tau"]
     assert (reserved["coverage"], reserved["selective_accuracy"], reserved["wrong_tool_rate"]) == (1.0, 0.5, 0.5)
     assert (reserved["abstention_precision"], reserved["abstention_recall"]) == (None, 0.0)
@@ -341,6 +344,7 @@ def test_report_freezes_tau_on_dev_and_applies_it_to_heldout(tmp_path: Path) -> 
     # The retrieval-only arm answers every search, the failed decider search included.
     baseline = rows(summary, "hybrid@3")["plain"]
     assert (baseline["searches"], baseline["errors"], baseline["p_at_1"]) == (5, 0, 0.5)
+    assert (baseline["delta_p_at_1"], baseline["delta_p_at_1_ci95"]) == (None, None)  # nothing to compare with itself
     assert baseline["rules"]["reserved_and_dev_tau"]["wrong_tool_rate"] == 3 / 5
 
     logprob_row = rows(summary, logprob)["plain"]
@@ -395,13 +399,14 @@ def test_heldout_rows_per_source_with_fallbacks_and_intervals(tmp_path: Path) ->
         (4, 4, 0),
     ]
     assert [row["p_at_1"] for row in by_source.values()] == pytest.approx([4 / 6, 3 / 6, 1 / 4])
-    # 95% intervals: 2,000 resamples of the searches, seed 0, stated in the summary.
-    assert summary["bootstrap"] == {"resamples": 2000, "seed": 0, "level": 0.95, "unit": "search"}
+    # 95% intervals: 2,000 resamples of the tasks, seed 0, stated in the summary.
+    assert summary["bootstrap"] == {"resamples": 2000, "seed": 0, "level": 0.95, "unit": "task"}
     hits = [1.0] * 4 + [0.0] * 2
     assert by_source["plain"]["p_at_1_ci95"] == list(bootstrap_ci(hits, resamples=2000, seed=0))
-    wrong = [0.0] * 4 + [1.0] * 8  # plain: 2 wrong positives and 6 answered negatives
+    # plain: 2 wrong positives and 6 answered negatives, each task's two searches drawn together
+    wrong = [[0.0, 1.0]] * 4 + [[1.0, 1.0]] * 2
     assert by_source["plain"]["rules"]["reserved"]["wrong_tool_rate_ci95"] == list(
-        bootstrap_ci(wrong, resamples=2000, seed=0)
+        cluster_bootstrap_ci(wrong, resamples=2000, seed=0)
     )
     # The same runs give the same files, and a run given as the wrong split is refused.
     build_decision_report([dev], tmp_path / "once" / "once", out_dir=tmp_path / "again")
@@ -425,6 +430,103 @@ def test_heldout_rows_per_source_with_fallbacks_and_intervals(tmp_path: Path) ->
     note = "Rates are over records"
     assert note not in (tmp_path / "once" / "report" / "README.md").read_text()
     assert note in (tmp_path / "twice" / "report" / "README.md").read_text()
+
+
+def one_arm_report(
+    root: Path, searches: Sequence[dict[str, Any]], *, dev_searches: Sequence[dict[str, Any]] = ()
+) -> Any:
+    """Build the report of a dev run and a held-out run of Jev alone, and read it back."""
+    arms = {JEV: arm(3, "jev", JEV_ID)}
+    dev = write_run(root, "dev", dev_searches or [decided(JEV, "d1", best=0.9, none=0.0)], split="dev", arms=arms)
+    heldout = write_run(root, "heldout", searches, split="heldout", arms=arms)
+    build_decision_report([dev], heldout, out_dir=root / "report")
+    return report(root / "report")
+
+
+def test_paired_difference_interval_comes_from_paired_differences(tmp_path: Path) -> None:
+    # Jev is right on exactly the tasks where retrieval is right (p1, p2) and wrong on the others.
+    searches = [
+        decided(JEV, task, best=0.9, none=0.05, first_right=right, retrieval_right=right)
+        for task, right in (("p1", True), ("p2", True), ("p3", False), ("p4", False))
+    ]
+
+    summary, readme = one_arm_report(tmp_path, searches)
+
+    row = rows(summary, JEV)["plain"]
+    assert (row["p_at_1"], row["hybrid_p_at_1"]) == (0.5, 0.5)
+    # Every paired difference is 0, so the interval has no width; two marginal intervals of 0.5 could not say so.
+    assert (row["delta_p_at_1"], row["delta_p_at_1_ci95"]) == (0.0, [0.0, 0.0])
+    low, high = row["p_at_1_ci95"]
+    assert high - low >= 0.5
+    assert "| arm | source | positives | P@1 (95% CI) | hybrid P@1 | Δ vs hybrid (95% CI) | ceiling |" in readme
+    assert f"| {JEV} | plain | 4 | 0.500 ({low:.2f}-{high:.2f}) | 0.500 | +0.000 (0.00-0.00) | 1.000 |" in readme
+    assert "the decider's P@1 minus retrieval's own P@1 on the same positives" in readme
+
+
+def test_paired_difference_is_signed_and_its_interval_follows_the_pairs(tmp_path: Path) -> None:
+    # Two tasks the decider gains (+1), three it loses (-1) and one both get wrong (0).
+    kinds = {"g1": (True, False), "g2": (True, False), "l1": (False, True), "l2": (False, True), "l3": (False, True)}
+    searches = [
+        decided(JEV, task, best=0.9, none=0.05, first_right=won, retrieval_right=retrieval)
+        for task, (won, retrieval) in kinds.items()
+    ] + [decided(JEV, "n1", best=0.9, none=0.05)]
+
+    summary, readme = one_arm_report(tmp_path, searches)
+
+    row = rows(summary, JEV)["plain"]
+    assert row["delta_p_at_1"] == pytest.approx(-1 / 6)
+    assert row["delta_p_at_1_ci95"] == list(
+        cluster_bootstrap_ci([[1.0], [1.0], [-1.0], [-1.0], [-1.0], [0.0]], resamples=2000, seed=0)
+    )
+    low, high = row["delta_p_at_1_ci95"]
+    assert f"| -0.167 ({low:.2f}-{high:.2f}) |" in readme
+
+
+def test_intervals_resample_tasks(tmp_path: Path) -> None:
+    # n1 to n3 have no gold tool among their candidates: the negative repeats the positive, and both are wrong.
+    # r1 to r3 have one: the positive is right and its negative is wrong.
+    searches = [
+        decided(JEV, task, best=0.9, none=0.05, gold=False, variant=variant)
+        for task in ("n1", "n2", "n3")
+        for variant in ("positive", "negative")
+    ] + [
+        decided(JEV, task, best=0.9, none=0.05, first_right=variant == "positive", gold=variant == "positive")
+        for task in ("r1", "r2", "r3")
+        for variant in ("positive", "negative")
+    ]
+
+    summary, _ = one_arm_report(tmp_path, searches)
+
+    published = rows(summary, JEV)["plain"]["rules"]["reserved"]["wrong_tool_rate_ci95"]
+    by_task = [[1.0, 1.0]] * 3 + [[0.0, 1.0]] * 3
+    by_search = [[value] for cluster in by_task for value in cluster]
+    resampling = {"resamples": 2000, "seed": 0}
+    assert summary["bootstrap"] == resampling | {"level": 0.95, "unit": "task"}
+    assert cluster_bootstrap_ci(by_search, **resampling) != cluster_bootstrap_ci(by_task, **resampling)
+    assert published == list(cluster_bootstrap_ci(by_task, **resampling))
+
+
+@pytest.mark.parametrize("case", ["fallback-in-the-pool", "no-fallback", "fallback-only-in-a-repeated-run"])
+def test_notes_disclose_fallback_duplicates_only_when_the_pool_holds_one(tmp_path: Path, case: str) -> None:
+    arms = {JEV: arm(3, "jev", JEV_ID)}
+
+    def model_search(task: str, *, fallback: bool, repeat: int = 0) -> dict[str, Any]:
+        return decided(
+            JEV, task, best=0.9, none=0.05, first_right=True, source="model", fallback=fallback, repeat=repeat
+        )
+
+    pooled = [model_search("d1", fallback=case == "fallback-in-the-pool"), decided(JEV, "d1", best=0.9, none=0.05)]
+    dev = write_run(tmp_path, "dev", pooled, split="dev", arms=arms, sources=("plain", "model"))
+    # A run that repeats its searches does not feed the threshold choice, so its fallback does not count.
+    repeated = [model_search("d2", fallback=True, repeat=index) for index in range(2)]
+    determinism = write_run(tmp_path, "dev-repeat", repeated, split="dev", arms=arms, sources=("model",), repeat=2)
+    dev_runs = [dev, *([determinism] if case == "fallback-only-in-a-repeated-run" else [])]
+
+    build_decision_report(dev_runs, None, out_dir=tmp_path / "report")
+
+    _, readme = report(tmp_path / "report")
+    sentence = "count twice in U(τ) and in the searches counts of the thresholds table"
+    assert (sentence in readme) is (case == "fallback-in-the-pool")
 
 
 def cost_run(root: Path) -> Path:
