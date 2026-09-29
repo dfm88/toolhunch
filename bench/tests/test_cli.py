@@ -379,16 +379,26 @@ def test_a_decision_run_warms_clm_up_and_records_what_it_billed(
     decision_setup: DecisionSetup, fake_decision_model: Any
 ) -> None:
     append_ledger(f2a_entry(1.5), path=decision_setup.ledger)
-    # Jev answers nothing usable for "mail my boss": 2 arms x 2 sources x 2 variants of that task end in an error.
+    # Neither Jev nor the logprob model answers anything usable for "mail my boss": 2 arms x 2 sources x 2 variants
+    # of that task end in an error. The logprob model takes 4 options, so at K = 5 it asks two questions in round
+    # one, and both fail: its 8 failed searches are 12 failed asks.
     jev_model = fake_decision_model(model_id="jev-1.13.0@api.typesafe.ai", limits=JEV_LIMITS, fail_on="boss")
-    decision_setup.models["jev"] = jev_model
+    logprob_model = fake_decision_model(
+        model_id="gpt-4.1-mini-2025-04-14@api.openai.com",
+        limits=LOGPROB_LIMITS.model_copy(update={"max_options_per_choice": 4}),
+        prompt_version="letters-v1",
+        fail_on="boss",
+    )
+    decision_setup.models |= {"jev": jev_model, "logprob": logprob_model}
 
     result = decide(decision_setup)
 
     assert result.exit_code == 0, result.output
     models = decision_setup.models
-    # CLM was woken once, through the model itself: an answer replayed from the cache would wake nothing.
-    assert decision_setup.warmed == [(models["clm"], "http://clm.test")]
+    # CLM was woken before each of its two arms, since it may have scaled to zero during the arms in between, and
+    # through the model itself: an answer replayed from the cache would wake nothing.
+    assert decision_setup.warmed == [(models["clm"], "http://clm.test")] * 2
+    assert "hybrid+clm@5: CLM answered after 42 s of warm-up" in result.output
     [run_dir] = decision_setup.runs.iterdir()
     records = [json.loads(line) for line in (run_dir / "run.jsonl").read_text().splitlines()]
     earlier, *entries = read_ledger(decision_setup.ledger)
@@ -406,8 +416,10 @@ def test_a_decision_run_warms_clm_up_and_records_what_it_billed(
     jev = by_model["typesafe", "jev-1.13.0"]
     assert jev.input_tokens == 10 * (len(jev_model.asks) - 8)  # 10 input tokens for every ask it answered
     assert jev.usd == pytest.approx(jev.input_tokens * 0.042 / 1_000_000)
-    assert "8 searches ended in a DecisionError" in jev.note  # billed by Jev, maybe, but not in the usage
+    assert ", 8 failed," in jev.note  # the provider may have billed them, but they are not in the usage
     logprob = by_model["openai", "gpt-4.1-mini-2025-04-14"]
+    assert logprob.input_tokens == 10 * (len(logprob_model.asks) - 12)
+    assert ", 12 failed," in logprob.note
     usage = Usage(input_tokens=logprob.input_tokens, output_tokens=logprob.output_tokens)
     price = calc_price(usage, model_ref="gpt-4.1-mini-2025-04-14", provider_id="openai")
     assert logprob.usd == pytest.approx(float(price.total_price))  # pyright: ignore[reportUnknownMemberType]
@@ -433,7 +445,16 @@ def test_a_failing_decision_run_still_records_what_it_billed(
     result = decide(decision_setup)
 
     assert isinstance(result.exception, RuntimeError)
-    # The arms before the first logprob one had run: Jev, CLM and the query embeddings were paid for.
-    billed = sorted((entry.provider, entry.model) for entry in read_ledger(decision_setup.ledger))
-    assert billed == [("modal", "clm-latest"), ("openai", "text-embedding-3-small"), ("typesafe", "jev-1.13.0")]
+    # The arms before the first logprob one had run: Jev, CLM and the query embeddings were paid for. The logprob
+    # model answered nothing, but its failed ask may have been billed, so it has a line too.
+    billed = {(entry.provider, entry.model): entry for entry in read_ledger(decision_setup.ledger)}
+    assert sorted(billed) == [
+        ("modal", "clm-latest"),
+        ("openai", "gpt-4.1-mini-2025-04-14"),
+        ("openai", "text-embedding-3-small"),
+        ("typesafe", "jev-1.13.0"),
+    ]
+    logprob = billed["openai", "gpt-4.1-mini-2025-04-14"]
+    assert (logprob.input_tokens, logprob.usd) == (0, 0.0)
+    assert logprob.note.startswith("asks: 0 answered by the model, 0 by the cache, 1 failed,")
     assert all(model.closed for model in decision_setup.models.values())

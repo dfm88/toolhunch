@@ -148,6 +148,8 @@ class CachedDecisionModel:
         billed: What the responses that came from the wrapped model consumed; a replay adds nothing.
         hits: Asks answered from the cache.
         misses: Asks answered by the wrapped model, which are the ones `billed` adds up.
+        failures: Asks the wrapped model raised on, with or without `bypass`. They are neither stored nor in `billed`,
+            though a provider may have billed some of them: a response it sent can still be unusable.
     """
 
     def __init__(self, inner: DecisionModel, *, path: Path = DECISION_CACHE_PATH, bypass: bool = False) -> None:
@@ -163,6 +165,7 @@ class CachedDecisionModel:
         self.billed = DecisionUsage()
         self.hits = 0
         self.misses = 0
+        self.failures = 0
 
     @property
     def model_id(self) -> str:
@@ -194,7 +197,7 @@ class CachedDecisionModel:
 
         Raises:
             DecisionError: The wrapped model failed. This, like any other error of the wrapped model, is raised
-                as it is, and nothing is stored.
+                as it is, nothing is stored, and the ask is counted in `failures`.
         """
         if self._db is None:
             return await self._forward(request, options)
@@ -217,7 +220,11 @@ class CachedDecisionModel:
             self._db.close()
 
     async def _forward(self, request: DecisionRequest, options: Mapping[str, Any]) -> DecisionResponse:
-        response = await self._inner.ask(request, **options)
+        try:
+            response = await self._inner.ask(request, **options)
+        except BaseException:  # a cancelled ask counts too: it may have reached the provider
+            self.failures += 1
+            raise
         self.misses += 1
         self.billed += response.usage
         return response

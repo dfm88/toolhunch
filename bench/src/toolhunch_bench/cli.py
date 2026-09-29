@@ -337,9 +337,10 @@ def decision(
             task_file=tasks,
             model_queries_file=queries_file,
             run_id=run_id,
+            before_arm=_clm_warmer(adapters.get("clm"), base_url=clm_base_url),
         )
         try:
-            asyncio.run(_decide(run, adapters=adapters, inner=inner, clm_base_url=clm_base_url))
+            asyncio.run(_decide(run, adapters=adapters, inner=inner))
         finally:
             records = _run_records(RUNS_DIR / run_id)  # a failed run still paid for what it asked
             for entry in _decision_ledger_entries(
@@ -542,19 +543,33 @@ def _check_the_cap(estimate: float) -> None:
         raise typer.Exit(code=2)
 
 
+def _clm_warmer(
+    model: JevWireModel | OpenAILogprobModel | None, *, base_url: str
+) -> Callable[[DecisionArm], Awaitable[None]] | None:
+    """A `before_arm` hook that wakes CLM before each CLM arm: the server may have scaled to zero during the others.
+
+    It warms `model` itself, not a cache in front of it: an answer replayed from the cache would wake nothing. `None`
+    without a CLM model.
+    """
+    if model is None:
+        return None
+
+    async def before_arm(arm: DecisionArm) -> None:
+        if arm.decider_name == "clm":
+            waited = await warm_up_clm(model, base_url=base_url)
+            typer.echo(f"{arm.name}: CLM answered after {waited:,.0f} s of warm-up")
+
+    return before_arm
+
+
 async def _decide(
     run: Callable[[], Awaitable[Path]],
     *,
     adapters: Mapping[str, JevWireModel | OpenAILogprobModel],
     inner: OpenAIEmbedder,
-    clm_base_url: str,
 ) -> Path:
-    """Warm CLM up when it is a decider, then `run`; the models' and the embedder's clients are closed either way."""
+    """Await `run`; the models' and the embedder's clients are closed either way."""
     try:
-        if (clm_model := adapters.get("clm")) is not None:
-            # The model itself, not its cache: an answer replayed from the cache would wake nothing.
-            waited = await warm_up_clm(clm_model, base_url=clm_base_url)
-            typer.echo(f"CLM answered after {waited:,.0f} s of warm-up")
         return await run()
     finally:
         for adapter in adapters.values():
@@ -581,36 +596,31 @@ def _decision_ledger_entries(
 ) -> list[LedgerEntry]:
     """One ledger line per provider a decision run paid: what the caches billed, and CLM's wall time in Modal credits.
 
-    A decision cache bills only the asks the model answered, so each line's note also counts the searches that ended
-    in a `DecisionError`: the provider may have billed their failed asks. CLM is billed by time: the wall seconds of
-    its finished arms at the deployment's GPU price, in Modal credits, which the cap leaves out.
+    A decision cache bills only the asks the model answered, so each line's note also counts the asks that failed: the
+    provider may have billed some of them. CLM is billed by time: the wall seconds of its finished arms at the
+    deployment's GPU price, in Modal credits, which the cap leaves out.
     """
     decider_of = {arm.name: arm.decider_name for arm in arms}
     wall: dict[str, float] = {}
-    errors: dict[str, int] = {}
     for record in records:
-        if (name := decider_of.get(record["arm"])) is None:
-            continue
-        if record["record"] == "arm":
+        if record["record"] == "arm" and (name := decider_of.get(record["arm"])) is not None:
             wall[name] = wall.get(name, 0.0) + record["wall_seconds"]
-        elif record["error"] is not None:
-            errors[name] = errors.get(name, 0) + 1
     timestamp = datetime.now(UTC)
     entries: list[LedgerEntry] = []
     for name, model in models.items():
         billed = model.billed
         asks = (
-            f"{model.misses:,} asks answered by the model and {model.hits:,} by the cache; {errors.get(name, 0):,} "
-            "searches ended in a DecisionError, whose failed asks are not in the usage"
+            f"asks: {model.misses:,} answered by the model, {model.hits:,} by the cache, {model.failures:,} failed, "
+            "which the provider may have billed"
         )
         if name == "clm":
-            if name not in wall and not model.misses:
+            if name not in wall and not model.misses and not model.failures:
                 continue
             seconds = wall.get(name, 0.0)
             provider, billed_model, usd = "modal", CLM_MODEL, clm_usd(seconds)
             price = float(CLM_DEPLOYMENT["usd_per_gpu_hour"])
             asks = f"Modal credits: {seconds:,.0f} s of the CLM arms' wall time at ${price:.2f}/h; {asks}"
-        elif not model.misses and not errors.get(name):
+        elif not model.misses and not model.failures:
             continue
         elif name == "jev":
             provider, billed_model, usd = "typesafe", JEV_MODEL, jev_usd(billed.input_tokens)

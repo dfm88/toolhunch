@@ -39,6 +39,7 @@ from toolhunch.decision import (
 from toolhunch.decision.planner import PROMPT_VERSION
 from toolhunch.retrieval import Retrieval
 from toolhunch.retrieval.base import FUSION_DEPTH, check_k, clean_queries
+from toolhunch_bench.decision_cache import CachedDecisionModel
 from toolhunch_bench.embedding_cache import estimate_embedding_cost
 from toolhunch_bench.ledger import F2A_CAP_EUR
 from toolhunch_bench.retrieval import repo_path, run_provenance
@@ -600,6 +601,7 @@ async def run_decisions(
     task_file: Path,
     model_queries_file: Path | None,
     run_id: str | None = None,
+    before_arm: Callable[[DecisionArm], Awaitable[None]] | None = None,
 ) -> Path:
     """Run every arm on every search; returns the run directory `out_dir/<run_id>`.
 
@@ -610,7 +612,9 @@ async def run_decisions(
     the run goes on; the candidates of that search come from the shared retrieval.
 
     The directory gets `manifest.json` (provenance, written first) and `run.jsonl`: one `search` record per search,
-    and after each arm's searches one `arm` record with its wall seconds, searches and errors. A `search` record holds
+    and after each arm's searches one `arm` record with its wall seconds, searches and errors, and, when the arm's
+    model is a `CachedDecisionModel`, the asks it answered from the cache (`cache_hits`) and the asks it sent
+    (`cache_misses`) during the arm; both are null otherwise. A `search` record holds
     the identity of the search (`arm`, `decider`, `k`, `source`, `split`, `variant`, `repeat` from 0, `task`), its
     input (`queries`, `fallback` for the model source, `context`, `candidates` in retrieval order, `relevant`,
     `gold_in_candidates`), the decision (`ranked`, `probabilities`, `none_probability`, `abstained`, `key`, `shape`,
@@ -632,6 +636,8 @@ async def run_decisions(
         task_file: The task file, hashed into the manifest.
         model_queries_file: The file `model_queries` were read from, hashed into the manifest.
         run_id: Directory name; a UTC timestamp by default.
+        before_arm: Awaited with each arm before its first search, outside its wall time: to wake a server that may
+            have scaled to zero during the arms before it, for example.
 
     Raises:
         ValueError: The `model` source has no queries or no queries file, or `repeat` is below 1.
@@ -656,6 +662,10 @@ async def run_decisions(
     (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     with (run_dir / "run.jsonl").open("w", encoding="utf-8") as out:
         for arm in arms:
+            if before_arm is not None:
+                await before_arm(arm)
+            cached = arm.model if isinstance(arm.model, CachedDecisionModel) else None
+            hits, misses = (0, 0) if cached is None else (cached.hits, cached.misses)
             started = time.perf_counter()
             searches = errors = 0
             for search in _searches(
@@ -676,6 +686,8 @@ async def run_decisions(
                 "wall_seconds": wall_seconds,
                 "searches": searches,
                 "errors": errors,
+                "cache_hits": None if cached is None else cached.hits - hits,
+                "cache_misses": None if cached is None else cached.misses - misses,
             }
             out.write(json.dumps(summary) + "\n")
             out.flush()

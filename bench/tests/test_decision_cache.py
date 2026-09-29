@@ -183,13 +183,19 @@ async def test_a_failed_ask_raises_and_is_neither_stored_nor_billed(tmp_path: Pa
 
     with pytest.raises(DecisionError, match="fake@test"):
         await cache.ask(choice())
-    assert (cache.hits, cache.misses, cache.billed) == (0, 0, DecisionUsage())
+    # Counted as failed: the provider may have billed it, though it is not in `billed`.
+    assert (cache.hits, cache.misses, cache.failures, cache.billed) == (0, 0, 1, DecisionUsage())
 
     retried = await cache.ask(choice())  # the error was not replayed: the model is asked again
     cache.close()
 
     assert len(inner.calls) == 2
-    assert (cache.hits, cache.misses, cache.billed) == (0, 1, retried.usage)
+    assert (cache.hits, cache.misses, cache.failures, cache.billed) == (0, 1, 1, retried.usage)
+
+    bypassing = CachedDecisionModel(FakeInner(failures=1), path=tmp_path / "unused.sqlite", bypass=True)
+    with pytest.raises(DecisionError):
+        await bypassing.ask(choice())
+    assert (bypassing.misses, bypassing.failures, bypassing.billed) == (0, 1, DecisionUsage())
 
 
 async def test_concurrent_asks_are_each_stored(tmp_path: Path) -> None:

@@ -21,6 +21,7 @@ from toolhunch import (
 )
 from toolhunch.decision import CLM_LIMITS, JEV_LIMITS, LOGPROB_LIMITS, clm
 from toolhunch.retrieval import Retrieval
+from toolhunch_bench import decision as decision_module
 from toolhunch_bench.datasets.model_queries import WrittenQueries, save_model_queries
 from toolhunch_bench.datasets.toolret import ToolRetData, write_task_file
 from toolhunch_bench.decision import (
@@ -28,6 +29,7 @@ from toolhunch_bench.decision import (
     JEV_REQUEST_OVERHEAD_TOKENS,
     LOGPROB_MODEL,
     CacheOnlyRetrieval,
+    DecisionArm,
     EstimateLine,
     ExcludingRetriever,
     SharedRetrieval,
@@ -36,6 +38,7 @@ from toolhunch_bench.decision import (
     run_decisions,
     warm_up_clm,
 )
+from toolhunch_bench.decision_cache import CachedDecisionModel
 from toolhunch_bench.embedding_cache import CachedEmbedder
 from toolhunch_bench.retrieval import build_arms
 
@@ -139,10 +142,11 @@ async def test_run_records_every_arm_source_variant_and_the_negatives_exclude_go
     task_file, queries_file = run_files
     [hybrid] = build_arms(["hybrid"], embedder=axis_embedder(), raw_text=data.raw_text)
     inner = RecordingRetriever(hybrid.retriever)
-    models = {
+    fakes = {
         "jev": fake_decision_model(model_id="jev-fake@test", favourite="get_weather"),
         "clm": fake_decision_model(model_id="clm-fake@test"),
     }
+    models = {name: CachedDecisionModel(fake, path=tmp_path / f"{name}.sqlite") for name, fake in fakes.items()}
     arms = build_decision_arms(["jev", "clm"], ks=[3, 5], models=models, max_detail={"clm": DetailLevel.BRIEF})
 
     run_dir = await run_decisions(
@@ -170,6 +174,16 @@ async def test_run_records_every_arm_source_variant_and_the_negatives_exclude_go
     assert [(r["arm"], r["searches"], r["errors"]) for r in arm_records] == [(name, 16, 0) for name in names]
     searches = [record for record in records if record["record"] == "search"]
     assert len(searches) == len(arms) * 2 * 4 * 2
+    # Within an arm, a request asked before comes from the cache: a fallback repeats the plain request, and a
+    # negative whose positive had no gold among its candidates repeats the positive's. Retrieval alone asks nothing.
+    for record in arm_records:
+        own = [search for search in searches if search["arm"] == record["arm"]]
+        requests = {(tuple(search["queries"]), search["context"], tuple(search["candidates"])) for search in own}
+        if record["arm"].startswith("hybrid@"):
+            assert record["cache_hits"] is record["cache_misses"] is None
+        else:
+            assert (record["cache_misses"], record["cache_hits"]) == (len(requests), len(own) - len(requests))
+            assert record["cache_hits"] > 0
 
     for record in searches:
         relevant = set(record["relevant"])
@@ -278,7 +292,7 @@ async def test_run_records_every_arm_source_variant_and_the_negatives_exclude_go
             "k": 5,
             "decider": "clm",
             "model_id": "clm-fake@test",
-            "model": "FakeDecisionModel('clm-fake@test')",
+            "model": "CachedDecisionModel(FakeDecisionModel('clm-fake@test'), bypass=False)",
             "limits": {
                 "max_options_per_choice": None,
                 "max_request_tokens": None,
@@ -354,6 +368,66 @@ async def test_a_decision_error_is_recorded_and_the_run_goes_on(
     assert len(inner.calls) == 4  # the failed searches' candidates came from the shared retrieval
     assert (manifest["split"], manifest["sources"], manifest["model_queries"]) == ("heldout", ["plain"], None)
     assert manifest["clm_deployment"] is None  # no CLM arm
+
+
+class Clock:
+    """What the runner reads of the `time` module, `perf_counter`, on a clock that only the test moves."""
+
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def perf_counter(self) -> float:
+        return self.now
+
+
+async def test_a_hook_runs_before_each_arm_outside_its_wall_time(
+    tmp_path: Path,
+    toolret_data: ToolRetData,
+    fake_decision_model: Any,
+    run_files: tuple[Path, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    data = toolret_data
+    clock = Clock()
+    monkeypatch.setattr(decision_module, "time", clock)
+    events: list[str] = []
+
+    class TimedRetrieval(SharedRetrieval):
+        """Each retrieval takes a second on the clock."""
+
+        async def retrieve(self, queries: Sequence[str], catalog: ToolCatalog, *, k: int) -> Retrieval:
+            events.append("retrieve")
+            clock.now += 1.0
+            return await super().retrieve(queries, catalog, k=k)
+
+    async def before_arm(arm: DecisionArm) -> None:
+        events.append(arm.name)
+        clock.now += 600.0  # a cold start
+
+    arms = build_decision_arms(["jev"], ks=[3], models={"jev": fake_decision_model()}, max_detail={})
+
+    run_dir = await run_decisions(
+        arms,
+        data,
+        data.tasks,
+        retriever=TimedRetrieval(BM25Retriever()),
+        split="dev",
+        sources=("plain",),
+        model_queries=None,
+        negatives=True,
+        repeat=1,
+        out_dir=tmp_path / "runs",
+        task_file=run_files[0],
+        model_queries_file=None,
+        before_arm=before_arm,
+    )
+
+    _, records = read_run(run_dir)
+    # The hook runs once per arm, before its first search: each of the 8 searches retrieves twice, for the search
+    # and then for the record's candidates.
+    assert events == [event for arm in arms for event in [arm.name, *["retrieve"] * 16]]
+    # An arm's wall time is its 16 seconds of retrieval, without the 600 of its hook.
+    assert [record["wall_seconds"] for record in records if record["record"] == "arm"] == [16.0, 16.0]
 
 
 async def test_warm_up_waits_for_health_then_sends_one_request() -> None:
