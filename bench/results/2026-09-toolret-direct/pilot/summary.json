@@ -1,0 +1,4906 @@
+{
+  "schema_version": 1,
+  "manifest": {
+    "run_id": "20260929T221520Z-direct-pilot",
+    "started": "2026-09-29T22:15:24+00:00",
+    "pilot": true,
+    "git": {
+      "commit": "453acc920eaff5c6fadd398b72a6e59bc0d00519",
+      "dirty": false
+    },
+    "versions": {
+      "pydantic-ai-slim": "2.50.0",
+      "genai-prices": "0.1.9",
+      "toolhunch": "0.1.0"
+    },
+    "dataset": {
+      "name": "mteb/ToolRetrieval",
+      "revision": "76d45e560059754e289ea202462865a585679619",
+      "corpus_sha256": "774aa8c5263eed9870fb6eefc47491c67d3998e7eda1d897f9b359e20be67efb"
+    },
+    "catalogs": [
+      {
+        "source": "webtools_spotify",
+        "subtask": "restgpt-spotify",
+        "tools": 40,
+        "fingerprint": "sha256:78d9a19eae3ce2af1b83deca205e340ae55133be6530cf5792b5c1620dbda741",
+        "positives": 10,
+        "negatives": 5,
+        "dropped": 0
+      },
+      {
+        "source": "webtools_tmdb",
+        "subtask": "restgpt-tmdb",
+        "tools": 54,
+        "fingerprint": "sha256:4e34a18c0062e3558bcdb185634dcf55ed38733879130c4602eae84e50fd5839",
+        "positives": 10,
+        "negatives": 5,
+        "dropped": 0
+      },
+      {
+        "source": "tooleyes",
+        "subtask": "tooleyes",
+        "tools": 95,
+        "fingerprint": "sha256:74b4afe94d710fed05eb462c026c27f0da69b4800aeaa1ea4cf393cf767b760a",
+        "positives": 10,
+        "negatives": 5,
+        "dropped": 0
+      },
+      {
+        "source": "apibank",
+        "subtask": "apibank",
+        "tools": 101,
+        "fingerprint": "sha256:86e380c431e0c2b17b5ff4cfa19f93226a9e736928ef055376ef6548bdbc42ac",
+        "positives": 10,
+        "negatives": 5,
+        "dropped": 0
+      },
+      {
+        "source": "metatool_which",
+        "subtask": "metatool",
+        "tools": 200,
+        "fingerprint": "sha256:e206d08d679dbaed1191be294bc6c090ec02eca7b611e8fb29b5af3c3e708d4d",
+        "positives": 10,
+        "negatives": 5,
+        "dropped": 0
+      }
+    ],
+    "tasks": {
+      "webtools_spotify": {
+        "positive": [
+          "webtools_spotify_query_0",
+          "webtools_spotify_query_1",
+          "webtools_spotify_query_10",
+          "webtools_spotify_query_11",
+          "webtools_spotify_query_12",
+          "webtools_spotify_query_13",
+          "webtools_spotify_query_14",
+          "webtools_spotify_query_15",
+          "webtools_spotify_query_16",
+          "webtools_spotify_query_17"
+        ],
+        "negative": [
+          "webtools_spotify_query_30",
+          "webtools_spotify_query_32",
+          "webtools_spotify_query_10",
+          "webtools_spotify_query_23",
+          "webtools_spotify_query_38"
+        ]
+      },
+      "webtools_tmdb": {
+        "positive": [
+          "webtools_tmdb_query_0",
+          "webtools_tmdb_query_1",
+          "webtools_tmdb_query_10",
+          "webtools_tmdb_query_11",
+          "webtools_tmdb_query_12",
+          "webtools_tmdb_query_13",
+          "webtools_tmdb_query_14",
+          "webtools_tmdb_query_15",
+          "webtools_tmdb_query_16",
+          "webtools_tmdb_query_17"
+        ],
+        "negative": [
+          "webtools_tmdb_query_30",
+          "webtools_tmdb_query_52",
+          "webtools_tmdb_query_32",
+          "webtools_tmdb_query_10",
+          "webtools_tmdb_query_23"
+        ]
+      },
+      "tooleyes": {
+        "positive": [
+          "tooleyes_query_0",
+          "tooleyes_query_1",
+          "tooleyes_query_10",
+          "tooleyes_query_11",
+          "tooleyes_query_12",
+          "tooleyes_query_13",
+          "tooleyes_query_14",
+          "tooleyes_query_15",
+          "tooleyes_query_16",
+          "tooleyes_query_17"
+        ],
+        "negative": [
+          "tooleyes_query_53",
+          "tooleyes_query_57",
+          "tooleyes_query_13",
+          "tooleyes_query_39",
+          "tooleyes_query_68"
+        ]
+      },
+      "apibank": {
+        "positive": [
+          "apibank_query_0",
+          "apibank_query_1",
+          "apibank_query_10",
+          "apibank_query_100",
+          "apibank_query_11",
+          "apibank_query_12",
+          "apibank_query_13",
+          "apibank_query_14",
+          "apibank_query_15",
+          "apibank_query_16"
+        ],
+        "negative": [
+          "apibank_query_52",
+          "apibank_query_96",
+          "apibank_query_56",
+          "apibank_query_12",
+          "apibank_query_38"
+        ]
+      },
+      "metatool_which": {
+        "positive": [
+          "metatool_which_query_0",
+          "metatool_which_query_1",
+          "metatool_which_query_10",
+          "metatool_which_query_100",
+          "metatool_which_query_101",
+          "metatool_which_query_102",
+          "metatool_which_query_103",
+          "metatool_which_query_104",
+          "metatool_which_query_105",
+          "metatool_which_query_106"
+        ],
+        "negative": [
+          "metatool_which_query_187",
+          "metatool_which_query_94",
+          "metatool_which_query_195",
+          "metatool_which_query_107",
+          "metatool_which_query_158"
+        ]
+      }
+    },
+    "tasks_sha256": "3c32dca6a13d718af66e183508504bc5e260967bb281c8d58b84c47e22dc06b9",
+    "arms": [
+      "hybrid@20",
+      "hybrid@20+jev",
+      "jev-all",
+      "agent@20",
+      "agent-all"
+    ],
+    "order": "catalog, arm, positives, negatives",
+    "concurrency": 1,
+    "negative_seed": 0,
+    "negative_allocation": "largest remainder, stable source order",
+    "prompt_versions": {
+      "jev": "tool-choice-v1",
+      "agent": "direct-choice-v1"
+    },
+    "agent": {
+      "model": "gpt-4.1-mini-2025-04-14",
+      "api": "openai-chat-completions",
+      "endpoint": "api.openai.com",
+      "description_shape": "JSON object with original name and complete description",
+      "parameters": "names as string properties",
+      "max_output_tokens": 256,
+      "retry": 1,
+      "cache_key": "catalog source"
+    },
+    "estimate": {
+      "usd": 0.4198007939999999,
+      "requests_per_arm": 75,
+      "positives_per_arm": 50,
+      "negatives_per_arm": 25,
+      "lines": [
+        {
+          "provider": "typesafe",
+          "model": "jev-1.13.0",
+          "requests": 148,
+          "input_tokens": 671277,
+          "output_tokens": 0,
+          "usd": 0.028193633999999988
+        },
+        {
+          "provider": "openai",
+          "model": "gpt-4.1-mini-2025-04-14",
+          "arm": "agent@20",
+          "requests": 75,
+          "input_tokens": 135066,
+          "output_tokens": 19200,
+          "usd": 0.08474639999999997
+        },
+        {
+          "provider": "openai",
+          "model": "gpt-4.1-mini-2025-04-14",
+          "arm": "agent-all",
+          "requests": 75,
+          "input_tokens": 690285,
+          "output_tokens": 19200,
+          "usd": 0.30683399999999994
+        },
+        {
+          "provider": "openai",
+          "model": "text-embedding-3-small",
+          "requests": 67,
+          "input_tokens": 1338,
+          "output_tokens": 0,
+          "usd": 2.676e-05
+        }
+      ],
+      "stand_in_searches": 0
+    },
+    "completed": false,
+    "jev": {
+      "model": "jev-1.13.0@api.typesafe.ai",
+      "limits": {
+        "max_options_per_choice": 255,
+        "max_request_tokens": 64000,
+        "max_state_plus_question_tokens": 32000,
+        "max_text_tokens": null,
+        "max_questions_per_request": null,
+        "score_levels": [
+          2,
+          10
+        ],
+        "price_input_per_mtok": 0.042,
+        "price_output_per_mtok": 0.0,
+        "source": "https://docs.typesafe.ai (limits and pricing)",
+        "checked": "2026-09-27"
+      },
+      "max_detail": "FULL",
+      "abstention": {
+        "reserved_option": true,
+        "threshold": 0
+      },
+      "expected_rounds": 1
+    },
+    "stop_reason": "more than 5% errored requests in agent-all",
+    "counts": {
+      "hybrid@20": 75,
+      "hybrid@20+jev": 75,
+      "jev-all": 75,
+      "agent@20": 75,
+      "agent-all": 64
+    },
+    "errors": {
+      "hybrid@20": 0,
+      "hybrid@20+jev": 0,
+      "jev-all": 0,
+      "agent@20": 0,
+      "agent-all": 4
+    },
+    "budget_charge_usd": 0.307239378,
+    "full_estimate": {
+      "usd": 4.601294792000001,
+      "requests_per_arm": 735,
+      "positives_per_arm": 490,
+      "negatives_per_arm": 245,
+      "lines": [
+        {
+          "provider": "typesafe",
+          "model": "jev-1.13.0",
+          "requests": 1463,
+          "input_tokens": 7077336,
+          "output_tokens": 0,
+          "usd": 0.29724811200000006
+        },
+        {
+          "provider": "openai",
+          "model": "gpt-4.1-mini-2025-04-14",
+          "arm": "agent@20",
+          "requests": 735,
+          "input_tokens": 1206039,
+          "output_tokens": 188160,
+          "usd": 0.7834716000000006
+        },
+        {
+          "provider": "openai",
+          "model": "gpt-4.1-mini-2025-04-14",
+          "arm": "agent-all",
+          "requests": 735,
+          "input_tokens": 8048284,
+          "output_tokens": 188160,
+          "usd": 3.5203696
+        },
+        {
+          "provider": "openai",
+          "model": "text-embedding-3-small",
+          "requests": 469,
+          "input_tokens": 10274,
+          "output_tokens": 0,
+          "usd": 0.00020548
+        }
+      ],
+      "stand_in_searches": 0
+    },
+    "full_catalogs": [
+      {
+        "source": "webtools_spotify",
+        "positives": 40,
+        "negatives": 20
+      },
+      {
+        "source": "webtools_tmdb",
+        "positives": 54,
+        "negatives": 27
+      },
+      {
+        "source": "tooleyes",
+        "positives": 95,
+        "negatives": 48
+      },
+      {
+        "source": "apibank",
+        "positives": 101,
+        "negatives": 50
+      },
+      {
+        "source": "metatool_which",
+        "positives": 200,
+        "negatives": 100
+      }
+    ],
+    "prior_p1_usd": 0.0,
+    "purpose": "P1: direct choice pilot"
+  },
+  "applicability": {
+    "common_catalogs": [
+      "webtools_spotify",
+      "webtools_tmdb",
+      "tooleyes",
+      "apibank"
+    ],
+    "primary_pool": "pooled: common catalogs across all five arms",
+    "secondary_pool": "all_catalogs: all selected catalogs, only for arms applicable everywhere",
+    "not_applicable": [
+      {
+        "arm": "agent-all",
+        "catalog": "metatool_which",
+        "reason": "OpenAI Chat Completions rejected 200 function tools: HTTP 400 array_above_max_length, param tools (4/4 attempts); exact maximum not established",
+        "source": "bench/runs/20260929T221520Z-direct-pilot/run.jsonl",
+        "date": "2026-09-30"
+      }
+    ],
+    "historical_run_status": {
+      "completed": false,
+      "stop_reason": "more than 5% errored requests in agent-all",
+      "interpretation": "Original run status retained; applicability does not retroactively complete a stopped run."
+    }
+  },
+  "rows": [
+    {
+      "arm": "hybrid@20",
+      "catalog": "pooled",
+      "status": "applicable",
+      "catalogs": [
+        "apibank",
+        "tooleyes",
+        "webtools_spotify",
+        "webtools_tmdb"
+      ],
+      "positives": 40,
+      "relevant_pick_rate": {
+        "value": 0.55,
+        "ci95": [
+          0.4,
+          0.7
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.36666666666666664,
+          "ci95": [
+            0.25,
+            0.49122807017543857
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.6333333333333333,
+          "ci95": [
+            0.5087719298245614,
+            0.75
+          ]
+        },
+        "abstention_precision": null,
+        "abstention_recall": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ]
+        },
+        "correct": 22,
+        "wrong": 38,
+        "abstained": 0,
+        "requests": 60,
+        "parsed_requests": 60,
+        "errors": 0,
+        "negative_requests": 20,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 0,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 4,
+          "provider_calls": 0,
+          "replays": 0,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 8.2e-07,
+          "list_usd": 8.2e-07,
+          "billed_usd_per_1000": 0.000205,
+          "list_usd_per_1000": 0.000205,
+          "latency_p50_ms": 500.11143751908094,
+          "latency_p95_ms": 2459.0620579780084,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 8.2e-07,
+          "known_list_subtotal_usd": 8.2e-07
+        },
+        "warm": {
+          "observed_searches": 36,
+          "provider_calls": 0,
+          "replays": 0,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 1.1e-05,
+          "list_usd": 1.1e-05,
+          "billed_usd_per_1000": 0.00030555555555555555,
+          "list_usd_per_1000": 0.00030555555555555555,
+          "latency_p50_ms": 204.69489600509405,
+          "latency_p95_ms": 398.01908313529566,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 1.1e-05,
+          "known_list_subtotal_usd": 1.1e-05
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 20,
+        "provider_calls": 0,
+        "replays": 0,
+        "input_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_share": null,
+        "billed_usd": 4.52e-06,
+        "list_usd": 4.52e-06,
+        "billed_usd_per_1000": 0.000226,
+        "list_usd_per_1000": 0.000226,
+        "latency_p50_ms": 177.85870854277164,
+        "latency_p95_ms": 294.8873119894419,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 4.52e-06,
+        "known_list_subtotal_usd": 4.52e-06
+      }
+    },
+    {
+      "arm": "hybrid@20",
+      "catalog": "all_catalogs",
+      "status": "applicable",
+      "catalogs": [
+        "apibank",
+        "metatool_which",
+        "tooleyes",
+        "webtools_spotify",
+        "webtools_tmdb"
+      ],
+      "positives": 50,
+      "relevant_pick_rate": {
+        "value": 0.52,
+        "ci95": [
+          0.38,
+          0.66
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.3466666666666667,
+          "ci95": [
+            0.24324324324324326,
+            0.4533333333333333
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.6533333333333333,
+          "ci95": [
+            0.5466666666666666,
+            0.7567567567567568
+          ]
+        },
+        "abstention_precision": null,
+        "abstention_recall": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ]
+        },
+        "correct": 26,
+        "wrong": 49,
+        "abstained": 0,
+        "requests": 75,
+        "parsed_requests": 75,
+        "errors": 0,
+        "negative_requests": 25,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 0,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 5,
+          "provider_calls": 0,
+          "replays": 0,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 1.34e-06,
+          "list_usd": 1.34e-06,
+          "billed_usd_per_1000": 0.000268,
+          "list_usd_per_1000": 0.000268,
+          "latency_p50_ms": 493.0938750039786,
+          "latency_p95_ms": 2344.2424663342535,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 1.34e-06,
+          "known_list_subtotal_usd": 1.34e-06
+        },
+        "warm": {
+          "observed_searches": 45,
+          "provider_calls": 0,
+          "replays": 0,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 1.844e-05,
+          "list_usd": 1.844e-05,
+          "billed_usd_per_1000": 0.00040977777777777773,
+          "list_usd_per_1000": 0.00040977777777777773,
+          "latency_p50_ms": 197.82041595317423,
+          "latency_p95_ms": 367.0375498943029,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 1.844e-05,
+          "known_list_subtotal_usd": 1.844e-05
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 25,
+        "provider_calls": 0,
+        "replays": 0,
+        "input_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_share": null,
+        "billed_usd": 6.98e-06,
+        "list_usd": 6.98e-06,
+        "billed_usd_per_1000": 0.0002792,
+        "list_usd_per_1000": 0.0002792,
+        "latency_p50_ms": 178.32350009121,
+        "latency_p95_ms": 263.44622471369803,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 6.98e-06,
+        "known_list_subtotal_usd": 6.98e-06
+      }
+    },
+    {
+      "arm": "hybrid@20",
+      "catalog": "webtools_spotify",
+      "status": "applicable",
+      "catalogs": [
+        "webtools_spotify"
+      ],
+      "positives": 10,
+      "relevant_pick_rate": {
+        "value": 0.7,
+        "ci95": [
+          0.4,
+          1.0
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.4666666666666667,
+          "ci95": [
+            0.21428571428571427,
+            0.7142857142857143
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.5333333333333333,
+          "ci95": [
+            0.2857142857142857,
+            0.7857142857142857
+          ]
+        },
+        "abstention_precision": null,
+        "abstention_recall": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ]
+        },
+        "correct": 7,
+        "wrong": 8,
+        "abstained": 0,
+        "requests": 15,
+        "parsed_requests": 15,
+        "errors": 0,
+        "negative_requests": 5,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 0,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 1,
+          "provider_calls": 0,
+          "replays": 0,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 1e-07,
+          "list_usd": 1e-07,
+          "billed_usd_per_1000": 9.999999999999999e-05,
+          "list_usd_per_1000": 9.999999999999999e-05,
+          "latency_p50_ms": 2803.520832909271,
+          "latency_p95_ms": 2803.520832909271,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 1e-07,
+          "known_list_subtotal_usd": 1e-07
+        },
+        "warm": {
+          "observed_searches": 9,
+          "provider_calls": 0,
+          "replays": 0,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 1.46e-06,
+          "list_usd": 1.46e-06,
+          "billed_usd_per_1000": 0.0001622222222222222,
+          "list_usd_per_1000": 0.0001622222222222222,
+          "latency_p50_ms": 240.481749875471,
+          "latency_p95_ms": 959.494333202019,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 1.46e-06,
+          "known_list_subtotal_usd": 1.46e-06
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 5,
+        "provider_calls": 0,
+        "replays": 0,
+        "input_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_share": null,
+        "billed_usd": 5.599999999999999e-07,
+        "list_usd": 5.599999999999999e-07,
+        "billed_usd_per_1000": 0.00011199999999999998,
+        "list_usd_per_1000": 0.00011199999999999998,
+        "latency_p50_ms": 186.0115840099752,
+        "latency_p95_ms": 680.5188746657221,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 5.599999999999999e-07,
+        "known_list_subtotal_usd": 5.599999999999999e-07
+      }
+    },
+    {
+      "arm": "hybrid@20",
+      "catalog": "webtools_tmdb",
+      "status": "applicable",
+      "catalogs": [
+        "webtools_tmdb"
+      ],
+      "positives": 10,
+      "relevant_pick_rate": {
+        "value": 0.2,
+        "ci95": [
+          0.0,
+          0.5
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.13333333333333333,
+          "ci95": [
+            0.0,
+            0.3333333333333333
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.8666666666666667,
+          "ci95": [
+            0.6666666666666666,
+            1.0
+          ]
+        },
+        "abstention_precision": null,
+        "abstention_recall": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ]
+        },
+        "correct": 2,
+        "wrong": 13,
+        "abstained": 0,
+        "requests": 15,
+        "parsed_requests": 15,
+        "errors": 0,
+        "negative_requests": 5,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 0,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 1,
+          "provider_calls": 0,
+          "replays": 0,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 2.6e-07,
+          "list_usd": 2.6e-07,
+          "billed_usd_per_1000": 0.00026,
+          "list_usd_per_1000": 0.00026,
+          "latency_p50_ms": 507.12900003418326,
+          "latency_p95_ms": 507.12900003418326,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 2.6e-07,
+          "known_list_subtotal_usd": 2.6e-07
+        },
+        "warm": {
+          "observed_searches": 9,
+          "provider_calls": 0,
+          "replays": 0,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 2.26e-06,
+          "list_usd": 2.26e-06,
+          "billed_usd_per_1000": 0.0002511111111111111,
+          "list_usd_per_1000": 0.0002511111111111111,
+          "latency_p50_ms": 210.22941614501178,
+          "latency_p95_ms": 278.4655911382288,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 2.26e-06,
+          "known_list_subtotal_usd": 2.26e-06
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 5,
+        "provider_calls": 0,
+        "replays": 0,
+        "input_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_share": null,
+        "billed_usd": 1.1399999999999999e-06,
+        "list_usd": 1.1399999999999999e-06,
+        "billed_usd_per_1000": 0.00022799999999999999,
+        "list_usd_per_1000": 0.00022799999999999999,
+        "latency_p50_ms": 176.56575003638864,
+        "latency_p95_ms": 205.02998270094395,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 1.1399999999999999e-06,
+        "known_list_subtotal_usd": 1.1399999999999999e-06
+      }
+    },
+    {
+      "arm": "hybrid@20",
+      "catalog": "tooleyes",
+      "status": "applicable",
+      "catalogs": [
+        "tooleyes"
+      ],
+      "positives": 10,
+      "relevant_pick_rate": {
+        "value": 0.8,
+        "ci95": [
+          0.5,
+          1.0
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.5333333333333333,
+          "ci95": [
+            0.2857142857142857,
+            0.7857142857142857
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.4666666666666667,
+          "ci95": [
+            0.21428571428571427,
+            0.7142857142857143
+          ]
+        },
+        "abstention_precision": null,
+        "abstention_recall": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ]
+        },
+        "correct": 8,
+        "wrong": 7,
+        "abstained": 0,
+        "requests": 15,
+        "parsed_requests": 15,
+        "errors": 0,
+        "negative_requests": 5,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 0,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 1,
+          "provider_calls": 0,
+          "replays": 0,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 1.8e-07,
+          "list_usd": 1.8e-07,
+          "billed_usd_per_1000": 0.00017999999999999998,
+          "list_usd_per_1000": 0.00017999999999999998,
+          "latency_p50_ms": 493.0938750039786,
+          "latency_p95_ms": 493.0938750039786,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 1.8e-07,
+          "known_list_subtotal_usd": 1.8e-07
+        },
+        "warm": {
+          "observed_searches": 9,
+          "provider_calls": 0,
+          "replays": 0,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 3.8e-06,
+          "list_usd": 3.8e-06,
+          "billed_usd_per_1000": 0.0004222222222222222,
+          "list_usd_per_1000": 0.0004222222222222222,
+          "latency_p50_ms": 201.86954108066857,
+          "latency_p95_ms": 254.1775830555707,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 3.8e-06,
+          "known_list_subtotal_usd": 3.8e-06
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 5,
+        "provider_calls": 0,
+        "replays": 0,
+        "input_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_share": null,
+        "billed_usd": 1.7e-06,
+        "list_usd": 1.7e-06,
+        "billed_usd_per_1000": 0.00034,
+        "list_usd_per_1000": 0.00034,
+        "latency_p50_ms": 182.45379184372723,
+        "latency_p95_ms": 186.0869836062193,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 1.7e-06,
+        "known_list_subtotal_usd": 1.7e-06
+      }
+    },
+    {
+      "arm": "hybrid@20",
+      "catalog": "apibank",
+      "status": "applicable",
+      "catalogs": [
+        "apibank"
+      ],
+      "positives": 10,
+      "relevant_pick_rate": {
+        "value": 0.5,
+        "ci95": [
+          0.2,
+          0.8
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.3333333333333333,
+          "ci95": [
+            0.11764705882352941,
+            0.5714285714285714
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.6666666666666666,
+          "ci95": [
+            0.42857142857142855,
+            0.8823529411764706
+          ]
+        },
+        "abstention_precision": null,
+        "abstention_recall": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ]
+        },
+        "correct": 5,
+        "wrong": 10,
+        "abstained": 0,
+        "requests": 15,
+        "parsed_requests": 15,
+        "errors": 0,
+        "negative_requests": 5,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 0,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 1,
+          "provider_calls": 0,
+          "replays": 0,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 2.8e-07,
+          "list_usd": 2.8e-07,
+          "billed_usd_per_1000": 0.00028000000000000003,
+          "list_usd_per_1000": 0.00028000000000000003,
+          "latency_p50_ms": 276.34745789691806,
+          "latency_p95_ms": 276.34745789691806,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 2.8e-07,
+          "known_list_subtotal_usd": 2.8e-07
+        },
+        "warm": {
+          "observed_searches": 9,
+          "provider_calls": 0,
+          "replays": 0,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 3.48e-06,
+          "list_usd": 3.48e-06,
+          "billed_usd_per_1000": 0.00038666666666666667,
+          "list_usd_per_1000": 0.00038666666666666667,
+          "latency_p50_ms": 185.2884169202298,
+          "latency_p95_ms": 329.1809917427599,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 3.48e-06,
+          "known_list_subtotal_usd": 3.48e-06
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 5,
+        "provider_calls": 0,
+        "replays": 0,
+        "input_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_share": null,
+        "billed_usd": 1.12e-06,
+        "list_usd": 1.12e-06,
+        "billed_usd_per_1000": 0.00022400000000000002,
+        "list_usd_per_1000": 0.00022400000000000002,
+        "latency_p50_ms": 177.39391699433327,
+        "latency_p95_ms": 203.74070000834763,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 1.12e-06,
+        "known_list_subtotal_usd": 1.12e-06
+      }
+    },
+    {
+      "arm": "hybrid@20",
+      "catalog": "metatool_which",
+      "status": "applicable",
+      "catalogs": [
+        "metatool_which"
+      ],
+      "positives": 10,
+      "relevant_pick_rate": {
+        "value": 0.4,
+        "ci95": [
+          0.1,
+          0.7
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.26666666666666666,
+          "ci95": [
+            0.06666666666666667,
+            0.46833333333333943
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.7333333333333333,
+          "ci95": [
+            0.5316666666666667,
+            0.9333333333333333
+          ]
+        },
+        "abstention_precision": null,
+        "abstention_recall": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ]
+        },
+        "correct": 4,
+        "wrong": 11,
+        "abstained": 0,
+        "requests": 15,
+        "parsed_requests": 15,
+        "errors": 0,
+        "negative_requests": 5,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 0,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 1,
+          "provider_calls": 0,
+          "replays": 0,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 5.2e-07,
+          "list_usd": 5.2e-07,
+          "billed_usd_per_1000": 0.00052,
+          "list_usd_per_1000": 0.00052,
+          "latency_p50_ms": 310.2028330322355,
+          "latency_p95_ms": 310.2028330322355,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 5.2e-07,
+          "known_list_subtotal_usd": 5.2e-07
+        },
+        "warm": {
+          "observed_searches": 9,
+          "provider_calls": 0,
+          "replays": 0,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 7.44e-06,
+          "list_usd": 7.44e-06,
+          "billed_usd_per_1000": 0.0008266666666666666,
+          "list_usd_per_1000": 0.0008266666666666666,
+          "latency_p50_ms": 191.78970903158188,
+          "latency_p95_ms": 203.16034094430506,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 7.44e-06,
+          "known_list_subtotal_usd": 7.44e-06
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 5,
+        "provider_calls": 0,
+        "replays": 0,
+        "input_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_share": null,
+        "billed_usd": 2.46e-06,
+        "list_usd": 2.46e-06,
+        "billed_usd_per_1000": 0.000492,
+        "list_usd_per_1000": 0.000492,
+        "latency_p50_ms": 195.15945808961987,
+        "latency_p95_ms": 236.01259221322834,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 2.46e-06,
+        "known_list_subtotal_usd": 2.46e-06
+      }
+    },
+    {
+      "arm": "hybrid@20+jev",
+      "catalog": "pooled",
+      "status": "applicable",
+      "catalogs": [
+        "apibank",
+        "tooleyes",
+        "webtools_spotify",
+        "webtools_tmdb"
+      ],
+      "positives": 40,
+      "relevant_pick_rate": {
+        "value": 0.65,
+        "ci95": [
+          0.5,
+          0.8
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.1,
+        "ci95": [
+          -0.125,
+          0.3
+        ]
+      },
+      "ranking_ignoring_abstention": {
+        "value": 0.725,
+        "ci95": [
+          0.575,
+          0.85
+        ]
+      },
+      "none_option": {
+        "coverage": {
+          "value": 0.7833333333333333,
+          "ci95": [
+            0.6724137931034483,
+            0.8833333333333333
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.5531914893617021,
+          "ci95": [
+            0.40425531914893614,
+            0.7111111111111111
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.35,
+          "ci95": [
+            0.22409003831417626,
+            0.4827729885057472
+          ]
+        },
+        "abstention_precision": {
+          "value": 0.6153846153846154,
+          "ci95": [
+            0.38461538461538464,
+            0.8461538461538461
+          ]
+        },
+        "abstention_recall": {
+          "value": 0.36363636363636365,
+          "ci95": [
+            0.18181818181818182,
+            0.5454545454545454
+          ]
+        },
+        "correct": 26,
+        "wrong": 21,
+        "abstained": 13,
+        "requests": 60,
+        "parsed_requests": 60,
+        "errors": 0,
+        "negative_requests": 20,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 60,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 4,
+          "provider_calls": 4,
+          "replays": 0,
+          "input_tokens": 7377,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 0.00031065400000000005,
+          "list_usd": 0.00031065400000000005,
+          "billed_usd_per_1000": 0.07766350000000001,
+          "list_usd_per_1000": 0.07766350000000001,
+          "latency_p50_ms": 839.1448750626296,
+          "latency_p95_ms": 2860.195392055903,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.00031065400000000005,
+          "known_list_subtotal_usd": 0.00031065400000000005
+        },
+        "warm": {
+          "observed_searches": 36,
+          "provider_calls": 36,
+          "replays": 0,
+          "input_tokens": 71144,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 0.0029990480000000003,
+          "list_usd": 0.0029990480000000003,
+          "billed_usd_per_1000": 0.08330688888888889,
+          "list_usd_per_1000": 0.08330688888888889,
+          "latency_p50_ms": 478.5472499206662,
+          "latency_p95_ms": 702.3326773196459,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.0029990480000000003,
+          "known_list_subtotal_usd": 0.0029990480000000003
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 20,
+        "provider_calls": 20,
+        "replays": 0,
+        "input_tokens": 38235,
+        "cache_read_tokens": 0,
+        "cache_share": null,
+        "billed_usd": 0.0016103900000000002,
+        "list_usd": 0.0016103900000000002,
+        "billed_usd_per_1000": 0.08051950000000001,
+        "list_usd_per_1000": 0.08051950000000001,
+        "latency_p50_ms": 439.215604448691,
+        "latency_p95_ms": 568.8986681867395,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.0016103900000000002,
+        "known_list_subtotal_usd": 0.0016103900000000002
+      }
+    },
+    {
+      "arm": "hybrid@20+jev",
+      "catalog": "all_catalogs",
+      "status": "applicable",
+      "catalogs": [
+        "apibank",
+        "metatool_which",
+        "tooleyes",
+        "webtools_spotify",
+        "webtools_tmdb"
+      ],
+      "positives": 50,
+      "relevant_pick_rate": {
+        "value": 0.66,
+        "ci95": [
+          0.52,
+          0.78
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.14,
+        "ci95": [
+          -0.04,
+          0.32
+        ]
+      },
+      "ranking_ignoring_abstention": {
+        "value": 0.72,
+        "ci95": [
+          0.58,
+          0.84
+        ]
+      },
+      "none_option": {
+        "coverage": {
+          "value": 0.8,
+          "ci95": [
+            0.7066282051282051,
+            0.8904109589041096
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.55,
+          "ci95": [
+            0.41935483870967744,
+            0.6833333333333333
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.36,
+          "ci95": [
+            0.25,
+            0.47368421052631576
+          ]
+        },
+        "abstention_precision": {
+          "value": 0.6666666666666666,
+          "ci95": [
+            0.4,
+            0.8666666666666667
+          ]
+        },
+        "abstention_recall": {
+          "value": 0.35714285714285715,
+          "ci95": [
+            0.17857142857142858,
+            0.5357142857142857
+          ]
+        },
+        "correct": 33,
+        "wrong": 27,
+        "abstained": 15,
+        "requests": 75,
+        "parsed_requests": 75,
+        "errors": 0,
+        "negative_requests": 25,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 75,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 5,
+          "provider_calls": 5,
+          "replays": 0,
+          "input_tokens": 8455,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 0.00035645,
+          "list_usd": 0.00035645,
+          "billed_usd_per_1000": 0.07129,
+          "list_usd_per_1000": 0.07129,
+          "latency_p50_ms": 813.7755000498146,
+          "latency_p95_ms": 2742.8023837041105,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.00035645,
+          "known_list_subtotal_usd": 0.00035645
+        },
+        "warm": {
+          "observed_searches": 45,
+          "provider_calls": 45,
+          "replays": 0,
+          "input_tokens": 81379,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 0.0034363580000000005,
+          "list_usd": 0.0034363580000000005,
+          "billed_usd_per_1000": 0.07636351111111112,
+          "list_usd_per_1000": 0.07636351111111112,
+          "latency_p50_ms": 471.4514999650419,
+          "latency_p95_ms": 689.9792834650724,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.0034363580000000005,
+          "known_list_subtotal_usd": 0.0034363580000000005
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 25,
+        "provider_calls": 25,
+        "replays": 0,
+        "input_tokens": 43871,
+        "cache_read_tokens": 0,
+        "cache_share": null,
+        "billed_usd": 0.0018495620000000001,
+        "list_usd": 0.0018495620000000001,
+        "billed_usd_per_1000": 0.07398248,
+        "list_usd_per_1000": 0.07398248,
+        "latency_p50_ms": 442.3123749438673,
+        "latency_p95_ms": 538.2388410158455,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.0018495620000000001,
+        "known_list_subtotal_usd": 0.0018495620000000001
+      }
+    },
+    {
+      "arm": "hybrid@20+jev",
+      "catalog": "webtools_spotify",
+      "status": "applicable",
+      "catalogs": [
+        "webtools_spotify"
+      ],
+      "positives": 10,
+      "relevant_pick_rate": {
+        "value": 0.7,
+        "ci95": [
+          0.4,
+          1.0
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.0,
+        "ci95": [
+          -0.4,
+          0.4
+        ]
+      },
+      "ranking_ignoring_abstention": {
+        "value": 0.7,
+        "ci95": [
+          0.4,
+          1.0
+        ]
+      },
+      "none_option": {
+        "coverage": {
+          "value": 0.7333333333333333,
+          "ci95": [
+            0.5,
+            0.9285714285714286
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.6363636363636364,
+          "ci95": [
+            0.36363636363636365,
+            0.9090909090909091
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.26666666666666666,
+          "ci95": [
+            0.0625,
+            0.5
+          ]
+        },
+        "abstention_precision": {
+          "value": 0.75,
+          "ci95": [
+            0.25,
+            1.0
+          ]
+        },
+        "abstention_recall": {
+          "value": 0.6,
+          "ci95": [
+            0.2,
+            1.0
+          ]
+        },
+        "correct": 7,
+        "wrong": 4,
+        "abstained": 4,
+        "requests": 15,
+        "parsed_requests": 15,
+        "errors": 0,
+        "negative_requests": 5,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 15,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 1,
+          "provider_calls": 1,
+          "replays": 0,
+          "input_tokens": 1295,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 5.449e-05,
+          "list_usd": 5.449e-05,
+          "billed_usd_per_1000": 0.054490000000000004,
+          "list_usd_per_1000": 0.054490000000000004,
+          "latency_p50_ms": 3212.3744171112776,
+          "latency_p95_ms": 3212.3744171112776,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 5.449e-05,
+          "known_list_subtotal_usd": 5.449e-05
+        },
+        "warm": {
+          "observed_searches": 9,
+          "provider_calls": 9,
+          "replays": 0,
+          "input_tokens": 12728,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 0.000536036,
+          "list_usd": 0.000536036,
+          "billed_usd_per_1000": 0.05955955555555556,
+          "list_usd_per_1000": 0.05955955555555556,
+          "latency_p50_ms": 521.1533340625465,
+          "latency_p95_ms": 1206.8887170869855,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.000536036,
+          "known_list_subtotal_usd": 0.000536036
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 5,
+        "provider_calls": 5,
+        "replays": 0,
+        "input_tokens": 7211,
+        "cache_read_tokens": 0,
+        "cache_share": null,
+        "billed_usd": 0.00030342199999999997,
+        "list_usd": 0.00030342199999999997,
+        "billed_usd_per_1000": 0.06068439999999999,
+        "list_usd_per_1000": 0.06068439999999999,
+        "latency_p50_ms": 449.661249993369,
+        "latency_p95_ms": 996.6318248305467,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.00030342199999999997,
+        "known_list_subtotal_usd": 0.00030342199999999997
+      }
+    },
+    {
+      "arm": "hybrid@20+jev",
+      "catalog": "webtools_tmdb",
+      "status": "applicable",
+      "catalogs": [
+        "webtools_tmdb"
+      ],
+      "positives": 10,
+      "relevant_pick_rate": {
+        "value": 0.8,
+        "ci95": [
+          0.5,
+          1.0
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.6,
+        "ci95": [
+          0.3,
+          0.9
+        ]
+      },
+      "ranking_ignoring_abstention": {
+        "value": 0.8,
+        "ci95": [
+          0.5,
+          1.0
+        ]
+      },
+      "none_option": {
+        "coverage": {
+          "value": 0.9333333333333333,
+          "ci95": [
+            0.8235294117647058,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.5714285714285714,
+          "ci95": [
+            0.2857142857142857,
+            0.7857142857142857
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.4,
+          "ci95": [
+            0.17647058823529413,
+            0.6666666666666666
+          ]
+        },
+        "abstention_precision": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "abstention_recall": {
+          "value": 0.16666666666666666,
+          "ci95": [
+            0.0,
+            0.5
+          ]
+        },
+        "correct": 8,
+        "wrong": 6,
+        "abstained": 1,
+        "requests": 15,
+        "parsed_requests": 15,
+        "errors": 0,
+        "negative_requests": 5,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 15,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 1,
+          "provider_calls": 1,
+          "replays": 0,
+          "input_tokens": 1833,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 7.7246e-05,
+          "list_usd": 7.7246e-05,
+          "billed_usd_per_1000": 0.077246,
+          "list_usd_per_1000": 0.077246,
+          "latency_p50_ms": 813.7755000498146,
+          "latency_p95_ms": 813.7755000498146,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 7.7246e-05,
+          "known_list_subtotal_usd": 7.7246e-05
+        },
+        "warm": {
+          "observed_searches": 9,
+          "provider_calls": 9,
+          "replays": 0,
+          "input_tokens": 21788,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 0.000917356,
+          "list_usd": 0.000917356,
+          "billed_usd_per_1000": 0.10192844444444445,
+          "list_usd_per_1000": 0.10192844444444445,
+          "latency_p50_ms": 480.0330838188529,
+          "latency_p95_ms": 620.8679660689085,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.000917356,
+          "known_list_subtotal_usd": 0.000917356
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 5,
+        "provider_calls": 5,
+        "replays": 0,
+        "input_tokens": 10616,
+        "cache_read_tokens": 0,
+        "cache_share": null,
+        "billed_usd": 0.00044701200000000005,
+        "list_usd": 0.00044701200000000005,
+        "billed_usd_per_1000": 0.08940240000000002,
+        "list_usd_per_1000": 0.08940240000000002,
+        "latency_p50_ms": 439.2678749281913,
+        "latency_p95_ms": 512.6329076010734,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.00044701200000000005,
+        "known_list_subtotal_usd": 0.00044701200000000005
+      }
+    },
+    {
+      "arm": "hybrid@20+jev",
+      "catalog": "tooleyes",
+      "status": "applicable",
+      "catalogs": [
+        "tooleyes"
+      ],
+      "positives": 10,
+      "relevant_pick_rate": {
+        "value": 0.4,
+        "ci95": [
+          0.1,
+          0.7
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": -0.4,
+        "ci95": [
+          -0.7,
+          -0.1
+        ]
+      },
+      "ranking_ignoring_abstention": {
+        "value": 0.6,
+        "ci95": [
+          0.3,
+          0.9
+        ]
+      },
+      "none_option": {
+        "coverage": {
+          "value": 0.6666666666666666,
+          "ci95": [
+            0.42857142857142855,
+            0.875
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.4,
+          "ci95": [
+            0.1,
+            0.7777777777777778
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.4,
+          "ci95": [
+            0.14285714285714285,
+            0.6666666666666666
+          ]
+        },
+        "abstention_precision": {
+          "value": 0.4,
+          "ci95": [
+            0.0,
+            0.8
+          ]
+        },
+        "abstention_recall": {
+          "value": 0.3333333333333333,
+          "ci95": [
+            0.0,
+            0.6666666666666666
+          ]
+        },
+        "correct": 4,
+        "wrong": 6,
+        "abstained": 5,
+        "requests": 15,
+        "parsed_requests": 15,
+        "errors": 0,
+        "negative_requests": 5,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 15,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 1,
+          "provider_calls": 1,
+          "replays": 0,
+          "input_tokens": 2083,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 8.766600000000001e-05,
+          "list_usd": 8.766600000000001e-05,
+          "billed_usd_per_1000": 0.08766600000000001,
+          "list_usd_per_1000": 0.08766600000000001,
+          "latency_p50_ms": 864.5142500754446,
+          "latency_p95_ms": 864.5142500754446,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 8.766600000000001e-05,
+          "known_list_subtotal_usd": 8.766600000000001e-05
+        },
+        "warm": {
+          "observed_searches": 9,
+          "provider_calls": 9,
+          "replays": 0,
+          "input_tokens": 17468,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 0.000737456,
+          "list_usd": 0.000737456,
+          "billed_usd_per_1000": 0.08193955555555556,
+          "list_usd_per_1000": 0.08193955555555556,
+          "latency_p50_ms": 452.3283338639885,
+          "latency_p95_ms": 506.4955664332956,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.000737456,
+          "known_list_subtotal_usd": 0.000737456
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 5,
+        "provider_calls": 5,
+        "replays": 0,
+        "input_tokens": 9557,
+        "cache_read_tokens": 0,
+        "cache_share": null,
+        "billed_usd": 0.000403094,
+        "list_usd": 0.000403094,
+        "billed_usd_per_1000": 0.0806188,
+        "list_usd_per_1000": 0.0806188,
+        "latency_p50_ms": 414.74574990570545,
+        "latency_p95_ms": 483.37546666152775,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.000403094,
+        "known_list_subtotal_usd": 0.000403094
+      }
+    },
+    {
+      "arm": "hybrid@20+jev",
+      "catalog": "apibank",
+      "status": "applicable",
+      "catalogs": [
+        "apibank"
+      ],
+      "positives": 10,
+      "relevant_pick_rate": {
+        "value": 0.7,
+        "ci95": [
+          0.4,
+          1.0
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.2,
+        "ci95": [
+          -0.2,
+          0.6
+        ]
+      },
+      "ranking_ignoring_abstention": {
+        "value": 0.8,
+        "ci95": [
+          0.5,
+          1.0
+        ]
+      },
+      "none_option": {
+        "coverage": {
+          "value": 0.8,
+          "ci95": [
+            0.5714285714285714,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.5833333333333334,
+          "ci95": [
+            0.2857142857142857,
+            0.9090909090909091
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.3333333333333333,
+          "ci95": [
+            0.07142857142857142,
+            0.6111111111111112
+          ]
+        },
+        "abstention_precision": {
+          "value": 0.6666666666666666,
+          "ci95": [
+            0.0,
+            1.0
+          ]
+        },
+        "abstention_recall": {
+          "value": 0.4,
+          "ci95": [
+            0.0,
+            0.8
+          ]
+        },
+        "correct": 7,
+        "wrong": 5,
+        "abstained": 3,
+        "requests": 15,
+        "parsed_requests": 15,
+        "errors": 0,
+        "negative_requests": 5,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 15,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 1,
+          "provider_calls": 1,
+          "replays": 0,
+          "input_tokens": 2166,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 9.125200000000001e-05,
+          "list_usd": 9.125200000000001e-05,
+          "billed_usd_per_1000": 0.09125200000000001,
+          "list_usd_per_1000": 0.09125200000000001,
+          "latency_p50_ms": 638.1413738708943,
+          "latency_p95_ms": 638.1413738708943,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 9.125200000000001e-05,
+          "known_list_subtotal_usd": 9.125200000000001e-05
+        },
+        "warm": {
+          "observed_searches": 9,
+          "provider_calls": 9,
+          "replays": 0,
+          "input_tokens": 19160,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 0.0008082000000000001,
+          "list_usd": 0.0008082000000000001,
+          "billed_usd_per_1000": 0.08980000000000002,
+          "list_usd_per_1000": 0.08980000000000002,
+          "latency_p50_ms": 462.5908329617232,
+          "latency_p95_ms": 645.919574284926,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.0008082000000000001,
+          "known_list_subtotal_usd": 0.0008082000000000001
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 5,
+        "provider_calls": 5,
+        "replays": 0,
+        "input_tokens": 10851,
+        "cache_read_tokens": 0,
+        "cache_share": null,
+        "billed_usd": 0.00045686200000000004,
+        "list_usd": 0.00045686200000000004,
+        "billed_usd_per_1000": 0.0913724,
+        "list_usd_per_1000": 0.0913724,
+        "latency_p50_ms": 445.3670419752598,
+        "latency_p95_ms": 522.3008994478732,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.00045686200000000004,
+        "known_list_subtotal_usd": 0.00045686200000000004
+      }
+    },
+    {
+      "arm": "hybrid@20+jev",
+      "catalog": "metatool_which",
+      "status": "applicable",
+      "catalogs": [
+        "metatool_which"
+      ],
+      "positives": 10,
+      "relevant_pick_rate": {
+        "value": 0.7,
+        "ci95": [
+          0.4,
+          0.9025000000000091
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.3,
+        "ci95": [
+          -0.1,
+          0.7
+        ]
+      },
+      "ranking_ignoring_abstention": {
+        "value": 0.7,
+        "ci95": [
+          0.4,
+          0.9025000000000091
+        ]
+      },
+      "none_option": {
+        "coverage": {
+          "value": 0.8666666666666667,
+          "ci95": [
+            0.6666666666666666,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.5384615384615384,
+          "ci95": [
+            0.23076923076923078,
+            0.7711538461538532
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.4,
+          "ci95": [
+            0.13333333333333333,
+            0.6666666666666666
+          ]
+        },
+        "abstention_precision": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "abstention_recall": {
+          "value": 0.3333333333333333,
+          "ci95": [
+            0.0,
+            0.6666666666666666
+          ]
+        },
+        "correct": 7,
+        "wrong": 6,
+        "abstained": 2,
+        "requests": 15,
+        "parsed_requests": 15,
+        "errors": 0,
+        "negative_requests": 5,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 15,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 1,
+          "provider_calls": 1,
+          "replays": 0,
+          "input_tokens": 1078,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 4.579600000000001e-05,
+          "list_usd": 4.579600000000001e-05,
+          "billed_usd_per_1000": 0.045796,
+          "list_usd_per_1000": 0.045796,
+          "latency_p50_ms": 661.5629580337554,
+          "latency_p95_ms": 661.5629580337554,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 4.579600000000001e-05,
+          "known_list_subtotal_usd": 4.579600000000001e-05
+        },
+        "warm": {
+          "observed_searches": 9,
+          "provider_calls": 9,
+          "replays": 0,
+          "input_tokens": 10235,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 0.00043731,
+          "list_usd": 0.00043731,
+          "billed_usd_per_1000": 0.048589999999999994,
+          "list_usd_per_1000": 0.048589999999999994,
+          "latency_p50_ms": 445.32895809970796,
+          "latency_p95_ms": 490.45109921135,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.00043731,
+          "known_list_subtotal_usd": 0.00043731
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 5,
+        "provider_calls": 5,
+        "replays": 0,
+        "input_tokens": 5636,
+        "cache_read_tokens": 0,
+        "cache_share": null,
+        "billed_usd": 0.00023917200000000003,
+        "list_usd": 0.00023917200000000003,
+        "billed_usd_per_1000": 0.047834400000000006,
+        "list_usd_per_1000": 0.047834400000000006,
+        "latency_p50_ms": 453.24362511746585,
+        "latency_p95_ms": 493.9728175289929,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.00023917200000000003,
+        "known_list_subtotal_usd": 0.00023917200000000003
+      }
+    },
+    {
+      "arm": "jev-all",
+      "catalog": "pooled",
+      "status": "applicable",
+      "catalogs": [
+        "apibank",
+        "tooleyes",
+        "webtools_spotify",
+        "webtools_tmdb"
+      ],
+      "positives": 40,
+      "relevant_pick_rate": {
+        "value": 0.75,
+        "ci95": [
+          0.625,
+          0.875
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.2,
+        "ci95": [
+          0.0,
+          0.375
+        ]
+      },
+      "ranking_ignoring_abstention": {
+        "value": 0.775,
+        "ci95": [
+          0.65,
+          0.9
+        ]
+      },
+      "none_option": {
+        "coverage": {
+          "value": 0.85,
+          "ci95": [
+            0.7540983606557377,
+            0.9333333333333333
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.5882352941176471,
+          "ci95": [
+            0.4444444444444444,
+            0.7346938775510204
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.35,
+          "ci95": [
+            0.21666666666666667,
+            0.47619047619047616
+          ]
+        },
+        "abstention_precision": {
+          "value": 0.6666666666666666,
+          "ci95": [
+            0.3333333333333333,
+            1.0
+          ]
+        },
+        "abstention_recall": {
+          "value": 0.3,
+          "ci95": [
+            0.1,
+            0.5
+          ]
+        },
+        "correct": 30,
+        "wrong": 21,
+        "abstained": 9,
+        "requests": 60,
+        "parsed_requests": 60,
+        "errors": 0,
+        "negative_requests": 20,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 60,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 4,
+          "provider_calls": 4,
+          "replays": 0,
+          "input_tokens": 23010,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 0.0009664200000000001,
+          "list_usd": 0.0009664200000000001,
+          "billed_usd_per_1000": 0.24160500000000001,
+          "list_usd_per_1000": 0.24160500000000001,
+          "latency_p50_ms": 290.9892090829089,
+          "latency_p95_ms": 326.42247328767553,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.0009664200000000001,
+          "known_list_subtotal_usd": 0.0009664200000000001
+        },
+        "warm": {
+          "observed_searches": 36,
+          "provider_calls": 36,
+          "replays": 0,
+          "input_tokens": 207317,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 0.008707314,
+          "list_usd": 0.008707314,
+          "billed_usd_per_1000": 0.24186983333333334,
+          "list_usd_per_1000": 0.24186983333333334,
+          "latency_p50_ms": 300.0459794420749,
+          "latency_p95_ms": 514.0282704378478,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.008707314,
+          "known_list_subtotal_usd": 0.008707314
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 20,
+        "provider_calls": 20,
+        "replays": 0,
+        "input_tokens": 113236,
+        "cache_read_tokens": 0,
+        "cache_share": null,
+        "billed_usd": 0.004755912,
+        "list_usd": 0.004755912,
+        "billed_usd_per_1000": 0.23779560000000002,
+        "list_usd_per_1000": 0.23779560000000002,
+        "latency_p50_ms": 310.78908347990364,
+        "latency_p95_ms": 448.51624019211164,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.004755912,
+        "known_list_subtotal_usd": 0.004755912
+      }
+    },
+    {
+      "arm": "jev-all",
+      "catalog": "all_catalogs",
+      "status": "applicable",
+      "catalogs": [
+        "apibank",
+        "metatool_which",
+        "tooleyes",
+        "webtools_spotify",
+        "webtools_tmdb"
+      ],
+      "positives": 50,
+      "relevant_pick_rate": {
+        "value": 0.76,
+        "ci95": [
+          0.64,
+          0.86
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.24,
+        "ci95": [
+          0.06,
+          0.4
+        ]
+      },
+      "ranking_ignoring_abstention": {
+        "value": 0.78,
+        "ci95": [
+          0.66,
+          0.88
+        ]
+      },
+      "none_option": {
+        "coverage": {
+          "value": 0.88,
+          "ci95": [
+            0.8,
+            0.948051948051948
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.5757575757575758,
+          "ci95": [
+            0.4492753623188406,
+            0.6970057720057722
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.37333333333333335,
+          "ci95": [
+            0.2602739726027397,
+            0.4935064935064935
+          ]
+        },
+        "abstention_precision": {
+          "value": 0.6666666666666666,
+          "ci95": [
+            0.3333333333333333,
+            1.0
+          ]
+        },
+        "abstention_recall": {
+          "value": 0.24,
+          "ci95": [
+            0.08,
+            0.44
+          ]
+        },
+        "correct": 38,
+        "wrong": 28,
+        "abstained": 9,
+        "requests": 75,
+        "parsed_requests": 75,
+        "errors": 0,
+        "negative_requests": 25,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 75,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 5,
+          "provider_calls": 5,
+          "replays": 0,
+          "input_tokens": 30681,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 0.001288602,
+          "list_usd": 0.001288602,
+          "billed_usd_per_1000": 0.2577204,
+          "list_usd_per_1000": 0.2577204,
+          "latency_p50_ms": 317.32708401978016,
+          "latency_p95_ms": 363.75117474235594,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.001288602,
+          "known_list_subtotal_usd": 0.001288602
+        },
+        "warm": {
+          "observed_searches": 45,
+          "provider_calls": 45,
+          "replays": 0,
+          "input_tokens": 276479,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 0.011612118000000001,
+          "list_usd": 0.011612118000000001,
+          "billed_usd_per_1000": 0.25804706666666666,
+          "list_usd_per_1000": 0.25804706666666666,
+          "latency_p50_ms": 298.84354188106954,
+          "latency_p95_ms": 509.82823297381395,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.011612118000000001,
+          "known_list_subtotal_usd": 0.011612118000000001
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 25,
+        "provider_calls": 25,
+        "replays": 0,
+        "input_tokens": 151264,
+        "cache_read_tokens": 0,
+        "cache_share": null,
+        "billed_usd": 0.006353088000000001,
+        "list_usd": 0.006353088000000001,
+        "billed_usd_per_1000": 0.25412352000000005,
+        "list_usd_per_1000": 0.25412352000000005,
+        "latency_p50_ms": 310.53691706620157,
+        "latency_p95_ms": 431.42551714554435,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.006353088000000001,
+        "known_list_subtotal_usd": 0.006353088000000001
+      }
+    },
+    {
+      "arm": "jev-all",
+      "catalog": "webtools_spotify",
+      "status": "applicable",
+      "catalogs": [
+        "webtools_spotify"
+      ],
+      "positives": 10,
+      "relevant_pick_rate": {
+        "value": 1.0,
+        "ci95": [
+          1.0,
+          1.0
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.3,
+        "ci95": [
+          0.0,
+          0.6
+        ]
+      },
+      "ranking_ignoring_abstention": {
+        "value": 1.0,
+        "ci95": [
+          1.0,
+          1.0
+        ]
+      },
+      "none_option": {
+        "coverage": {
+          "value": 0.8,
+          "ci95": [
+            0.6,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.8333333333333334,
+          "ci95": [
+            0.5833333333333334,
+            1.0
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.13333333333333333,
+          "ci95": [
+            0.0,
+            0.3333333333333333
+          ]
+        },
+        "abstention_precision": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "abstention_recall": {
+          "value": 0.6,
+          "ci95": [
+            0.2,
+            1.0
+          ]
+        },
+        "correct": 10,
+        "wrong": 2,
+        "abstained": 3,
+        "requests": 15,
+        "parsed_requests": 15,
+        "errors": 0,
+        "negative_requests": 5,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 15,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 1,
+          "provider_calls": 1,
+          "replays": 0,
+          "input_tokens": 2592,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 0.000108864,
+          "list_usd": 0.000108864,
+          "billed_usd_per_1000": 0.108864,
+          "list_usd_per_1000": 0.108864,
+          "latency_p50_ms": 242.29408288374543,
+          "latency_p95_ms": 242.29408288374543,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.000108864,
+          "known_list_subtotal_usd": 0.000108864
+        },
+        "warm": {
+          "observed_searches": 9,
+          "provider_calls": 9,
+          "replays": 0,
+          "input_tokens": 23364,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 0.000981288,
+          "list_usd": 0.000981288,
+          "billed_usd_per_1000": 0.109032,
+          "list_usd_per_1000": 0.109032,
+          "latency_p50_ms": 269.3212090525776,
+          "latency_p95_ms": 518.9178579486907,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.000981288,
+          "known_list_subtotal_usd": 0.000981288
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 5,
+        "provider_calls": 5,
+        "replays": 0,
+        "input_tokens": 12336,
+        "cache_read_tokens": 0,
+        "cache_share": null,
+        "billed_usd": 0.000518112,
+        "list_usd": 0.000518112,
+        "billed_usd_per_1000": 0.1036224,
+        "list_usd_per_1000": 0.1036224,
+        "latency_p50_ms": 311.0412498936057,
+        "latency_p95_ms": 430.7135173585266,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.000518112,
+        "known_list_subtotal_usd": 0.000518112
+      }
+    },
+    {
+      "arm": "jev-all",
+      "catalog": "webtools_tmdb",
+      "status": "applicable",
+      "catalogs": [
+        "webtools_tmdb"
+      ],
+      "positives": 10,
+      "relevant_pick_rate": {
+        "value": 0.8,
+        "ci95": [
+          0.5,
+          1.0
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.6,
+        "ci95": [
+          0.3,
+          0.9
+        ]
+      },
+      "ranking_ignoring_abstention": {
+        "value": 0.8,
+        "ci95": [
+          0.5,
+          1.0
+        ]
+      },
+      "none_option": {
+        "coverage": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.5333333333333333,
+          "ci95": [
+            0.26666666666666666,
+            0.7857142857142857
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.4666666666666667,
+          "ci95": [
+            0.21428571428571427,
+            0.7333333333333333
+          ]
+        },
+        "abstention_precision": null,
+        "abstention_recall": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ]
+        },
+        "correct": 8,
+        "wrong": 7,
+        "abstained": 0,
+        "requests": 15,
+        "parsed_requests": 15,
+        "errors": 0,
+        "negative_requests": 5,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 15,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 1,
+          "provider_calls": 1,
+          "replays": 0,
+          "input_tokens": 4770,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 0.00020034,
+          "list_usd": 0.00020034,
+          "billed_usd_per_1000": 0.20034,
+          "list_usd_per_1000": 0.20034,
+          "latency_p50_ms": 264.6513341460377,
+          "latency_p95_ms": 264.6513341460377,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.00020034,
+          "known_list_subtotal_usd": 0.00020034
+        },
+        "warm": {
+          "observed_searches": 9,
+          "provider_calls": 9,
+          "replays": 0,
+          "input_tokens": 42944,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 0.0018036480000000001,
+          "list_usd": 0.0018036480000000001,
+          "billed_usd_per_1000": 0.20040533333333335,
+          "list_usd_per_1000": 0.20040533333333335,
+          "latency_p50_ms": 269.5411250460893,
+          "latency_p95_ms": 504.32036723941565,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.0018036480000000001,
+          "known_list_subtotal_usd": 0.0018036480000000001
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 5,
+        "provider_calls": 5,
+        "replays": 0,
+        "input_tokens": 23243,
+        "cache_read_tokens": 0,
+        "cache_share": null,
+        "billed_usd": 0.0009762060000000001,
+        "list_usd": 0.0009762060000000001,
+        "billed_usd_per_1000": 0.19524120000000003,
+        "list_usd_per_1000": 0.19524120000000003,
+        "latency_p50_ms": 292.42662503384054,
+        "latency_p95_ms": 428.7797505501658,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.0009762060000000001,
+        "known_list_subtotal_usd": 0.0009762060000000001
+      }
+    },
+    {
+      "arm": "jev-all",
+      "catalog": "tooleyes",
+      "status": "applicable",
+      "catalogs": [
+        "tooleyes"
+      ],
+      "positives": 10,
+      "relevant_pick_rate": {
+        "value": 0.5,
+        "ci95": [
+          0.2,
+          0.8
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": -0.3,
+        "ci95": [
+          -0.6,
+          0.0
+        ]
+      },
+      "ranking_ignoring_abstention": {
+        "value": 0.5,
+        "ci95": [
+          0.2,
+          0.8
+        ]
+      },
+      "none_option": {
+        "coverage": {
+          "value": 0.7333333333333333,
+          "ci95": [
+            0.5,
+            0.9375
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.45454545454545453,
+          "ci95": [
+            0.16666666666666666,
+            0.8
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.4,
+          "ci95": [
+            0.14285714285714285,
+            0.6666666666666666
+          ]
+        },
+        "abstention_precision": {
+          "value": 0.5,
+          "ci95": [
+            0.0,
+            1.0
+          ]
+        },
+        "abstention_recall": {
+          "value": 0.4,
+          "ci95": [
+            0.0,
+            0.8
+          ]
+        },
+        "correct": 5,
+        "wrong": 6,
+        "abstained": 4,
+        "requests": 15,
+        "parsed_requests": 15,
+        "errors": 0,
+        "negative_requests": 5,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 15,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 1,
+          "provider_calls": 1,
+          "replays": 0,
+          "input_tokens": 7030,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 0.00029526,
+          "list_usd": 0.00029526,
+          "billed_usd_per_1000": 0.29525999999999997,
+          "list_usd_per_1000": 0.29525999999999997,
+          "latency_p50_ms": 328.02754198201,
+          "latency_p95_ms": 328.02754198201,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.00029526,
+          "known_list_subtotal_usd": 0.00029526
+        },
+        "warm": {
+          "observed_searches": 9,
+          "provider_calls": 9,
+          "replays": 0,
+          "input_tokens": 63389,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 0.002662338,
+          "list_usd": 0.002662338,
+          "billed_usd_per_1000": 0.2958153333333333,
+          "list_usd_per_1000": 0.2958153333333333,
+          "latency_p50_ms": 297.01870819553733,
+          "latency_p95_ms": 438.2718498818576,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.002662338,
+          "known_list_subtotal_usd": 0.002662338
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 5,
+        "provider_calls": 5,
+        "replays": 0,
+        "input_tokens": 34942,
+        "cache_read_tokens": 0,
+        "cache_share": null,
+        "billed_usd": 0.0014675640000000002,
+        "list_usd": 0.0014675640000000002,
+        "billed_usd_per_1000": 0.2935128,
+        "list_usd_per_1000": 0.2935128,
+        "latency_p50_ms": 310.53691706620157,
+        "latency_p95_ms": 360.0234500132501,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.0014675640000000002,
+        "known_list_subtotal_usd": 0.0014675640000000002
+      }
+    },
+    {
+      "arm": "jev-all",
+      "catalog": "apibank",
+      "status": "applicable",
+      "catalogs": [
+        "apibank"
+      ],
+      "positives": 10,
+      "relevant_pick_rate": {
+        "value": 0.7,
+        "ci95": [
+          0.4,
+          1.0
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.2,
+        "ci95": [
+          -0.2,
+          0.6
+        ]
+      },
+      "ranking_ignoring_abstention": {
+        "value": 0.8,
+        "ci95": [
+          0.5,
+          1.0
+        ]
+      },
+      "none_option": {
+        "coverage": {
+          "value": 0.8666666666666667,
+          "ci95": [
+            0.6666666666666666,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.5384615384615384,
+          "ci95": [
+            0.25,
+            0.8333333333333334
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.4,
+          "ci95": [
+            0.14285714285714285,
+            0.6666666666666666
+          ]
+        },
+        "abstention_precision": {
+          "value": 0.5,
+          "ci95": [
+            0.0,
+            1.0
+          ]
+        },
+        "abstention_recall": {
+          "value": 0.2,
+          "ci95": [
+            0.0,
+            0.6
+          ]
+        },
+        "correct": 7,
+        "wrong": 6,
+        "abstained": 2,
+        "requests": 15,
+        "parsed_requests": 15,
+        "errors": 0,
+        "negative_requests": 5,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 15,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 1,
+          "provider_calls": 1,
+          "replays": 0,
+          "input_tokens": 8618,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 0.00036195600000000003,
+          "list_usd": 0.00036195600000000003,
+          "billed_usd_per_1000": 0.36195600000000006,
+          "list_usd_per_1000": 0.36195600000000006,
+          "latency_p50_ms": 317.32708401978016,
+          "latency_p95_ms": 317.32708401978016,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.00036195600000000003,
+          "known_list_subtotal_usd": 0.00036195600000000003
+        },
+        "warm": {
+          "observed_searches": 9,
+          "provider_calls": 9,
+          "replays": 0,
+          "input_tokens": 77620,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 0.00326004,
+          "list_usd": 0.00326004,
+          "billed_usd_per_1000": 0.3622266666666667,
+          "list_usd_per_1000": 0.3622266666666667,
+          "latency_p50_ms": 351.5407501254231,
+          "latency_p95_ms": 411.8714337237179,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.00326004,
+          "known_list_subtotal_usd": 0.00326004
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 5,
+        "provider_calls": 5,
+        "replays": 0,
+        "input_tokens": 42715,
+        "cache_read_tokens": 0,
+        "cache_share": null,
+        "billed_usd": 0.00179403,
+        "list_usd": 0.00179403,
+        "billed_usd_per_1000": 0.358806,
+        "list_usd_per_1000": 0.358806,
+        "latency_p50_ms": 333.81166588515043,
+        "latency_p95_ms": 356.59902449697256,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.00179403,
+        "known_list_subtotal_usd": 0.00179403
+      }
+    },
+    {
+      "arm": "jev-all",
+      "catalog": "metatool_which",
+      "status": "applicable",
+      "catalogs": [
+        "metatool_which"
+      ],
+      "positives": 10,
+      "relevant_pick_rate": {
+        "value": 0.8,
+        "ci95": [
+          0.5,
+          1.0
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.4,
+        "ci95": [
+          0.0,
+          0.8
+        ]
+      },
+      "ranking_ignoring_abstention": {
+        "value": 0.8,
+        "ci95": [
+          0.5,
+          1.0
+        ]
+      },
+      "none_option": {
+        "coverage": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.5333333333333333,
+          "ci95": [
+            0.26666666666666666,
+            0.8
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.4666666666666667,
+          "ci95": [
+            0.2,
+            0.7333333333333333
+          ]
+        },
+        "abstention_precision": null,
+        "abstention_recall": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ]
+        },
+        "correct": 8,
+        "wrong": 7,
+        "abstained": 0,
+        "requests": 15,
+        "parsed_requests": 15,
+        "errors": 0,
+        "negative_requests": 5,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 15,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 1,
+          "provider_calls": 1,
+          "replays": 0,
+          "input_tokens": 7671,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 0.000322182,
+          "list_usd": 0.000322182,
+          "billed_usd_per_1000": 0.322182,
+          "list_usd_per_1000": 0.322182,
+          "latency_p50_ms": 372.6820829324424,
+          "latency_p95_ms": 372.6820829324424,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.000322182,
+          "known_list_subtotal_usd": 0.000322182
+        },
+        "warm": {
+          "observed_searches": 9,
+          "provider_calls": 9,
+          "replays": 0,
+          "input_tokens": 69162,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": 0.002904804,
+          "list_usd": 0.002904804,
+          "billed_usd_per_1000": 0.322756,
+          "list_usd_per_1000": 0.322756,
+          "latency_p50_ms": 294.67262513935566,
+          "latency_p95_ms": 326.5344751533121,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.002904804,
+          "known_list_subtotal_usd": 0.002904804
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 5,
+        "provider_calls": 5,
+        "replays": 0,
+        "input_tokens": 38028,
+        "cache_read_tokens": 0,
+        "cache_share": null,
+        "billed_usd": 0.001597176,
+        "list_usd": 0.001597176,
+        "billed_usd_per_1000": 0.31943520000000003,
+        "list_usd_per_1000": 0.31943520000000003,
+        "latency_p50_ms": 301.0784999933094,
+        "latency_p95_ms": 345.7872335333377,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.001597176,
+        "known_list_subtotal_usd": 0.001597176
+      }
+    },
+    {
+      "arm": "agent@20",
+      "catalog": "pooled",
+      "status": "applicable",
+      "catalogs": [
+        "apibank",
+        "tooleyes",
+        "webtools_spotify",
+        "webtools_tmdb"
+      ],
+      "positives": 40,
+      "relevant_pick_rate": {
+        "value": 0.675,
+        "ci95": [
+          0.525,
+          0.825
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.125,
+        "ci95": [
+          -0.05,
+          0.3
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 0.8666666666666667,
+          "ci95": [
+            0.7627118644067796,
+            0.95
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.5192307692307693,
+          "ci95": [
+            0.38461538461538464,
+            0.6481481481481481
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.4166666666666667,
+          "ci95": [
+            0.296875,
+            0.5423728813559322
+          ]
+        },
+        "abstention_precision": {
+          "value": 0.5,
+          "ci95": [
+            0.14285714285714285,
+            0.7777777777777778
+          ]
+        },
+        "abstention_recall": {
+          "value": 0.18181818181818182,
+          "ci95": [
+            0.045454545454545456,
+            0.36363636363636365
+          ]
+        },
+        "correct": 27,
+        "wrong": 25,
+        "abstained": 8,
+        "requests": 60,
+        "parsed_requests": 60,
+        "errors": 0,
+        "negative_requests": 20,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 60,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 3,
+      "agent_other_text_abstentions": 5,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 4,
+          "provider_calls": 4,
+          "replays": 0,
+          "input_tokens": 5998,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.00249922,
+          "list_usd": 0.00249922,
+          "billed_usd_per_1000": 0.6248049999999999,
+          "list_usd_per_1000": 0.6248049999999999,
+          "latency_p50_ms": 1346.3938334025443,
+          "latency_p95_ms": 3999.902128486429,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.00249922,
+          "known_list_subtotal_usd": 0.00249922
+        },
+        "warm": {
+          "observed_searches": 36,
+          "provider_calls": 36,
+          "replays": 0,
+          "input_tokens": 58400,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.024563,
+          "list_usd": 0.024563,
+          "billed_usd_per_1000": 0.6823055555555556,
+          "list_usd_per_1000": 0.6823055555555556,
+          "latency_p50_ms": 1009.9167500156909,
+          "latency_p95_ms": 1405.5647707427852,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.024563,
+          "known_list_subtotal_usd": 0.024563
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 20,
+        "provider_calls": 20,
+        "replays": 0,
+        "input_tokens": 31291,
+        "cache_read_tokens": 0,
+        "cache_share": 0.0,
+        "billed_usd": 0.013352919999999999,
+        "list_usd": 0.013352919999999999,
+        "billed_usd_per_1000": 0.667646,
+        "list_usd_per_1000": 0.667646,
+        "latency_p50_ms": 1012.8551239613444,
+        "latency_p95_ms": 1744.3357699317858,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.013352919999999999,
+        "known_list_subtotal_usd": 0.013352919999999999
+      }
+    },
+    {
+      "arm": "agent@20",
+      "catalog": "all_catalogs",
+      "status": "applicable",
+      "catalogs": [
+        "apibank",
+        "metatool_which",
+        "tooleyes",
+        "webtools_spotify",
+        "webtools_tmdb"
+      ],
+      "positives": 50,
+      "relevant_pick_rate": {
+        "value": 0.68,
+        "ci95": [
+          0.54,
+          0.8
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.16,
+        "ci95": [
+          0.0,
+          0.32
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 0.8266666666666667,
+          "ci95": [
+            0.7307432432432432,
+            0.9178082191780822
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.5483870967741935,
+          "ci95": [
+            0.42418323863636365,
+            0.6667968750000004
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.37333333333333335,
+          "ci95": [
+            0.26666666666666666,
+            0.4935064935064935
+          ]
+        },
+        "abstention_precision": {
+          "value": 0.6153846153846154,
+          "ci95": [
+            0.38461538461538464,
+            0.8461538461538461
+          ]
+        },
+        "abstention_recall": {
+          "value": 0.2857142857142857,
+          "ci95": [
+            0.10714285714285714,
+            0.4642857142857143
+          ]
+        },
+        "correct": 34,
+        "wrong": 28,
+        "abstained": 13,
+        "requests": 75,
+        "parsed_requests": 75,
+        "errors": 0,
+        "negative_requests": 25,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 75,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 3,
+      "agent_other_text_abstentions": 10,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 5,
+          "provider_calls": 5,
+          "replays": 0,
+          "input_tokens": 6885,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.0028737399999999996,
+          "list_usd": 0.0028737399999999996,
+          "billed_usd_per_1000": 0.5747479999999999,
+          "list_usd_per_1000": 0.5747479999999999,
+          "latency_p50_ms": 1249.0949998609722,
+          "latency_p95_ms": 3849.5368660427625,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.0028737399999999996,
+          "known_list_subtotal_usd": 0.0028737399999999996
+        },
+        "warm": {
+          "observed_searches": 45,
+          "provider_calls": 45,
+          "replays": 0,
+          "input_tokens": 66711,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.02848844,
+          "list_usd": 0.02848844,
+          "billed_usd_per_1000": 0.6330764444444444,
+          "list_usd_per_1000": 0.6330764444444444,
+          "latency_p50_ms": 1007.1123749949038,
+          "latency_p95_ms": 1420.8617831580339,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.02848844,
+          "known_list_subtotal_usd": 0.02848844
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 25,
+        "provider_calls": 25,
+        "replays": 0,
+        "input_tokens": 35843,
+        "cache_read_tokens": 0,
+        "cache_share": 0.0,
+        "billed_usd": 0.01601778,
+        "list_usd": 0.01601778,
+        "billed_usd_per_1000": 0.6407111999999999,
+        "list_usd_per_1000": 0.6407111999999999,
+        "latency_p50_ms": 1006.0682490002364,
+        "latency_p95_ms": 2020.9188331849878,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.01601778,
+        "known_list_subtotal_usd": 0.01601778
+      }
+    },
+    {
+      "arm": "agent@20",
+      "catalog": "webtools_spotify",
+      "status": "applicable",
+      "catalogs": [
+        "webtools_spotify"
+      ],
+      "positives": 10,
+      "relevant_pick_rate": {
+        "value": 0.8,
+        "ci95": [
+          0.5,
+          1.0
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.1,
+        "ci95": [
+          -0.3,
+          0.5
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.5333333333333333,
+          "ci95": [
+            0.2857142857142857,
+            0.7857142857142857
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.4666666666666667,
+          "ci95": [
+            0.21428571428571427,
+            0.7142857142857143
+          ]
+        },
+        "abstention_precision": null,
+        "abstention_recall": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ]
+        },
+        "correct": 8,
+        "wrong": 7,
+        "abstained": 0,
+        "requests": 15,
+        "parsed_requests": 15,
+        "errors": 0,
+        "negative_requests": 5,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 15,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 1,
+          "provider_calls": 1,
+          "replays": 0,
+          "input_tokens": 990,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.0004153,
+          "list_usd": 0.0004153,
+          "billed_usd_per_1000": 0.4153,
+          "list_usd_per_1000": 0.4153,
+          "latency_p50_ms": 4450.997915817425,
+          "latency_p95_ms": 4450.997915817425,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.0004153,
+          "known_list_subtotal_usd": 0.0004153
+        },
+        "warm": {
+          "observed_searches": 9,
+          "provider_calls": 9,
+          "replays": 0,
+          "input_tokens": 9700,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.0041230600000000004,
+          "list_usd": 0.0041230600000000004,
+          "billed_usd_per_1000": 0.45811777777777785,
+          "list_usd_per_1000": 0.45811777777777785,
+          "latency_p50_ms": 1007.1123749949038,
+          "latency_p95_ms": 1698.9117831457406,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.0041230600000000004,
+          "known_list_subtotal_usd": 0.0041230600000000004
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 5,
+        "provider_calls": 5,
+        "replays": 0,
+        "input_tokens": 5535,
+        "cache_read_tokens": 0,
+        "cache_share": 0.0,
+        "billed_usd": 0.00234256,
+        "list_usd": 0.00234256,
+        "billed_usd_per_1000": 0.46851200000000004,
+        "list_usd_per_1000": 0.46851200000000004,
+        "latency_p50_ms": 1035.6068341061473,
+        "latency_p95_ms": 1672.1593996044248,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.00234256,
+        "known_list_subtotal_usd": 0.00234256
+      }
+    },
+    {
+      "arm": "agent@20",
+      "catalog": "webtools_tmdb",
+      "status": "applicable",
+      "catalogs": [
+        "webtools_tmdb"
+      ],
+      "positives": 10,
+      "relevant_pick_rate": {
+        "value": 0.7,
+        "ci95": [
+          0.4,
+          0.9
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.5,
+        "ci95": [
+          0.2,
+          0.8
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.4666666666666667,
+          "ci95": [
+            0.21428571428571427,
+            0.7142857142857143
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.5333333333333333,
+          "ci95": [
+            0.2857142857142857,
+            0.7857142857142857
+          ]
+        },
+        "abstention_precision": null,
+        "abstention_recall": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ]
+        },
+        "correct": 7,
+        "wrong": 8,
+        "abstained": 0,
+        "requests": 15,
+        "parsed_requests": 15,
+        "errors": 0,
+        "negative_requests": 5,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 15,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 1,
+          "provider_calls": 1,
+          "replays": 0,
+          "input_tokens": 1571,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.0006542599999999999,
+          "list_usd": 0.0006542599999999999,
+          "billed_usd_per_1000": 0.65426,
+          "list_usd_per_1000": 0.65426,
+          "latency_p50_ms": 1249.0949998609722,
+          "latency_p95_ms": 1249.0949998609722,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.0006542599999999999,
+          "known_list_subtotal_usd": 0.0006542599999999999
+        },
+        "warm": {
+          "observed_searches": 9,
+          "provider_calls": 9,
+          "replays": 0,
+          "input_tokens": 19445,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.00807146,
+          "list_usd": 0.00807146,
+          "billed_usd_per_1000": 0.8968288888888889,
+          "list_usd_per_1000": 0.8968288888888889,
+          "latency_p50_ms": 973.4732080250978,
+          "latency_p95_ms": 1222.9473662097007,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.00807146,
+          "known_list_subtotal_usd": 0.00807146
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 5,
+        "provider_calls": 5,
+        "replays": 0,
+        "input_tokens": 9399,
+        "cache_read_tokens": 0,
+        "cache_share": 0.0,
+        "billed_usd": 0.00393034,
+        "list_usd": 0.00393034,
+        "billed_usd_per_1000": 0.786068,
+        "list_usd_per_1000": 0.786068,
+        "latency_p50_ms": 1019.6419989224523,
+        "latency_p95_ms": 1220.3102245926857,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.00393034,
+        "known_list_subtotal_usd": 0.00393034
+      }
+    },
+    {
+      "arm": "agent@20",
+      "catalog": "tooleyes",
+      "status": "applicable",
+      "catalogs": [
+        "tooleyes"
+      ],
+      "positives": 10,
+      "relevant_pick_rate": {
+        "value": 0.7,
+        "ci95": [
+          0.4,
+          1.0
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": -0.1,
+        "ci95": [
+          -0.3,
+          0.0
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 0.7333333333333333,
+          "ci95": [
+            0.47058823529411764,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.6363636363636364,
+          "ci95": [
+            0.36363636363636365,
+            0.9090909090909091
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.26666666666666666,
+          "ci95": [
+            0.0625,
+            0.5
+          ]
+        },
+        "abstention_precision": {
+          "value": 0.75,
+          "ci95": [
+            0.5,
+            1.0
+          ]
+        },
+        "abstention_recall": {
+          "value": 0.5,
+          "ci95": [
+            0.16666666666666666,
+            0.8333333333333334
+          ]
+        },
+        "correct": 7,
+        "wrong": 4,
+        "abstained": 4,
+        "requests": 15,
+        "parsed_requests": 15,
+        "errors": 0,
+        "negative_requests": 5,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 15,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 3,
+      "agent_other_text_abstentions": 1,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 1,
+          "provider_calls": 1,
+          "replays": 0,
+          "input_tokens": 1700,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.00070738,
+          "list_usd": 0.00070738,
+          "billed_usd_per_1000": 0.70738,
+          "list_usd_per_1000": 0.70738,
+          "latency_p50_ms": 1443.6926669441164,
+          "latency_p95_ms": 1443.6926669441164,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.00070738,
+          "known_list_subtotal_usd": 0.00070738
+        },
+        "warm": {
+          "observed_searches": 9,
+          "provider_calls": 9,
+          "replays": 0,
+          "input_tokens": 14003,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.005909,
+          "list_usd": 0.005909,
+          "billed_usd_per_1000": 0.6565555555555556,
+          "list_usd_per_1000": 0.6565555555555556,
+          "latency_p50_ms": 1022.9755421169102,
+          "latency_p95_ms": 1105.897858273238,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.005909,
+          "known_list_subtotal_usd": 0.005909
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 5,
+        "provider_calls": 5,
+        "replays": 0,
+        "input_tokens": 7677,
+        "cache_read_tokens": 0,
+        "cache_share": 0.0,
+        "billed_usd": 0.0033956999999999998,
+        "list_usd": 0.0033956999999999998,
+        "billed_usd_per_1000": 0.67914,
+        "list_usd_per_1000": 0.67914,
+        "latency_p50_ms": 1204.6279169153422,
+        "latency_p95_ms": 1682.6543158385903,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.0033956999999999998,
+        "known_list_subtotal_usd": 0.0033956999999999998
+      }
+    },
+    {
+      "arm": "agent@20",
+      "catalog": "apibank",
+      "status": "applicable",
+      "catalogs": [
+        "apibank"
+      ],
+      "positives": 10,
+      "relevant_pick_rate": {
+        "value": 0.5,
+        "ci95": [
+          0.2,
+          0.8
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.0,
+        "ci95": [
+          -0.4,
+          0.4
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 0.7333333333333333,
+          "ci95": [
+            0.5,
+            0.9375
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.45454545454545453,
+          "ci95": [
+            0.16666666666666666,
+            0.8
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.4,
+          "ci95": [
+            0.14285714285714285,
+            0.6666666666666666
+          ]
+        },
+        "abstention_precision": {
+          "value": 0.25,
+          "ci95": [
+            0.0,
+            0.75
+          ]
+        },
+        "abstention_recall": {
+          "value": 0.2,
+          "ci95": [
+            0.0,
+            0.6
+          ]
+        },
+        "correct": 5,
+        "wrong": 6,
+        "abstained": 4,
+        "requests": 15,
+        "parsed_requests": 15,
+        "errors": 0,
+        "negative_requests": 5,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 15,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 4,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 1,
+          "provider_calls": 1,
+          "replays": 0,
+          "input_tokens": 1737,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.00072228,
+          "list_usd": 0.00072228,
+          "billed_usd_per_1000": 0.7222799999999999,
+          "list_usd_per_1000": 0.7222799999999999,
+          "latency_p50_ms": 1030.7374577969313,
+          "latency_p95_ms": 1030.7374577969313,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.00072228,
+          "known_list_subtotal_usd": 0.00072228
+        },
+        "warm": {
+          "observed_searches": 9,
+          "provider_calls": 9,
+          "replays": 0,
+          "input_tokens": 15252,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.00645948,
+          "list_usd": 0.00645948,
+          "billed_usd_per_1000": 0.71772,
+          "list_usd_per_1000": 0.71772,
+          "latency_p50_ms": 1013.7221252080053,
+          "latency_p95_ms": 1310.426066815853,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.00645948,
+          "known_list_subtotal_usd": 0.00645948
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 5,
+        "provider_calls": 5,
+        "replays": 0,
+        "input_tokens": 8680,
+        "cache_read_tokens": 0,
+        "cache_share": 0.0,
+        "billed_usd": 0.00368432,
+        "list_usd": 0.00368432,
+        "billed_usd_per_1000": 0.736864,
+        "list_usd_per_1000": 0.736864,
+        "latency_p50_ms": 804.2537909932435,
+        "latency_p95_ms": 1156.7486248444766,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.00368432,
+        "known_list_subtotal_usd": 0.00368432
+      }
+    },
+    {
+      "arm": "agent@20",
+      "catalog": "metatool_which",
+      "status": "applicable",
+      "catalogs": [
+        "metatool_which"
+      ],
+      "positives": 10,
+      "relevant_pick_rate": {
+        "value": 0.7,
+        "ci95": [
+          0.4,
+          0.9025000000000091
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.3,
+        "ci95": [
+          -0.1,
+          0.7
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 0.6666666666666666,
+          "ci95": [
+            0.4666666666666667,
+            0.8666666666666667
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.7,
+          "ci95": [
+            0.4,
+            1.0
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.2,
+          "ci95": [
+            0.0,
+            0.4
+          ]
+        },
+        "abstention_precision": {
+          "value": 0.8,
+          "ci95": [
+            0.4,
+            1.0
+          ]
+        },
+        "abstention_recall": {
+          "value": 0.6666666666666666,
+          "ci95": [
+            0.3333333333333333,
+            1.0
+          ]
+        },
+        "correct": 7,
+        "wrong": 3,
+        "abstained": 5,
+        "requests": 15,
+        "parsed_requests": 15,
+        "errors": 0,
+        "negative_requests": 5,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 15,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 5,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 1,
+          "provider_calls": 1,
+          "replays": 0,
+          "input_tokens": 887,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.00037452,
+          "list_usd": 0.00037452,
+          "billed_usd_per_1000": 0.37451999999999996,
+          "list_usd_per_1000": 0.37451999999999996,
+          "latency_p50_ms": 1015.8818741329014,
+          "latency_p95_ms": 1015.8818741329014,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.00037452,
+          "known_list_subtotal_usd": 0.00037452
+        },
+        "warm": {
+          "observed_searches": 9,
+          "provider_calls": 9,
+          "replays": 0,
+          "input_tokens": 8311,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.00392544,
+          "list_usd": 0.00392544,
+          "billed_usd_per_1000": 0.43615999999999994,
+          "list_usd_per_1000": 0.43615999999999994,
+          "latency_p50_ms": 919.3303750362247,
+          "latency_p95_ms": 1769.2004581913347,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.00392544,
+          "known_list_subtotal_usd": 0.00392544
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 5,
+        "provider_calls": 5,
+        "replays": 0,
+        "input_tokens": 4552,
+        "cache_read_tokens": 0,
+        "cache_share": 0.0,
+        "billed_usd": 0.00266486,
+        "list_usd": 0.00266486,
+        "billed_usd_per_1000": 0.532972,
+        "list_usd_per_1000": 0.532972,
+        "latency_p50_ms": 991.0769581329077,
+        "latency_p95_ms": 2340.7847757451236,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.00266486,
+        "known_list_subtotal_usd": 0.00266486
+      }
+    },
+    {
+      "arm": "agent-all",
+      "catalog": "pooled",
+      "status": "applicable",
+      "catalogs": [
+        "apibank",
+        "tooleyes",
+        "webtools_spotify",
+        "webtools_tmdb"
+      ],
+      "positives": 40,
+      "relevant_pick_rate": {
+        "value": 0.65,
+        "ci95": [
+          0.5,
+          0.8
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.1,
+        "ci95": [
+          -0.1,
+          0.3
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 0.8,
+          "ci95": [
+            0.6934510567296998,
+            0.8983050847457628
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.5416666666666666,
+          "ci95": [
+            0.4,
+            0.6808510638297872
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.36666666666666664,
+          "ci95": [
+            0.2413793103448276,
+            0.484553760593221
+          ]
+        },
+        "abstention_precision": {
+          "value": 0.5,
+          "ci95": [
+            0.25,
+            0.75
+          ]
+        },
+        "abstention_recall": {
+          "value": 0.3,
+          "ci95": [
+            0.1,
+            0.5
+          ]
+        },
+        "correct": 26,
+        "wrong": 22,
+        "abstained": 12,
+        "requests": 60,
+        "parsed_requests": 60,
+        "errors": 0,
+        "negative_requests": 20,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 60,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 1,
+      "agent_other_text_abstentions": 11,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 4,
+          "provider_calls": 4,
+          "replays": 0,
+          "input_tokens": 20572,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.0083296,
+          "list_usd": 0.0083296,
+          "billed_usd_per_1000": 2.0824,
+          "list_usd_per_1000": 2.0824,
+          "latency_p50_ms": 868.9054374117404,
+          "latency_p95_ms": 994.0877687535249,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.0083296,
+          "known_list_subtotal_usd": 0.0083296
+        },
+        "warm": {
+          "observed_searches": 36,
+          "provider_calls": 36,
+          "replays": 0,
+          "input_tokens": 185355,
+          "cache_read_tokens": 172160,
+          "cache_share": 0.9288122791400286,
+          "billed_usd": 0.0239244,
+          "list_usd": 0.0755724,
+          "billed_usd_per_1000": 0.6645666666666666,
+          "list_usd_per_1000": 2.0992333333333333,
+          "latency_p50_ms": 847.4707504501566,
+          "latency_p95_ms": 1234.0086667099968,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.0239244,
+          "known_list_subtotal_usd": 0.0755724
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 20,
+        "provider_calls": 20,
+        "replays": 0,
+        "input_tokens": 101095,
+        "cache_read_tokens": 31616,
+        "cache_share": 0.31273554577377716,
+        "billed_usd": 0.0319532,
+        "list_usd": 0.041438,
+        "billed_usd_per_1000": 1.59766,
+        "list_usd_per_1000": 2.0719000000000003,
+        "latency_p50_ms": 900.5763545865193,
+        "latency_p95_ms": 1386.974276811816,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.0319532,
+        "known_list_subtotal_usd": 0.041438
+      }
+    },
+    {
+      "arm": "agent-all",
+      "catalog": "webtools_spotify",
+      "status": "applicable",
+      "catalogs": [
+        "webtools_spotify"
+      ],
+      "positives": 10,
+      "relevant_pick_rate": {
+        "value": 0.7,
+        "ci95": [
+          0.4,
+          1.0
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.0,
+        "ci95": [
+          -0.3,
+          0.3
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 0.9333333333333333,
+          "ci95": [
+            0.7857142857142857,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.5,
+          "ci95": [
+            0.23076923076923078,
+            0.7692307692307693
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.4666666666666667,
+          "ci95": [
+            0.21428571428571427,
+            0.7142857142857143
+          ]
+        },
+        "abstention_precision": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ]
+        },
+        "abstention_recall": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ]
+        },
+        "correct": 7,
+        "wrong": 7,
+        "abstained": 1,
+        "requests": 15,
+        "parsed_requests": 15,
+        "errors": 0,
+        "negative_requests": 5,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 15,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 1,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 1,
+          "provider_calls": 1,
+          "replays": 0,
+          "input_tokens": 2206,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.0009016,
+          "list_usd": 0.0009016,
+          "billed_usd_per_1000": 0.9016000000000001,
+          "list_usd_per_1000": 0.9016000000000001,
+          "latency_p50_ms": 741.2393339909613,
+          "latency_p95_ms": 741.2393339909613,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.0009016,
+          "known_list_subtotal_usd": 0.0009016
+        },
+        "warm": {
+          "observed_searches": 9,
+          "provider_calls": 9,
+          "replays": 0,
+          "input_tokens": 19889,
+          "cache_read_tokens": 18432,
+          "cache_share": 0.9267434260143798,
+          "billed_usd": 0.0026788,
+          "list_usd": 0.0082084,
+          "billed_usd_per_1000": 0.29764444444444443,
+          "list_usd_per_1000": 0.9120444444444443,
+          "latency_p50_ms": 771.2171669118106,
+          "latency_p95_ms": 1255.0528171006588,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.0026788,
+          "known_list_subtotal_usd": 0.0082084
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 5,
+        "provider_calls": 5,
+        "replays": 0,
+        "input_tokens": 10423,
+        "cache_read_tokens": 0,
+        "cache_share": 0.0,
+        "billed_usd": 0.0043004,
+        "list_usd": 0.0043004,
+        "billed_usd_per_1000": 0.8600800000000002,
+        "list_usd_per_1000": 0.8600800000000002,
+        "latency_p50_ms": 785.5479591526091,
+        "latency_p95_ms": 873.7207084428519,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.0043004,
+        "known_list_subtotal_usd": 0.0043004
+      }
+    },
+    {
+      "arm": "agent-all",
+      "catalog": "webtools_tmdb",
+      "status": "applicable",
+      "catalogs": [
+        "webtools_tmdb"
+      ],
+      "positives": 10,
+      "relevant_pick_rate": {
+        "value": 0.8,
+        "ci95": [
+          0.5,
+          1.0
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.6,
+        "ci95": [
+          0.3,
+          0.9
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.5333333333333333,
+          "ci95": [
+            0.26666666666666666,
+            0.7857142857142857
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.4666666666666667,
+          "ci95": [
+            0.21428571428571427,
+            0.7333333333333333
+          ]
+        },
+        "abstention_precision": null,
+        "abstention_recall": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ]
+        },
+        "correct": 8,
+        "wrong": 7,
+        "abstained": 0,
+        "requests": 15,
+        "parsed_requests": 15,
+        "errors": 0,
+        "negative_requests": 5,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 15,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 1,
+          "provider_calls": 1,
+          "replays": 0,
+          "input_tokens": 4563,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.0018508,
+          "list_usd": 0.0018508,
+          "billed_usd_per_1000": 1.8508,
+          "list_usd_per_1000": 1.8508,
+          "latency_p50_ms": 772.3672909196466,
+          "latency_p95_ms": 772.3672909196466,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.0018508,
+          "known_list_subtotal_usd": 0.0018508
+        },
+        "warm": {
+          "observed_searches": 9,
+          "provider_calls": 9,
+          "replays": 0,
+          "input_tokens": 41084,
+          "cache_read_tokens": 39168,
+          "cache_share": 0.9533638399376886,
+          "billed_usd": 0.0049728,
+          "list_usd": 0.0167232,
+          "billed_usd_per_1000": 0.5525333333333333,
+          "list_usd_per_1000": 1.8581333333333336,
+          "latency_p50_ms": 744.9765000492334,
+          "latency_p95_ms": 854.3221835047007,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.0049728,
+          "known_list_subtotal_usd": 0.0167232
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 5,
+        "provider_calls": 5,
+        "replays": 0,
+        "input_tokens": 22187,
+        "cache_read_tokens": 2944,
+        "cache_share": 0.13269031414792445,
+        "billed_usd": 0.0081196,
+        "list_usd": 0.0090028,
+        "billed_usd_per_1000": 1.62392,
+        "list_usd_per_1000": 1.8005600000000002,
+        "latency_p50_ms": 758.8686249218881,
+        "latency_p95_ms": 916.2412755191326,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.0081196,
+        "known_list_subtotal_usd": 0.0090028
+      }
+    },
+    {
+      "arm": "agent-all",
+      "catalog": "tooleyes",
+      "status": "applicable",
+      "catalogs": [
+        "tooleyes"
+      ],
+      "positives": 10,
+      "relevant_pick_rate": {
+        "value": 0.7,
+        "ci95": [
+          0.4,
+          0.9
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": -0.1,
+        "ci95": [
+          -0.4,
+          0.2
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 0.7333333333333333,
+          "ci95": [
+            0.5293343653250774,
+            0.9285714285714286
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.6363636363636364,
+          "ci95": [
+            0.36363636363636365,
+            0.9090909090909091
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.26666666666666666,
+          "ci95": [
+            0.07142857142857142,
+            0.5
+          ]
+        },
+        "abstention_precision": {
+          "value": 0.75,
+          "ci95": [
+            0.25,
+            1.0
+          ]
+        },
+        "abstention_recall": {
+          "value": 0.6,
+          "ci95": [
+            0.2,
+            1.0
+          ]
+        },
+        "correct": 7,
+        "wrong": 4,
+        "abstained": 4,
+        "requests": 15,
+        "parsed_requests": 15,
+        "errors": 0,
+        "negative_requests": 5,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 15,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 1,
+      "agent_other_text_abstentions": 3,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 1,
+          "provider_calls": 1,
+          "replays": 0,
+          "input_tokens": 6284,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.0025408,
+          "list_usd": 0.0025408,
+          "billed_usd_per_1000": 2.5408000000000004,
+          "list_usd_per_1000": 2.5408000000000004,
+          "latency_p50_ms": 999.1426249034703,
+          "latency_p95_ms": 999.1426249034703,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.0025408,
+          "known_list_subtotal_usd": 0.0025408
+        },
+        "warm": {
+          "observed_searches": 9,
+          "provider_calls": 9,
+          "replays": 0,
+          "input_tokens": 56664,
+          "cache_read_tokens": 49152,
+          "cache_share": 0.867429055484964,
+          "billed_usd": 0.0084704,
+          "list_usd": 0.023216,
+          "billed_usd_per_1000": 0.9411555555555555,
+          "list_usd_per_1000": 2.579555555555556,
+          "latency_p50_ms": 966.8140420690179,
+          "latency_p95_ms": 1466.8696504551915,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.0084704,
+          "known_list_subtotal_usd": 0.023216
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 5,
+        "provider_calls": 5,
+        "replays": 0,
+        "input_tokens": 31228,
+        "cache_read_tokens": 11904,
+        "cache_share": 0.38119636223901626,
+        "billed_usd": 0.0093328,
+        "list_usd": 0.012904,
+        "billed_usd_per_1000": 1.8665600000000002,
+        "list_usd_per_1000": 2.5808,
+        "latency_p50_ms": 1158.5848340764642,
+        "latency_p95_ms": 1695.1803080271927,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.0093328,
+        "known_list_subtotal_usd": 0.012904
+      }
+    },
+    {
+      "arm": "agent-all",
+      "catalog": "apibank",
+      "status": "applicable",
+      "catalogs": [
+        "apibank"
+      ],
+      "positives": 10,
+      "relevant_pick_rate": {
+        "value": 0.4,
+        "ci95": [
+          0.1,
+          0.7
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": -0.1,
+        "ci95": [
+          -0.5,
+          0.3
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 0.5333333333333333,
+          "ci95": [
+            0.2857142857142857,
+            0.8
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.5,
+          "ci95": [
+            0.125,
+            0.8571428571428571
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.26666666666666666,
+          "ci95": [
+            0.0,
+            0.5338888888888909
+          ]
+        },
+        "abstention_precision": {
+          "value": 0.42857142857142855,
+          "ci95": [
+            0.14285714285714285,
+            0.8571428571428571
+          ]
+        },
+        "abstention_recall": {
+          "value": 0.6,
+          "ci95": [
+            0.2,
+            1.0
+          ]
+        },
+        "correct": 4,
+        "wrong": 4,
+        "abstained": 7,
+        "requests": 15,
+        "parsed_requests": 15,
+        "errors": 0,
+        "negative_requests": 5,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 15,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 7,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 1,
+          "provider_calls": 1,
+          "replays": 0,
+          "input_tokens": 7519,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.0030364,
+          "list_usd": 0.0030364,
+          "billed_usd_per_1000": 3.0364,
+          "list_usd_per_1000": 3.0364,
+          "latency_p50_ms": 965.4435839038342,
+          "latency_p95_ms": 965.4435839038342,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.0030364,
+          "known_list_subtotal_usd": 0.0030364
+        },
+        "warm": {
+          "observed_searches": 9,
+          "provider_calls": 9,
+          "replays": 0,
+          "input_tokens": 67718,
+          "cache_read_tokens": 65408,
+          "cache_share": 0.965887947074633,
+          "billed_usd": 0.0078024,
+          "list_usd": 0.0274248,
+          "billed_usd_per_1000": 0.8669333333333333,
+          "list_usd_per_1000": 3.0471999999999997,
+          "latency_p50_ms": 967.1676671132445,
+          "latency_p95_ms": 1135.0838667247444,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.0078024,
+          "known_list_subtotal_usd": 0.0274248
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 5,
+        "provider_calls": 5,
+        "replays": 0,
+        "input_tokens": 37257,
+        "cache_read_tokens": 16768,
+        "cache_share": 0.4500630753952277,
+        "billed_usd": 0.0102004,
+        "list_usd": 0.0152308,
+        "billed_usd_per_1000": 2.04008,
+        "list_usd_per_1000": 3.0461599999999995,
+        "latency_p50_ms": 956.384374992922,
+        "latency_p95_ms": 1155.4432253353298,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.0102004,
+        "known_list_subtotal_usd": 0.0152308
+      }
+    },
+    {
+      "arm": "agent-all",
+      "catalog": "metatool_which",
+      "status": "not applicable",
+      "reason": "OpenAI Chat Completions rejected 200 function tools: HTTP 400 array_above_max_length, param tools (4/4 attempts); exact maximum not established",
+      "evidence": {
+        "reason": "OpenAI Chat Completions rejected 200 function tools: HTTP 400 array_above_max_length, param tools (4/4 attempts); exact maximum not established",
+        "source": "bench/runs/20260929T221520Z-direct-pilot/run.jsonl",
+        "date": "2026-09-30"
+      },
+      "excluded_requests": 4,
+      "excluded_rejected_attempts": 4,
+      "rejection_diagnostics": [
+        "ModelHTTPError 400 code=array_above_max_length param=tools"
+      ],
+      "positives": null,
+      "relevant_pick_rate": null,
+      "delta_vs_hybrid": null,
+      "ranking_ignoring_abstention": null,
+      "none_option": null,
+      "positive_cost": null,
+      "negative_cost": null,
+      "excluded_attempt_cost": {
+        "cold": {
+          "observed_searches": 1,
+          "provider_calls": 1,
+          "replays": 0,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": null,
+          "list_usd": null,
+          "billed_usd_per_1000": null,
+          "list_usd_per_1000": null,
+          "latency_p50_ms": null,
+          "latency_p95_ms": null,
+          "unpriced_attempts": 1,
+          "known_billed_subtotal_usd": 0.0,
+          "known_list_subtotal_usd": 0.0
+        },
+        "warm": {
+          "observed_searches": 3,
+          "provider_calls": 3,
+          "replays": 0,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": null,
+          "list_usd": null,
+          "billed_usd_per_1000": null,
+          "list_usd_per_1000": null,
+          "latency_p50_ms": null,
+          "latency_p95_ms": null,
+          "unpriced_attempts": 3,
+          "known_billed_subtotal_usd": 0.0,
+          "known_list_subtotal_usd": 0.0
+        },
+        "negative": {
+          "observed_searches": 0,
+          "provider_calls": 0,
+          "replays": 0,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": null,
+          "list_usd": null,
+          "billed_usd_per_1000": null,
+          "list_usd_per_1000": null,
+          "latency_p50_ms": null,
+          "latency_p95_ms": null,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0,
+          "known_list_subtotal_usd": 0
+        }
+      }
+    }
+  ],
+  "validation": {
+    "hybrid@20": {
+      "planned_requests": 75,
+      "raw_requests": 75,
+      "raw_errors": 0,
+      "raw_provider_calls": 0,
+      "excluded_requests": 0,
+      "excluded_rejected_attempts": 0,
+      "requests": 75,
+      "errors": 0,
+      "error_rate": 0.0,
+      "classified_successful": 75,
+      "successful_requests": 75,
+      "classified_fraction": 1.0,
+      "provider_calls": 0,
+      "replayed_requests": 0,
+      "cache_fields_present": true,
+      "cache_usage_received": true
+    },
+    "hybrid@20+jev": {
+      "planned_requests": 75,
+      "raw_requests": 75,
+      "raw_errors": 0,
+      "raw_provider_calls": 75,
+      "excluded_requests": 0,
+      "excluded_rejected_attempts": 0,
+      "requests": 75,
+      "errors": 0,
+      "error_rate": 0.0,
+      "classified_successful": 75,
+      "successful_requests": 75,
+      "classified_fraction": 1.0,
+      "provider_calls": 75,
+      "replayed_requests": 0,
+      "cache_fields_present": true,
+      "cache_usage_received": true
+    },
+    "jev-all": {
+      "planned_requests": 75,
+      "raw_requests": 75,
+      "raw_errors": 0,
+      "raw_provider_calls": 75,
+      "excluded_requests": 0,
+      "excluded_rejected_attempts": 0,
+      "requests": 75,
+      "errors": 0,
+      "error_rate": 0.0,
+      "classified_successful": 75,
+      "successful_requests": 75,
+      "classified_fraction": 1.0,
+      "provider_calls": 75,
+      "replayed_requests": 0,
+      "cache_fields_present": true,
+      "cache_usage_received": true
+    },
+    "agent@20": {
+      "planned_requests": 75,
+      "raw_requests": 75,
+      "raw_errors": 0,
+      "raw_provider_calls": 75,
+      "excluded_requests": 0,
+      "excluded_rejected_attempts": 0,
+      "requests": 75,
+      "errors": 0,
+      "error_rate": 0.0,
+      "classified_successful": 75,
+      "successful_requests": 75,
+      "classified_fraction": 1.0,
+      "provider_calls": 75,
+      "replayed_requests": 0,
+      "cache_fields_present": true,
+      "cache_usage_received": true
+    },
+    "agent-all": {
+      "planned_requests": 60,
+      "raw_requests": 64,
+      "raw_errors": 4,
+      "raw_provider_calls": 64,
+      "excluded_requests": 4,
+      "excluded_rejected_attempts": 4,
+      "requests": 60,
+      "errors": 0,
+      "error_rate": 0.0,
+      "classified_successful": 60,
+      "successful_requests": 60,
+      "classified_fraction": 1.0,
+      "provider_calls": 60,
+      "replayed_requests": 0,
+      "cache_fields_present": true,
+      "cache_usage_received": true
+    }
+  },
+  "run_cost": {
+    "provider_attempts": 356,
+    "verified_usd": 0.136456578,
+    "budget_charge_usd": 0.307239378,
+    "unpriced_attempts": 4,
+    "estimate_usd": 0.4198007939999999,
+    "actual_to_estimate": 0.3250507858734541,
+    "projected_remaining_usd": null,
+    "projected_p1_total_usd": null,
+    "projection_method": "failed attempts have unknown billed usage",
+    "full_estimate_usd": 4.601294792000001
+  },
+  "caveats": [
+    "The metric is selecting a relevant tool, not completing a task; tasks can list several relevant tools.",
+    "Negatives remove the task's labeled relevant tools; an unlabeled alternative may still serve it.",
+    "Pooled none-option metrics state their observed positive/negative mix; errors are reported separately.",
+    "Replay outcomes are scored, but their historical usage, latency and cache reads are excluded.",
+    "Search overhead is attributed to each strategy that searches; physical search calls are paid once.",
+    "Cold is the first scored positive; a replay there provides no new cold measurement.",
+    "Caching reflects one provider's routing in one single-turn run and does not isolate a latency effect."
+  ]
+}
