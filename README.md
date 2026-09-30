@@ -50,6 +50,8 @@ thresholds and limitations. All figures come from the generated
 
 In a separate [direct-choice test](docs/experiments/toolret.md#direct-choice-on-small-catalogs), Jev selected a relevant tool from the whole catalog on **74.1%** of 290 positive requests across four catalogs of 40–101 tools, versus **54.5%** for hybrid retrieval; abstentions count as misses.
 
+Across five [candidate orders](docs/experiments/toolret.md#candidate-order-sensitivity) at K=20 on 200 positive plain-query tasks, top-card pairwise agreement was **76.5%** for Jev and **60.5%** for logprobs, versus **96.0% / 98.0%** in three historical fixed-order repeats; this is an observational comparison.
+
 ## Pydantic AI example
 
 Install the checkout with `uv sync --all-packages`, set `OPENAI_API_KEY` and `TYPESAFE_API_KEY`
@@ -130,7 +132,7 @@ Declare the option cap supported by your endpoint; the planner can split a choic
 The measurements above tested `jev-1.13.0` on TypeSafe and
 `gpt-4.1-mini-2025-04-14` on OpenAI.
 
-Smoke-tested on 2026-09-30 with laya-serve 0.3.22 and rizzo-flow 0.1.0 on a two-tool example; not benchmarked.
+Smoke-tested on 2026-09-30 with laya-serve 0.3.22 and rizzo-flow 0.1.0 on a two-tool example; not benchmarked. [Protocol and limits](docs/experiments/toolret.md#compatible-server-smoke-tests).
 The [generated smoke summary](bench/results/2026-09-jev-compatible-smoke/summary.json) records the model revisions,
 declared limits, sources and outcomes. With a local Laya English server running at `127.0.0.1:8000`, this
 [executable example](examples/jev_compatible_server.py) ranks cards without executing either tool:

@@ -342,6 +342,193 @@ the pinned dataset. Start with `uv run toolhunch-bench direct --dry-run`, then
 running `uv run toolhunch-bench direct`. The recorded non-applicable pair is skipped.
 Every paid run prints an estimate first, appends to the cost ledger and applies the P1 spend guard.
 
+## Candidate-order sensitivity
+
+Both measured F2a configurations changed their first-ranked tool more often across candidate
+orders than in a historical fixed-order repetition run. This does not isolate a causal effect
+of order: the fixed-order comparison comes from another execution, and run conditions can differ.
+The [generated order summary](https://github.com/dfm88/toolhunch/blob/main/bench/results/2026-09-toolret-order/summary.json)
+contains all results, the matched noise baseline and provenance.
+
+### Method and ranking results
+
+Run `20260930T072339Z-order`, started on 2026-09-30 at clean commit `d4ee71a`, uses the same
+200 held-out tasks, catalog and `plain` queries as F2a, at K=20. It retains Jev
+`jev-1.13.0@api.typesafe.ai` at BRIEF detail, prompt `tool-choice-v1`, and
+`gpt-4.1-mini-2025-04-14@api.openai.com` logprobs at FULL, prompt
+`tool-choice-v1+letters-v1`. Neither configuration needed detail lowering.
+
+Order 0 is retrieval order; orders 1–4 shuffle the same candidates with seeds derived from
+SHA256 of task ID and order index. The reserved option stays last in the final choice question.
+All five orders make fresh decisions, bypassing local SQLite replay. The manifest records
+scheduling; physical provider requests are serialised, with no automatic retry. The exchanges
+record the actual option-key-to-card-ID mapping and presentation order for each round.
+All 4,000 logical decisions completed without errors or excluded groups, after a first-ten-task pilot.
+
+P@1 here is **a relevant tool ranked first on 200 positives, with abstention ignored**.
+It measures ranking rather than completed tasks. Intervals are 95% task-cluster bootstrap
+intervals, 2,000 resamples, seed 0.
+
+| Configuration | Identity P@1 (95% CI) | Shuffle mean (95% CI) | Shuffle minimum (95% CI) | Shuffle maximum (95% CI) |
+|---|---:|---:|---:|---:|
+| Jev, BRIEF | 30.5% (24.0 to 37.0%) | 31.2% (25.1 to 37.1%) | 30.5% (23.5 to 35.5%) | 32.5% (26.5 to 39.5%) |
+| Logprobs, FULL | 33.0% (26.5 to 39.5%) | 29.0% (23.4 to 34.6%) | 27.0% (21.0 to 32.5%) | 30.5% (25.5 to 37.5%) |
+
+The individual shuffle P@1 values, in seed order 1–4, are 30.5%, 31.0%, 31.0%, 32.5% for Jev
+and 29.5%, 29.0%, 30.5%, 27.0% for logprobs; each interval is in the summary. Jev's aggregate
+ranking rate changed little across these orders, even though many first-card identities changed.
+All four logprob shuffles had a lower observed rate than identity in this run. The result covers
+only this date, K=20, plain queries and these configurations, whose card detail differs.
+
+Minimum and maximum refer to population P@1 across the four shuffles, not to each task's best
+or worst answer. Their bootstrap intervals resample tasks before taking the extremum. Selecting
+a maximum from noisy estimates can push it upward, and selecting a minimum can push it downward;
+the range is not a guaranteed gain or loss attributable to order.
+
+### Stability compared with fixed-order noise
+
+Pairwise agreement is the mean fraction of pairs that rank the same card first on the same
+positive task. The historical baseline is run `20260929T162701Z`, with three fresh fixed-order
+repeats on the same 200 positives. The generated comparison checks model, prompt, limits,
+detail, task, query and identity candidate/payload matches. Its original manifest records
+commit `57fd48a`, `dirty: true`; the summary preserves that status and hashes of the reference
+manifest and records. This is observed run noise, not a reconstruction of a clean historical checkout.
+
+| Configuration | Fixed-order pairwise agreement, three repeats (95% CI) | Five-order pairwise agreement (95% CI) | Same top card in all five orders (95% CI) |
+|---|---:|---:|---:|
+| Jev, BRIEF | 96.0% (93.7 to 98.0%) | 76.5% (72.3 to 80.4%) | 57.5% (50.5 to 64.0%) |
+| Logprobs, FULL | 98.0% (96.3 to 99.3%) | 60.5% (55.6 to 65.1%) | 39.0% (32.5 to 45.5%) |
+
+Compare the pairwise columns, rather than “all three repeats agree” with “all five orders agree”:
+the latter are different statistics because their number of observations differs. Lower observed
+agreement across orders is a sensitivity signal beyond the recorded fixed-order variation,
+but this cross-run comparison is observational, not a causal test or a significance test of
+the difference. Dates, scheduling and software versions can differ.
+
+The fixed-order baseline's population P@1 extrema are:
+
+| Configuration | Three-repeat minimum (95% CI) | Three-repeat maximum (95% CI) |
+|---|---:|---:|
+| Jev, BRIEF | 30.5% (23.5 to 36.0%) | 31.0% (25.0 to 37.5%) |
+| Logprobs, FULL | 32.0% (25.5 to 38.5%) | 33.0% (26.5 to 39.5%) |
+
+Identity also gives a run-drift check against the published main F2a run `20260929T153251Z`.
+The report applies the same publication normalisation to the reference manifest, retains its
+fields, and requires exact configuration, task, candidate and payload matches plus reproduction
+of published P@1. The resulting identity-minus-published delta is −1.5 pp (−3.0 to 0.0) for Jev
+and 0.0 pp (−1.5 to 1.5) for logprobs. These are paired 95% intervals and a date/run diagnostic;
+neither delta is attributed to order or to a causal effect of the day.
+
+### Position and abstention diagnostics
+
+Among the four shuffles of 200 positives, there are 800 first-card positions per configuration.
+The position is the **outer presented candidate slot**, with the reserved option ignored, not
+the letter or slot in a later logprob finalist question.
+
+| Configuration | Slot 1 (95% CI), uniform reference 5% | Slots 1–3 (95% CI), uniform reference 15% | Descriptive chi-square |
+|---|---:|---:|---:|
+| Jev, BRIEF | 7.2% (5.2 to 9.4%) | 18.2% (15.5 to 21.1%) | 29.7 |
+| Logprobs, FULL | 8.6% (6.6 to 10.9%) | 23.2% (20.0 to 26.5%) | 72.8 |
+
+The complete 20-slot distributions and a separate 50/50-mix diagnostic are in the summary.
+The chi-square has 19 degrees of freedom and no p-value: repeated task observations are
+correlated, so it is descriptive, without a causal uniform-position conclusion.
+
+The “none” outcomes below use **400 requests per order and configuration: 200 positives and
+200 gold-removed negatives (50% negatives)**. No new threshold was fitted. Correct/wrong count
+tool picks and abstained counts no pick; unlabelled alternatives can still serve a negative.
+
+| Configuration, 50% negatives | Order | Correct | Wrong | Abstained |
+|---|---|---:|---:|---:|
+| Jev, BRIEF | Identity | 61 | 268 | 71 |
+| Jev, BRIEF | Shuffle 1 | 61 | 271 | 68 |
+| Jev, BRIEF | Shuffle 2 | 61 | 264 | 75 |
+| Jev, BRIEF | Shuffle 3 | 62 | 267 | 71 |
+| Jev, BRIEF | Shuffle 4 | 65 | 262 | 73 |
+| Logprobs, FULL | Identity | 61 | 272 | 67 |
+| Logprobs, FULL | Shuffle 1 | 54 | 279 | 67 |
+| Logprobs, FULL | Shuffle 2 | 56 | 278 | 66 |
+| Logprobs, FULL | Shuffle 3 | 56 | 272 | 72 |
+| Logprobs, FULL | Shuffle 4 | 51 | 285 | 64 |
+
+On this **50% negative mix**, the answer/abstain decision was unchanged across all five orders
+on 93.0% (89.7 to 96.0%) of Jev searches and 83.0% (78.0 to 87.8%) of logprob searches.
+The counts immediately above show the corresponding correct, wrong and abstained outcomes
+for each order; this stability does not establish answer correctness.
+
+### Averaging five decisions and its cost
+
+Averaging is a free offline rereading of the five recorded responses. It averages each card's
+final probability, assigns zero to cards eliminated before a logprob final round, and breaks
+ties in identity order. Logprob finalist sets can differ between orders: this is a heuristic
+combination of final distributions, not a complete common distribution over all 20 candidates.
+
+| Configuration | Averaged ranking P@1 (95% CI) | Correct / wrong / abstained, 200 positive + 200 negative (50% negatives) | Production decisions / search | Physical provider requests / search | Decision USD / 1,000 searches |
+|---|---:|---:|---:|---:|---:|
+| Jev, BRIEF | 31.5% (25.0 to 37.5%) | 63 / 263 / 74 | 5 | 5 | $0.2689 |
+| Logprobs, FULL | 31.0% (25.0 to 37.0%) | 58 / 271 / 71 | 5 | 10 | $2.5373 |
+
+The averaged ranking did not show a large observed gain over identity here; for logprobs it
+was below identity. It is not a free production improvement: those costs include all five
+decisions and the logprob adapter's two rounds per decision, pooled over the stated 50/50 mix.
+They exclude retrieval, existing embedding preparation and downstream agent/tool execution.
+
+Reported provider usage cost for the full order run is $1.122489730: Jev $0.107552130 and
+logprobs $1.014937600, with no new failed-attempt reserve. Adding the manifest's previous
+P1 guarded charge gives $2.486487488 through this run, including the earlier direct pilot's
+unknown-billing reserve. Usage-based costs are not invoice verification. Calls were never
+locally replayed; reported provider cache reads can still affect billing. Jev's provider
+cache usage remains unmeasured.
+
+Regenerate this report from existing local raw runs without provider calls:
+
+```shell
+uv run toolhunch-bench order-report bench/runs/20260930T072339Z-order \
+  --noise-reference-run bench/runs/20260929T162701Z \
+  --out bench/results/2026-09-toolret-order/
+```
+
+A new run uses the F2a `decision` command with `--order-sensitivity`, held-out tasks,
+`--deciders jev,logprob --k 20 --sources plain` and Jev BRIEF/logprob FULL. Start with
+`--dry-run`, then `--pilot`; the full requires `--pilot-run` naming the validated pilot.
+The runner prints estimates, charges `P1: order sensitivity` in the ledger and enforces the
+cumulative P1 guard. The paid run stops on an error; it is not automatically relaunched.
+
+## Compatible-server smoke tests
+
+Smoke-tested on 2026-09-30 with laya-serve 0.3.22 and rizzo-flow 0.1.0 on a two-tool example; not benchmarked.
+The [generated smoke summary](https://github.com/dfm88/toolhunch/blob/main/bench/results/2026-09-jev-compatible-smoke/summary.json)
+records accepted requests, parsed answers and `get_weather` ranked first for both servers,
+without sending an Authorization header. The question was “What's the weather in Milan?”,
+with weather and e-mail cards plus reserved “none”. No tool was executed. These are protocol
+smoke tests, with no catalog accuracy, latency or task-completion claim.
+
+| Server package and source | Tested model | Backend and checkpoint |
+|---|---|---|
+| laya 0.3.22, source `6d942c9` | `english`: `convaiinnovations/laya` | English revision `55cf4c4`, PyTorch/mps, no quantisation requested |
+| rizzo-flow 0.1.0, source `b9ba007` | `rizzo-latest`: `rizzoaiacademy/rizzo-flow` | Revision `55633c8`, `spark-x2.5-4b-rizzo-flow-lora-q4_k_m.gguf`, llama.cpp/mtl release `b11081`, prompt `spark-decisions-v3` |
+
+Limits are declared instance data, with sources checked on **2026-09-30**:
+
+| Configuration | State + question token budget | Options including “none” | Questions / request | Source |
+|---|---:|---:|---:|---|
+| Laya English | 512 | 100 HTTP cap | 64 | [Pinned model config](https://huggingface.co/convaiinnovations/laya/resolve/55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851/rl_agent_config.json), [server code](https://github.com/NandhaKishorM/laya/blob/6d942c92081fbc139e736bbd9ac0023223c29b7f/laya/serve.py) |
+| rizzo-flow, tested context | 8,192 | 26 | 64 | [Pinned source](https://github.com/Rizzo-AI-Academy/rizzo-flow/tree/b9ba007ee4d2928bbab5b1d8bfe9009c3696b6de/src/rizzo_flow): `cli.py --ctx=8192`, `schema.py MAX_SLOTS=26`, `compat.py` |
+
+Laya's HTTP option cap does not mean 100 options fit its token window. Toolhunch uses a
+heuristic token estimate while planning; each server adds its own template and tokenizer.
+The small successful example establishes neither large-catalog support nor planner behaviour
+under these windows. Other model revisions, endpoints, question kinds and environments were
+not covered by the smoke tests.
+
+The [README example](https://github.com/dfm88/toolhunch/blob/main/examples/jev_compatible_server.py)
+uses unchanged `JevWireModel(base_url=..., api_key_env=None, limits=...)` and `ChoiceDecider`.
+Its offline tests use `httpx2.MockTransport` to check the POST endpoint, absence of auth,
+declared limits and weather selection; a separate opt-in live test skips unless a loopback
+server URL is configured. The default suite sends no network requests. The published
+summary is inspectable without starting a server; regenerating the smoke artifact requires
+the recorded private raw evidence and audit metadata.
+
 ## Limits of the experiment
 
 - Task labels establish relevant tools, not successful tool execution or complete agent tasks.

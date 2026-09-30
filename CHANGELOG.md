@@ -8,6 +8,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Jev-compatible local-server example and smoke-test write-up for laya-serve and rizzo-flow,
+  with declared limits and model provenance; the two-tool example is not a catalog benchmark
+  (`bench/results/2026-09-jev-compatible-smoke/`).
 - `Exchange.option_card_ids`: the actual option-key-to-card-ID mapping for a decision question,
   including multi-round decisions with duplicate tool names; defaults to an empty mapping for
   manually constructed exchanges.
