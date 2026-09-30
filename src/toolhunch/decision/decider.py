@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol
 
 import anyio
@@ -81,6 +81,7 @@ class Exchange:
         detail: The level of detail the cards were shown at. It depends on how long the cards are, so it can differ
             between searches and is not part of `Decision.key`. A card over the model's per-text cap was shown lower.
         estimated_input_tokens: What the planner counted for the question against the model's token budget.
+        option_card_ids: The asked option keys mapped to card ids, excluding the reserved option.
     """
 
     round: int
@@ -88,6 +89,7 @@ class Exchange:
     response: DecisionResponse
     detail: DetailLevel
     estimated_input_tokens: int
+    option_card_ids: Mapping[str, str] = field(default_factory=dict[str, str])
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -350,6 +352,7 @@ class ChoiceDecider:
             response=response,
             detail=planned.detail,
             estimated_input_tokens=planned.estimated_input_tokens,
+            option_card_ids=dict(planned.card_ids),
         )
         return _Asked(planned=planned, exchange=exchange, answer=answer)
 

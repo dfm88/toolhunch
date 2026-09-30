@@ -259,11 +259,13 @@ def run_provenance(data: ToolRetData, tasks: Sequence[ToolRetTask], *, task_file
 
 def _git_state() -> dict[str, Any]:
     def git(*args: str) -> str:
-        return subprocess.run(["git", *args], cwd=BENCH_DIR, capture_output=True, text=True, check=True).stdout.strip()
+        return subprocess.run(
+            ["git", *args], cwd=BENCH_DIR, capture_output=True, text=True, check=True, timeout=10
+        ).stdout.strip()
 
     try:
         return {"commit": git("rev-parse", "HEAD"), "dirty": bool(git("status", "--porcelain"))}
-    except (OSError, subprocess.CalledProcessError):
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return {"commit": None, "dirty": None}
 
 

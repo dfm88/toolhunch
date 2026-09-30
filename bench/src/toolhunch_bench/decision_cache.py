@@ -152,6 +152,11 @@ class CachedDecisionModel:
             though a provider may have billed some of them: a response it sent can still be unusable.
     """
 
+    @property
+    def bypasses_cache(self) -> bool:
+        """Whether every ask goes directly to the wrapped model without opening a database."""
+        return self._db is None
+
     def __init__(self, inner: DecisionModel, *, path: Path = DECISION_CACHE_PATH, bypass: bool = False) -> None:
         """Open (or create) the cache at `path` in front of `inner`; with `bypass`, leave `path` alone."""
         self._inner = inner

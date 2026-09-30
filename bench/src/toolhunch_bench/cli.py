@@ -267,6 +267,21 @@ def decision(
         bool, typer.Option("--bypass-cache", help="Ask the models even when the decision cache has the answer.")
     ] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Print the estimate and the cap check, and stop.")] = False,
+    order_sensitivity: Annotated[
+        bool, typer.Option("--order-sensitivity", help="Five fresh candidate orders on held-out K20 plain.")
+    ] = False,
+    pilot: Annotated[
+        bool, typer.Option("--pilot", help="Order mode: first ten held-out tasks, all five orders.")
+    ] = False,
+    pilot_run: Annotated[
+        Path | None,
+        typer.Option(
+            "--pilot-run", help="Order mode: validated pilot required before full.", exists=True, file_okay=False
+        ),
+    ] = None,
+    estimate_out: Annotated[
+        Path | None, typer.Option("--estimate-out", help="Order mode: write pilot/full estimates JSON.")
+    ] = None,
 ) -> None:
     """Run decision arms on the tasks of a task file. Paid: the estimate and the cap check come first."""
     names = _listed(deciders, allowed=DECIDERS, option="--deciders")
@@ -276,6 +291,49 @@ def decision(
     source_list: list[QuerySource] = [source for name in chosen for source in QUERY_SOURCES if source == name]
     details = _max_detail(max_detail)
     negatives, reserved = not no_negatives, not no_reserved
+    if order_sensitivity:
+        from toolhunch_bench.order import ORDER_DETAILS, order_experiment
+
+        if (
+            split != "heldout"
+            or names != ["jev", "logprob"]
+            or ks != [20]
+            or source_list != ["plain"]
+            or not negatives
+            or not reserved
+            or repeat != 1
+            or limit is not None
+            or any(level != ORDER_DETAILS[name] for name, level in details.items())
+        ):
+            raise typer.BadParameter(
+                "order mode requires heldout, jev,logprob, K20, plain, positives/negatives, "
+                "reserved option, Jev BRIEF/logprob FULL, repeat 1 and no --limit"
+            )
+        try:
+            result = asyncio.run(
+                order_experiment(
+                    tasks,
+                    cache_dir=TOOLRET_CACHE,
+                    runs_dir=RUNS_DIR,
+                    ledger_path=LEDGER_PATH,
+                    dry_run=dry_run,
+                    pilot=pilot,
+                    pilot_run=pilot_run,
+                    estimate_out=estimate_out,
+                    echo=typer.echo,
+                )
+            )
+        except Exception as error:
+            # Provider errors can carry sensitive headers; only configuration ValueErrors are printable.
+            typer.echo(
+                str(error) if isinstance(error, ValueError) else f"Order run stopped: {type(error).__name__}", err=True
+            )
+            raise typer.Exit(code=2) from None
+        if result is not None:
+            typer.echo(f"run written to {result}")
+        return
+    if pilot or pilot_run is not None or estimate_out is not None:
+        raise typer.BadParameter("--pilot, --pilot-run and --estimate-out require --order-sensitivity")
     data = load_toolret(cache_dir=TOOLRET_CACHE)
     selected = read_task_file(tasks, data)[:limit]
     queries_file = model_queries_path(tasks) if "model" in source_list else None
@@ -422,6 +480,19 @@ def decision_charts(
     """Draw held-out ranking-cost and coverage-accuracy charts without calling a provider."""
     for path in build_decision_charts(summary, out_dir=out):
         typer.echo(f"chart written to {path}")
+
+
+@app.command("order-report")
+def order_report(
+    run_dir: Annotated[Path, typer.Argument(help="Recorded five-order decision run.", exists=True, file_okay=False)],
+    out: Annotated[Path, typer.Option(help="Directory for generated summary and table.")] = BENCH_DIR
+    / "results/2026-09-toolret-order",
+) -> None:
+    """Generate order diagnostics and pilot gates from recorded evidence, without provider calls."""
+    from toolhunch_bench.order_report import build_order_report
+
+    build_order_report(run_dir, out_dir=out)
+    typer.echo(f"report written to {out}")
 
 
 @app.command()

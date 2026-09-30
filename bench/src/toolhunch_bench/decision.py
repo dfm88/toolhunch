@@ -14,6 +14,7 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import json
+import random
 import time
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -235,6 +236,22 @@ class CacheOnlyRetrieval:
         return await self._stand_in.retrieve(queries, catalog, k=k)
 
 
+class OrderedRetrieval:
+    """Present the same retrieval in a reproducible task-seeded order; seed zero keeps its order."""
+
+    def __init__(self, inner: Retriever, *, task_id: str, seed: int) -> None:
+        self._inner, self._task_id, self._seed = inner, task_id, seed
+
+    async def retrieve(self, queries: Sequence[str], catalog: ToolCatalog, *, k: int) -> Retrieval:
+        """Keep scores and usage while changing only presentation order."""
+        retrieval = await self._inner.retrieve(queries, catalog, k=k)
+        matches = list(retrieval.matches)
+        if self._seed:
+            digest = hashlib.sha256(f"tool-order-v1:{self._task_id}:{self._seed}".encode()).digest()
+            random.Random(int.from_bytes(digest, "big")).shuffle(matches)
+        return Retrieval(matches=tuple(matches), usage=retrieval.usage)
+
+
 @dataclass(frozen=True, slots=True)
 class DecisionArm:
     """One arm of a decision run: the shared hybrid retrieval at `k`, then a decider or nothing.
@@ -433,6 +450,7 @@ async def estimate_decisions(
     negatives: bool,
     repeat: int,
     embeddings: CachedEmbedder | None = None,
+    order_seeds: Sequence[int] | None = None,
 ) -> list[EstimateLine]:
     """Estimate what `run_decisions` would bill for these arms and searches, asking no model.
 
@@ -458,6 +476,7 @@ async def estimate_decisions(
         negatives: Whether each search also runs with its gold tools taken out.
         repeat: How many times the run makes each search.
         embeddings: The cache the run's embedder goes through, to price what it lacks.
+        order_seeds: Optional candidate presentation seeds; zero is identity. Every order is estimated separately.
 
     Raises:
         ValueError: A decider arm has no model, or the `model` source has no queries.
@@ -475,8 +494,14 @@ async def estimate_decisions(
         for search in _searches(
             tasks, sources=sources, model_queries=model_queries, negatives=negatives, retriever=retriever
         ):
-            pipeline = ToolSearchPipeline(search.retriever, decider=decider, k=arm.k)
-            await pipeline.search(list(search.queries), data.catalog, context=search.task.query)
+            for seed in [None] if order_seeds is None else order_seeds:
+                presented = (
+                    search.retriever
+                    if seed is None
+                    else OrderedRetrieval(search.retriever, task_id=search.task.id, seed=seed)
+                )
+                pipeline = ToolSearchPipeline(presented, decider=decider, k=arm.k)
+                await pipeline.search(list(search.queries), data.catalog, context=search.task.query)
         counted.setdefault(arm.decider_name, []).append(stand_in)
     lines = [
         _decider_line(
@@ -602,6 +627,9 @@ async def run_decisions(
     model_queries_file: Path | None,
     run_id: str | None = None,
     before_arm: Callable[[DecisionArm], Awaitable[None]] | None = None,
+    order_seeds: Sequence[int] | None = None,
+    manifest_extra: Mapping[str, Any] | None = None,
+    before_search: Callable[[Mapping[str, Any]], None] | None = None,
 ) -> Path:
     """Run every arm on every search; returns the run directory `out_dir/<run_id>`.
 
@@ -638,6 +666,9 @@ async def run_decisions(
         run_id: Directory name; a UTC timestamp by default.
         before_arm: Awaited with each arm before its first search, outside its wall time: to wake a server that may
             have scaled to zero during the arms before it, for example.
+        order_seeds: Opt-in identity and four task-seeded candidate shuffles, with fresh decisions for every order.
+        manifest_extra: Additional experiment provenance written before the run starts.
+        before_search: Receives each search's identity and presented candidates before its decision.
 
     Raises:
         ValueError: The `model` source has no queries or no queries file, or `repeat` is below 1.
@@ -645,6 +676,11 @@ async def run_decisions(
     if "model" in sources and (model_queries is None or model_queries_file is None):
         raise ValueError("the model source needs the written queries and the file they come from")
     check_k(repeat, name="repeat")
+    if order_seeds is not None:
+        if list(order_seeds) != [0, 1, 2, 3, 4] or repeat != 1:
+            raise ValueError("order mode needs identity plus seeds 1-4, with no additional repeats")
+        if any(isinstance(arm.model, CachedDecisionModel) and not arm.model.bypasses_cache for arm in arms):
+            raise ValueError("all order-mode decision models must bypass local cache")
     run_id = run_id or datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     run_dir = out_dir / run_id
     run_dir.mkdir(parents=True)
@@ -659,6 +695,18 @@ async def run_decisions(
         "clm_deployment": dict(CLM_DEPLOYMENT) if any(arm.decider_name == "clm" for arm in arms) else None,
         "arms": {arm.name: dict(arm.config) for arm in arms},
     }
+    if order_seeds is not None:
+        manifest.pop("clm_deployment", None)
+        manifest["orders"] = {
+            "version": "tool-order-v1",
+            "seeds": list(order_seeds),
+            "identity_seed": 0,
+            "seed_derivation": "SHA256(tool-order-v1:<task_id>:<seed>), Python Random.shuffle",
+            "cache_bypass": True,
+            "reserved_position": "last",
+        }
+        manifest["task_ids"] = [task.id for task in tasks]
+    manifest.update(manifest_extra or {})
     (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     with (run_dir / "run.jsonl").open("w", encoding="utf-8") as out:
         for arm in arms:
@@ -671,14 +719,49 @@ async def run_decisions(
             for search in _searches(
                 tasks, sources=sources, model_queries=model_queries, negatives=negatives, retriever=retriever
             ):
-                pipeline = ToolSearchPipeline(search.retriever, decider=arm.decider, k=arm.k)
-                for index in range(repeat):
-                    record = await _search_record(
-                        pipeline, arm, search, data=data, split=split, repeat=index, shared=retriever
+                for index, seed in enumerate([None] * repeat if order_seeds is None else order_seeds):
+                    presented = (
+                        search.retriever
+                        if seed is None
+                        else OrderedRetrieval(search.retriever, task_id=search.task.id, seed=seed)
                     )
+                    context: dict[str, Any] = {
+                        "arm": arm.name,
+                        "task": search.task.id,
+                        "variant": search.variant,
+                        "order_seed": seed,
+                        "source": search.source,
+                    }
+                    if before_search is not None:
+                        before_search(context)
+                    if seed is not None:
+                        candidates = await presented.retrieve(list(search.queries), data.catalog, k=arm.k)
+                        if len(candidates.matches) != arm.k:
+                            raise ValueError("order mode needs exactly K candidates before any decision is paid")
+                        context["presented_candidates"] = [match.card.id for match in candidates.matches]
+                    pipeline = ToolSearchPipeline(presented, decider=arm.decider, k=arm.k)
+                    if before_search is not None:
+                        before_search(context)
+                    record = await _search_record(
+                        pipeline,
+                        arm,
+                        search,
+                        data=data,
+                        split=split,
+                        repeat=index,
+                        shared=retriever,
+                        presented=presented if seed is not None else None,
+                    )
+                    if seed is not None:
+                        record["order_seed"] = seed
+                        record["replayed"] = False
                     out.write(json.dumps(record) + "\n")
+                    if seed is not None:
+                        out.flush()
                     searches += 1
                     errors += record["error"] is not None
+                    if seed is not None and record["error"] is not None:
+                        raise DecisionError("order experiment stopped after an errored search")
             wall_seconds = time.perf_counter() - started
             summary = {
                 "record": "arm",
@@ -711,6 +794,7 @@ async def _search_record(
     split: Split,
     repeat: int,
     shared: SharedRetrieval,
+    presented: Retriever | None = None,
 ) -> dict[str, Any]:
     queries = list(search.queries)
     decision: Decision | None = None
@@ -720,7 +804,7 @@ async def _search_record(
     except DecisionError as failure:
         error = str(failure)
     # The search's own retrieval again: the shared retrieval kept it, so it costs nothing and outlives an error.
-    retrieval = await search.retriever.retrieve(queries, data.catalog, k=arm.k)
+    retrieval = await (search.retriever if presented is None else presented).retrieve(queries, data.catalog, k=arm.k)
     candidates = [match.card.id for match in retrieval.matches]
     return {
         "record": "search",
@@ -738,13 +822,17 @@ async def _search_record(
         "candidates": candidates,
         "relevant": sorted(search.task.relevant),
         "gold_in_candidates": not search.task.relevant.isdisjoint(candidates),
-        **_decision_fields(decision, candidates=candidates, decided=arm.decider is not None),
+        **_decision_fields(
+            decision, candidates=candidates, decided=arm.decider is not None, record_requests=presented is not None
+        ),
         "retrieval_seconds": shared.first_seconds(queries),
         "error": error,
     }
 
 
-def _decision_fields(decision: Decision | None, *, candidates: list[str], decided: bool) -> dict[str, Any]:
+def _decision_fields(
+    decision: Decision | None, *, candidates: list[str], decided: bool, record_requests: bool = False
+) -> dict[str, Any]:
     if decision is None:
         # Retrieval alone ranks by retrieval; a decider that failed ranked nothing.
         return {
@@ -777,6 +865,30 @@ def _decision_fields(decision: Decision | None, *, candidates: list[str], decide
                 "output_tokens": exchange.response.usage.output_tokens,
                 "seconds": exchange.response.seconds,
                 "server_seconds": exchange.response.server_seconds,
+                **(
+                    {
+                        "request": {
+                            "state": exchange.request.state,
+                            "questions": {
+                                key: {"instructions": question.instructions, "options": list(question.options.items())}
+                                for key, question in exchange.request.questions.items()
+                                if isinstance(question, ChoiceQuestion)
+                            },
+                        },
+                        "option_card_ids": dict(exchange.option_card_ids),
+                        "candidate_order": list(exchange.option_card_ids.values()),
+                        "response": {
+                            "answers": {
+                                key: dict(answer.probabilities)
+                                for key, answer in exchange.response.answers.items()
+                                if isinstance(answer, ChoiceAnswer)
+                            },
+                            "raw": dict(exchange.response.raw),
+                        },
+                    }
+                    if record_requests
+                    else {}
+                ),
             }
             for exchange in decision.exchanges
         ],

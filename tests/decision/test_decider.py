@@ -135,6 +135,12 @@ async def test_duplicate_names_map_back_to_their_cards_in_every_round(fake_model
     # are keyed "search" to "search #4", and "search #3" is s04.
     assert [list(options_of(exchange.request))[2] for exchange in decision.exchanges] == ["search #3"] * 3
     assert set(decision.probabilities) == {"s00", "s01", "s04", "s05"}
+    assert [exchange.option_card_ids["search #3"] for exchange in decision.exchanges] == ["s04", "s05", "s04"]
+    assert [list(exchange.option_card_ids.values()) for exchange in decision.exchanges] == [
+        ids[::2],
+        ids[1::2],
+        ["s00", "s01", "s04", "s05"],
+    ]
     assert ranked_ids(decision) == [
         "s04",
         "s00",
