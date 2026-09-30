@@ -737,9 +737,7 @@ def _markdown(summary: dict[str, Any], *, fallbacks_in_tau: bool) -> str:
         *_tokenizer_section(summary["tokenizer"]),
         *_notes(fallbacks_in_tau=fallbacks_in_tau),
     ]
-    return "\n".join(
-        [*lines, *_risk_coverage_section(summary), ""]
-    )
+    return "\n".join([*lines, *_risk_coverage_section(summary), ""])
 
 
 def _intro(summary: dict[str, Any]) -> str:

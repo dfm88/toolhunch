@@ -68,7 +68,7 @@ class _DecisionCharts:
         axes.set_ylim(0, 1)
         axes.grid(visible=True, alpha=0.2)
         axes.legend(loc="upper left")
-        figure.text(0.5, -0.02, "Decision cost excludes shared retrieval. ", ha="center", fontsize=8)
+        figure.text(0.5, -0.02, "Decision cost excludes shared retrieval.", ha="center", fontsize=8)
         return self._save(figure, name="decision-precision-cost.svg")
 
     def _coverage(self) -> Path:
@@ -130,7 +130,6 @@ class _DecisionCharts:
         figure.text(
             0.5, 0.035, "Counts at the marked thresholds; positives and negatives pooled.", ha="center", fontsize=8
         )
-        figure.text(0.5, 0.01, ha="center", fontsize=8)
         return self._save(figure, name="decision-coverage-accuracy.svg")
 
 
