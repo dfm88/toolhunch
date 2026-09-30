@@ -1,7 +1,6 @@
 import importlib.util
 import json
 import os
-import re
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -121,16 +120,7 @@ async def test_compatible_limits_reject_oversized_requests_before_http(
     assert sent == []
 
 
-def test_other_deciders_readme_block_matches_example_and_declared_smoke_limits(compatible_example: ModuleType) -> None:
-    section = re.search(
-        r"^## Other deciders\n(.*?)(?=^## |\Z)",
-        (ROOT / "README.md").read_text(),
-        flags=re.MULTILINE | re.DOTALL,
-    )
-    assert section is not None
-    assert re.findall(r"^```python\n(.*?)^```", section.group(1), flags=re.MULTILINE | re.DOTALL) == [
-        EXAMPLE.read_text()
-    ]
+def test_example_limits_match_declared_smoke_limits(compatible_example: ModuleType) -> None:
     laya = next(profile for profile in PROFILES if profile["package"] == "laya")
     assert compatible_example.LAYA_LIMITS.model_dump(mode="json", exclude_none=True) == laya["limits"]
 

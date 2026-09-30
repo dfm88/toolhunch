@@ -8,6 +8,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `toolhunch-bench readme-charts`: the README figures (direct choice, “none” outcomes, re-ranking at
+  44,453 tools, candidate order), drawn from the published summaries without provider calls, as SVG or PNG.
 - Jev-compatible local-server example and smoke-test write-up for laya-serve and rizzo-flow,
   with declared limits and model provenance; the two-tool example is not a catalog benchmark
   (`bench/results/2026-09-jev-compatible-smoke/`).

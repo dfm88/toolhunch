@@ -482,6 +482,30 @@ def decision_charts(
         typer.echo(f"chart written to {path}")
 
 
+@app.command("readme-charts")
+def readme_charts(
+    out: Annotated[Path, typer.Option(help="Directory for the four figures.")] = BENCH_DIR.parent / "docs/assets",
+    fmt: Annotated[
+        Literal["svg", "png"], typer.Option("--format", help="svg for the docs, png for social posts.")
+    ] = "svg",
+    direct: Annotated[
+        Path, typer.Option(help="Generated direct-choice summary.", exists=True, dir_okay=False)
+    ] = BENCH_DIR / "results/2026-09-toolret-direct/summary.json",
+    decision: Annotated[Path, typer.Option(help="Generated decision summary.", exists=True, dir_okay=False)] = BENCH_DIR
+    / "results/2026-09-toolret-decision/summary.json",
+    order: Annotated[Path, typer.Option(help="Generated order summary.", exists=True, dir_okay=False)] = BENCH_DIR
+    / "results/2026-09-toolret-order/summary.json",
+) -> None:
+    """Draw the README figures from the published summaries without calling a provider."""
+    from toolhunch_bench.readme_charts import build_readme_charts
+
+    paths = build_readme_charts(
+        direct_summary=direct, decision_summary=decision, order_summary=order, out_dir=out, fmt=fmt
+    )
+    for path in paths:
+        typer.echo(f"chart written to {path}")
+
+
 @app.command("order-report")
 def order_report(
     run_dir: Annotated[Path, typer.Argument(help="Recorded five-order decision run.", exists=True, file_okay=False)],

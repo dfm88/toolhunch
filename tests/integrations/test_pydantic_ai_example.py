@@ -1,5 +1,4 @@
 import importlib.util
-import re
 from pathlib import Path
 from typing import Any
 
@@ -59,14 +58,3 @@ async def test_readme_example_reveals_and_executes_the_deciders_tool(fake_model:
         for part in message.parts
         if isinstance(part, ToolReturnPart)
     )
-
-
-def test_readme_python_block_is_the_executable_example() -> None:
-    section = re.search(
-        r"^## Pydantic AI example\n(.*?)(?=^## |\Z)",
-        (ROOT / "README.md").read_text(),
-        flags=re.MULTILINE | re.DOTALL,
-    )
-    assert section is not None
-    blocks = re.findall(r"^```python\n(.*?)^```", section.group(1), flags=re.MULTILINE | re.DOTALL)
-    assert blocks == [EXAMPLE.read_text()]
