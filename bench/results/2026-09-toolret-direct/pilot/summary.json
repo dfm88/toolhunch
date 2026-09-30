@@ -4889,9 +4889,20 @@
     "unpriced_attempts": 4,
     "estimate_usd": 0.4198007939999999,
     "actual_to_estimate": 0.3250507858734541,
-    "projected_remaining_usd": null,
-    "projected_p1_total_usd": null,
-    "projection_method": "failed attempts have unknown billed usage",
+    "projected_remaining_usd": 1.0489897957777778,
+    "projected_p1_total_usd": 1.3562291737777779,
+    "projection_method": "observed projection: per-source warm-positive and negative applicable priced rates; successful requests already covered; embedding reference; not a guaranteed upper bound",
+    "observed_remaining_usd": 1.0489897957777778,
+    "remaining_requests_by_arm": {
+      "hybrid@20": 660,
+      "hybrid@20+jev": 660,
+      "jev-all": 660,
+      "agent@20": 660,
+      "agent-all": 375
+    },
+    "uncached_remaining_budget_reference_usd": 4.601294792000001,
+    "uncached_p1_budget_reference_usd": 4.908534170000001,
+    "budget_reference_method": "Recorded full uncached/max-output estimate retained as a conservative reference for any unfinished workload, without subtracting successful request costs. Historical retrieval approximations and token framing prevent a guaranteed upper bound; physical-call guard reservations remain independent. This report does not authorize another run.",
     "full_estimate_usd": 4.601294792000001
   },
   "caveats": [

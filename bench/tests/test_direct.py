@@ -1,5 +1,8 @@
+import hashlib
 import json
+import sqlite3
 from collections.abc import Sequence
+from dataclasses import asdict, replace
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -18,9 +21,17 @@ from toolhunch import BM25Retriever, OpenAIEmbedder, ToolCard, ToolCatalog
 from toolhunch.decision import JEV_LIMITS, ChoiceQuestion, DecisionRequest
 from toolhunch_bench import cli
 from toolhunch_bench.datasets.toolret import ToolRetData, ToolRetTask
+from toolhunch_bench.decision import CacheOnlyRetrieval, SharedRetrieval
 from toolhunch_bench.decision_cache import CachedDecisionModel
-from toolhunch_bench.direct import CATALOGS, DIRECT_ARMS, DirectRunner, direct_catalogs, estimate_direct
-from toolhunch_bench.direct_agent import CachedAgent, function_cards, wire_request
+from toolhunch_bench.direct import (
+    CATALOGS,
+    DIRECT_ARMS,
+    CatalogOrderRetriever,
+    DirectRunner,
+    direct_catalogs,
+    estimate_direct,
+)
+from toolhunch_bench.direct_agent import AGENT_SETTINGS, CachedAgent, agent_payload, function_cards, wire_request
 from toolhunch_bench.direct_cost import (
     AGENT_MODEL,
     GuardedDecisionModel,
@@ -31,6 +42,7 @@ from toolhunch_bench.direct_cost import (
     openai_usd,
 )
 from toolhunch_bench.direct_report import build_direct_report
+from toolhunch_bench.embedding_cache import CachedEmbedder
 from toolhunch_bench.ledger import LedgerEntry, append_ledger, f2a_spend, read_ledger
 
 pytestmark = pytest.mark.anyio
@@ -155,7 +167,10 @@ async def test_agent_outcomes_and_replay_never_add_usage(tmp_path: Path, kind: s
 @pytest.mark.parametrize(
     ("body", "expected"),
     [
-        ({"code": "x", "param": "tools", "message": "sk-SECRET"}, "ModelHTTPError 400 code=x param=tools"),
+        (
+            {"code": "invalid_value", "param": "tools", "message": "sk-SECRET"},
+            "ModelHTTPError 400 code=invalid_value param=tools",
+        ),
         (
             {"error": {"code": "array_above_max_length", "param": "tools", "message": "sk-SECRET"}},
             "ModelHTTPError 400 code=array_above_max_length param=tools",
@@ -480,7 +495,13 @@ async def test_historical_rejections_common_pool_unknown_cost_and_jev_cache(
     assert validation["requests"] == validation["planned_requests"] == 3
     assert validation["classified_successful"] == 3
     assert validation["classified_fraction"] == 1
-    assert summary["run_cost"]["projected_remaining_usd"] is None
+    assert summary["run_cost"]["projected_remaining_usd"] >= 0
+    assert summary["run_cost"]["observed_remaining_usd"] is not None
+    assert summary["run_cost"]["projected_p1_total_usd"] == pytest.approx(
+        manifest.get("prior_p1_usd", 0)
+        + summary["run_cost"]["budget_charge_usd"]
+        + summary["run_cost"]["projected_remaining_usd"]
+    )
     jev = next(r for r in pooled if r["arm"] == "jev-all")
     assert jev["positive_cost"]["cold"]["input_tokens"] > 0
     assert jev["positive_cost"]["cold"]["cache_share"] is None
@@ -488,3 +509,291 @@ async def test_historical_rejections_common_pool_unknown_cost_and_jev_cache(
     assert "unknown | unknown | unknown | unknown" in published
     assert "Original run completed: False" in published
     assert "4 rejected attempts, excluded" in published
+    baseline_rows = [
+        line
+        for line in published.split("## Observed provider cost")[0].splitlines()
+        if line.startswith("| hybrid@20 |")
+    ]
+    assert len(baseline_rows) == 4
+    assert all(line.split(" | ")[3] == "—" for line in baseline_rows)
+
+
+@pytest.mark.parametrize("collision", [False, True])
+async def test_replay_identity_tracks_card_mapping_without_changing_provider_request(
+    tmp_path: Path, collision: bool
+) -> None:
+    cards = [ToolCard(id="a", name="same?", description="same")]
+    if collision:
+        cards.append(ToolCard(id="b", name="same?", description="same"))
+    changed = list(reversed(cards)) if collision else [replace(cards[0], id="b")]
+    original_functions, changed_functions = function_cards(cards), function_cards(changed)
+    assert wire_request("weather", original_functions) == wire_request("weather", changed_functions)
+    assert agent_payload("weather", original_functions, catalog_name="test") == agent_payload(
+        "weather", changed_functions, catalog_name="test"
+    )
+    calls = 0
+
+    def answer(messages: Sequence[ModelMessage], info: AgentInfo) -> ModelResponse:
+        nonlocal calls
+        calls += 1
+        assert info.model_settings == dict(AGENT_SETTINGS) | {"openai_prompt_cache_key": "test"}
+        return ModelResponse(
+            parts=[ToolCallPart(info.function_tools[0].name, {})], usage=RequestUsage(input_tokens=100)
+        )
+
+    guard = SpendGuard()
+    model = FunctionModel(answer)
+    agent = CachedAgent(model, path=tmp_path / "identity.sqlite", guard=guard)
+    try:
+        original, replayed = await agent.ask("weather", original_functions, catalog_name="test")
+        assert not replayed
+        assert original.pick == "a"
+        legacy = agent_payload("weather", original_functions, catalog_name="test") | {"model": model.model_name}
+        legacy_key = hashlib.sha256(
+            json.dumps(legacy, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+        ).hexdigest()
+        db = sqlite3.connect(tmp_path / "identity.sqlite")
+        try:
+            db.execute("INSERT INTO agent_responses VALUES (?, ?)", (legacy_key, json.dumps(asdict(original))))
+            db.commit()
+        finally:
+            db.close()
+        updated, replayed = await agent.ask("weather", changed_functions, catalog_name="test")
+        assert not replayed
+        assert updated.pick == "b"
+        again, replayed = await agent.ask("weather", original_functions, catalog_name="test")
+        assert replayed
+        assert again == original
+        assert calls == len(guard.calls) == 2
+        if collision:
+            assert original_functions.card_ids == {"same_": "a", "same__2": "b"}
+            assert changed_functions.card_ids == {"same_": "b", "same__2": "a"}
+    finally:
+        agent.close()
+
+
+@pytest.mark.parametrize("cached", [False, True])
+@pytest.mark.parametrize("lexical_matches", [0, 2, 25])
+async def test_direct_estimate_bounds_short_missing_dense_candidates_only(
+    tmp_path: Path, fake_decision_model: Any, axis_embedder: Any, cached: bool, lexical_matches: int
+) -> None:
+    source = "webtools_spotify"
+    original = data(sources={source: "restgpt-spotify"}, count=2)
+    catalog = ToolCatalog(
+        [
+            *original.catalog,
+            *(
+                ToolCard(
+                    id=f"extra_{i}",
+                    name=f"utility_{i}",
+                    description=("Long weather payload " if lexical_matches == 25 else "Long unrelated payload ")
+                    * (i + 20),
+                    source=source,
+                )
+                for i in range(22)
+            ),
+        ]
+    )
+    tasks = tuple(
+        ToolRetTask(task.id, task.subtask, "weather" if lexical_matches else "zxqv", "", task.relevant)
+        for task in original.tasks
+    )
+    selected = direct_catalogs(
+        ToolRetData(catalog=catalog, tasks=tasks, raw_text={}, mapping_stats={}), sources={source: "restgpt-spotify"}
+    )
+    embedder = axis_embedder(model_id="text-embedding-3-small")
+    embeddings = CachedEmbedder(embedder, path=tmp_path / "embeddings.sqlite")
+    try:
+        if cached:
+            from toolhunch import default_search_text
+
+            await embeddings.embed([default_search_text(card) for card in catalog], kind="document")
+            await embeddings.embed([tasks[0].query], kind="query")
+        model = fake_decision_model(limits=JEV_LIMITS)
+        embedding_calls = len(embedder.calls)
+        free = CacheOnlyRetrieval(CatalogOrderRetriever(), stand_in=BM25Retriever(), embeddings=embeddings)
+        shared = SharedRetrieval(free)
+        estimate = await estimate_direct(selected, retriever=shared, jev_model=model, embeddings=embeddings)
+        reference = await estimate_direct(
+            selected,
+            retriever=SharedRetrieval(CatalogOrderRetriever() if cached else BM25Retriever()),
+            jev_model=model,
+            embeddings=embeddings,
+        )
+        assert not model.asks
+        assert len(embedder.calls) == embedding_calls
+        lines = {line.get("arm"): line for line in estimate.lines}
+        reference_lines = {line.get("arm"): line for line in reference.lines}
+        assert lines["hybrid@20+jev"]["requests"] == estimate.planned_requests_by_arm["hybrid@20+jev"] == 3
+        assert lines["agent@20"]["requests"] == 3
+        if cached:
+            assert estimate.lines == reference.lines
+            assert estimate.stand_in_searches == 0
+            assert estimate.candidate_bound_searches == {"hybrid@20+jev": 0, "agent@20": 0}
+        elif lexical_matches == 25:
+            assert estimate.lines == reference.lines
+            assert estimate.stand_in_searches == len(free.stand_in_queries) == 1
+            assert estimate.candidate_bound_searches == {"hybrid@20+jev": 0, "agent@20": 0}
+        else:
+            assert estimate.stand_in_searches == len(free.stand_in_queries) == 1
+            assert not SharedRetrieval(free).stand_in_queries
+            assert estimate.candidate_bound_searches == {"hybrid@20+jev": 2, "agent@20": 2}
+            for arm in ("hybrid@20+jev", "agent@20"):
+                assert lines[arm]["input_tokens"] > reference_lines[arm]["input_tokens"]
+                assert lines[arm]["usd"] > reference_lines[arm]["usd"]
+            if lexical_matches == 0:
+                assert reference_lines["hybrid@20+jev"]["requests"] == 0
+            assert "actual Jev planner limits/detail retained" in estimate.candidate_bound_method
+    finally:
+        embeddings.close()
+
+
+async def test_full_and_pilot_estimate_fallback_counts_are_scoped_to_each_wrapper(
+    tmp_path: Path, fake_decision_model: Any, axis_embedder: Any
+) -> None:
+    sources = {"webtools_spotify": "restgpt-spotify"}
+    original = data(sources=sources, count=4)
+    tasks = tuple(replace(task, query=f"weather number_{i}") for i, task in enumerate(original.tasks))
+    full = direct_catalogs(replace(original, tasks=tasks), sources=sources)
+    pilot = [replace(full[0], positives=full[0].positives[:1], negatives=())]
+    embedder = axis_embedder(model_id="text-embedding-3-small")
+    embeddings = CachedEmbedder(embedder, path=tmp_path / "embeddings.sqlite")
+    model = fake_decision_model(limits=JEV_LIMITS)
+    free = CacheOnlyRetrieval(CatalogOrderRetriever(), stand_in=BM25Retriever(), embeddings=embeddings)
+    try:
+        full_estimate = await estimate_direct(full, retriever=SharedRetrieval(free), jev_model=model)
+        pilot_estimate = await estimate_direct(pilot, retriever=SharedRetrieval(free), jev_model=model)
+        assert full_estimate.stand_in_searches == len(free.stand_in_queries) == 4
+        assert pilot_estimate.stand_in_searches == 1
+        assert asdict(pilot_estimate)["stand_in_searches"] == 1
+        assert not embedder.calls
+        assert not model.asks
+    finally:
+        embeddings.close()
+
+
+@pytest.mark.parametrize(
+    ("pilot", "completed", "coverage", "unpriced", "expected_remaining"),
+    [
+        (False, False, "absent", False, 10.0),
+        (False, False, "partial", False, 1.68),
+        (False, True, "partial", False, 0.0),
+        (True, False, "partial", False, 1.68),
+        (True, False, "partial", True, 10.0),
+        (False, False, "unknown_embedding", False, 10.0),
+    ],
+)
+async def test_projection_applicable_evidence_sunk_charges_and_completion(
+    tmp_path: Path, pilot: bool, completed: bool, coverage: str, unpriced: bool, expected_remaining: float
+) -> None:
+    estimate = {"usd": 10.0, "lines": [{"model": "text-embedding-3-small", "usd": 0.1}]}
+    manifest = {
+        "pilot": pilot,
+        "completed": completed,
+        "prior_p1_usd": 5.3,
+        "catalogs": [{"source": "webtools_spotify", "positives": 3, "negatives": 2}],
+        "full_catalogs": [{"source": "webtools_spotify", "positives": 3, "negatives": 2}],
+        "estimate": estimate,
+        "full_estimate": estimate,
+    }
+    excluded = {
+        "arm": "agent-all",
+        "catalog": "metatool_which",
+        "model": AGENT_MODEL,
+        "provider": "openai",
+        "usd": None,
+        "list_usd": None,
+        "budget_charge_usd": 0.7,
+        "error": "rejected",
+        "input_tokens": None,
+        "cache_read_tokens": None,
+    }
+    calls: list[dict[str, Any]] = [excluded]
+    records: list[dict[str, Any]] = []
+    if coverage != "absent":
+        calls.append(
+            {
+                **excluded,
+                "arm": "hybrid@20",
+                "catalog": "webtools_spotify",
+                "model": "text-embedding-3-small",
+                "usd": None if coverage == "unknown_embedding" else 0.02,
+                "budget_charge_usd": 0.12 if coverage == "unknown_embedding" else 0.02,
+            }
+        )
+        for arm in DIRECT_ARMS:
+            for task, variant, phase in (
+                ("p0", "positive", "cold"),
+                ("p1", "positive", "warm"),
+                ("p0", "negative", "negative"),
+            ):
+                unknown = unpriced and arm == "agent@20" and phase == "warm"
+                paid = (
+                    []
+                    if arm == "hybrid@20"
+                    else [
+                        {
+                            **excluded,
+                            "arm": arm,
+                            "catalog": "webtools_spotify",
+                            "usd": None if unknown else 0.2,
+                            "list_usd": None if unknown else 0.2,
+                            "budget_charge_usd": 0.9 if unknown else 0.2,
+                            "error": None,
+                            "input_tokens": 100,
+                            "cache_read_tokens": 0,
+                        }
+                    ]
+                )
+                calls.extend(paid)
+                records.append(
+                    {
+                        "arm": arm,
+                        "catalog": "webtools_spotify",
+                        "task": task,
+                        "variant": variant,
+                        "phase": phase,
+                        "error": None,
+                        "abstained": False,
+                        "pick": "tool",
+                        "relevant": ["tool"],
+                        "candidates": ["tool"],
+                        "ranked": ["tool"],
+                        "detail": ["FULL"],
+                        "extra_calls": 0,
+                        "provider_calls": paid,
+                        "search_usd": 0,
+                        "search_seconds": 0,
+                        "decision_seconds": 0,
+                        "replayed": False,
+                    }
+                )
+    raw = tmp_path / "run"
+    raw.mkdir()
+    (raw / "manifest.json").write_text(json.dumps(manifest))
+    (raw / "run.jsonl").write_text("\n".join(map(json.dumps, records)))
+    (raw / "calls.jsonl").write_text("\n".join(map(json.dumps, calls)))
+    summary = build_direct_report(raw, out_dir=tmp_path / "result")
+    cost = summary["run_cost"]
+    assert cost["projected_remaining_usd"] == pytest.approx(expected_remaining)
+    assert cost["budget_charge_usd"] == pytest.approx(sum(c["budget_charge_usd"] for c in calls))
+    assert cost["projected_p1_total_usd"] == pytest.approx(5.3 + cost["budget_charge_usd"] + expected_remaining)
+    assert cost["unpriced_attempts"] == 1 + unpriced + (coverage == "unknown_embedding")
+    assert summary["manifest"] == manifest
+    if not pilot and completed:
+        assert cost["projection_method"] == "completed full run"
+        assert cost["uncached_remaining_budget_reference_usd"] == 0
+    else:
+        assert "completed full run" not in cost["projection_method"]
+        assert cost["remaining_requests_by_arm"] == dict.fromkeys(DIRECT_ARMS, 5 if coverage == "absent" else 2)
+        assert cost["uncached_remaining_budget_reference_usd"] == 10
+        assert (cost["observed_remaining_usd"] is not None) == (coverage == "partial" and not unpriced)
+    baseline_rows = [
+        line
+        for line in (tmp_path / "result/README.md").read_text().split("## Observed provider cost")[0].splitlines()
+        if line.startswith("| hybrid@20 |") and " / " in line
+    ]
+    assert baseline_rows
+    assert all(line.split(" | ")[3] == "—" for line in baseline_rows)
+    if records:
+        assert "0.000 (0.000 to 0.000)" in (tmp_path / "result/README.md").read_text()

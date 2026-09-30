@@ -157,6 +157,17 @@ class SharedRetrieval:
         self.config: Mapping[str, Any] = {} if config is None else config
         self._kept: dict[tuple[tuple[str, ...], str], tuple[int, Retrieval]] = {}
         self._first_seconds: dict[tuple[str, ...], float] = {}
+        self._stand_in_queries: set[tuple[str, ...]] = set()
+
+    @property
+    def stand_in_queries(self) -> frozenset[tuple[str, ...]]:
+        """Query lists this wrapper observed using the inner free estimator's fallback."""
+        return frozenset(self._stand_in_queries)
+
+    def uses_stand_in(self, queries: Sequence[str], catalog: ToolCatalog) -> bool:
+        """Whether this exact query/catalog search used the free fallback."""
+        diagnostic = getattr(self._inner, "uses_stand_in", None)
+        return diagnostic(queries, catalog) if diagnostic is not None else False
 
     async def retrieve(self, queries: Sequence[str], catalog: ToolCatalog, *, k: int) -> Retrieval:
         """The first `k` matches of the kept retrieval of `queries`, retrieving it when it is missing or too shallow."""
@@ -168,6 +179,8 @@ class SharedRetrieval:
         depth = max(self.depth, k)
         started = time.perf_counter()
         retrieval = await self._inner.retrieve(queries, catalog, k=depth)
+        if self.uses_stand_in(queries, catalog):
+            self._stand_in_queries.add(tuple(clean_queries(queries)))
         self._first_seconds.setdefault(key[0], time.perf_counter() - started)
         self._kept[key] = (depth, retrieval)
         return Retrieval(matches=retrieval.matches[:k], usage=retrieval.usage)
@@ -222,6 +235,11 @@ class CacheOnlyRetrieval:
         self._cards_cached: dict[str, bool] = {}
         self.searched: set[tuple[str, ...]] = set()
         self.stand_in_queries: set[tuple[str, ...]] = set()
+        self._stand_in_searches: set[tuple[tuple[str, ...], str]] = set()
+
+    def uses_stand_in(self, queries: Sequence[str], catalog: ToolCatalog) -> bool:
+        """Whether the exact cleaned query list and catalog required a stand-in."""
+        return (tuple(clean_queries(queries)), catalog.fingerprint) in self._stand_in_searches
 
     async def retrieve(self, queries: Sequence[str], catalog: ToolCatalog, *, k: int) -> Retrieval:
         """`hybrid`'s matches when every vector they need is cached, `stand_in`'s otherwise."""
@@ -233,6 +251,7 @@ class CacheOnlyRetrieval:
         if self._cards_cached[catalog.fingerprint] and not self._embeddings.missing(cleaned, kind="query"):
             return await self._hybrid.retrieve(queries, catalog, k=k)
         self.stand_in_queries.add(tuple(cleaned))
+        self._stand_in_searches.add((tuple(cleaned), catalog.fingerprint))
         return await self._stand_in.retrieve(queries, catalog, k=k)
 
 

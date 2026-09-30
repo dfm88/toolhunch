@@ -16,6 +16,8 @@ from toolhunch import DetailLevel, ToolCatalog, ToolSearchPipeline, default_sear
 from toolhunch.decision import Abstention, ChoiceDecider
 from toolhunch.decision.planner import PROMPT_VERSION
 from toolhunch.retrieval import Retrieval, ScoredCard
+from toolhunch.retrieval.base import clean_queries
+from toolhunch.tokens import HeuristicTokenizer
 from toolhunch_bench.datasets.toolret import TOOLRET_CORPUS_SHA256, TOOLRET_DATASET, TOOLRET_REVISION, ToolRetData
 from toolhunch_bench.decision import DecisionArm, SharedRetrieval, estimate_decisions
 from toolhunch_bench.direct_agent import (
@@ -36,10 +38,10 @@ from toolhunch_bench.direct_cost import (
 from toolhunch_bench.embedding_cache import estimate_embedding_cost
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Callable, Mapping, Sequence
     from pathlib import Path
 
-    from toolhunch import Retriever
+    from toolhunch import Retriever, ToolCard
     from toolhunch.decision import DecisionModel
     from toolhunch.retrieval import EmbeddingKind
     from toolhunch_bench.datasets.toolret import ToolRetTask
@@ -147,6 +149,29 @@ class DirectEstimate:
     lines: tuple[Mapping[str, Any], ...]
     stand_in_searches: int
     planned_requests_by_arm: Mapping[str, int]
+    candidate_bound_searches: Mapping[str, int]
+    candidate_bound_method: str
+
+
+class _DirectEstimateRetrieval:
+    """Bound short free stand-ins for direct estimates without changing actual retrieval."""
+
+    def __init__(self, inner: Retriever, *, card_size: Callable[[ToolCard], int]) -> None:
+        self._inner, self._card_size = inner, card_size
+        self.bounded: set[tuple[tuple[str, ...], str]] = set()
+        self._longest: dict[str, tuple[ScoredCard, ...]] = {}
+
+    async def retrieve(self, queries: Sequence[str], catalog: ToolCatalog, *, k: int) -> Retrieval:
+        retrieval = await self._inner.retrieve(queries, catalog, k=k)
+        diagnostic = getattr(self._inner, "uses_stand_in", None)
+        if len(retrieval.matches) >= min(k, len(catalog)) or diagnostic is None or not diagnostic(queries, catalog):
+            return retrieval
+        self.bounded.add((tuple(clean_queries(queries)), catalog.fingerprint))
+        if catalog.fingerprint not in self._longest:
+            self._longest[catalog.fingerprint] = tuple(
+                ScoredCard(card=card, score=0) for card in sorted(catalog, key=self._card_size, reverse=True)
+            )
+        return Retrieval(matches=self._longest[catalog.fingerprint][:k], usage=retrieval.usage)
 
 
 async def estimate_direct(
@@ -161,10 +186,25 @@ async def estimate_direct(
 
     Jev planning uses the existing decision estimator. Agent input is tokenized from prompt-bearing wire fields;
     output is bounded by its configured limit and cache savings are not assumed. Replay savings are not assumed.
+    Missing dense vectors with fewer than K lexical matches use the longest applicable FULL cards, separately
+    measured for Jev's heuristic text and the agent's function schema. The actual Jev planner still applies limits
+    and detail reduction. Full-length lexical stand-ins remain approximate, not a guaranteed whole-run upper bound.
     """
     import tiktoken
 
     encoding = tiktoken.get_encoding("o200k_base")
+    jev_retrieval = _DirectEstimateRetrieval(
+        retriever, card_size=lambda card: HeuristicTokenizer().count(card.render(DetailLevel.FULL))
+    )
+    agent_retrieval = _DirectEstimateRetrieval(
+        retriever,
+        card_size=lambda card: len(
+            encoding.encode(
+                json.dumps(wire_request("", function_cards([card]))["tools"][0], ensure_ascii=False),
+                disallowed_special=(),
+            )
+        ),
+    )
     counts: dict[str, dict[str, Any]] = {}
     query_texts: list[str] = []
     document_texts: list[str] = []
@@ -203,7 +243,7 @@ async def estimate_direct(
                     [arm],
                     data,
                     [task],
-                    retriever=retriever if arm.name == "hybrid@20+jev" else CatalogOrderRetriever(),
+                    retriever=jev_retrieval if arm.name == "hybrid@20+jev" else CatalogOrderRetriever(),
                     sources=("plain",),
                     model_queries=None,
                     negatives=False,
@@ -228,7 +268,7 @@ async def estimate_direct(
                     row["usd"] += line.usd or 0.0
             candidates = []
             if ("agent@20", selected.source) not in not_applicable:
-                retrieved = await retriever.retrieve([task.query], catalog, k=20)
+                retrieved = await agent_retrieval.retrieve([task.query], catalog, k=20)
                 candidates = [match.card for match in retrieved.matches]
             for agent_arm, cards in (("agent@20", candidates), ("agent-all", list(catalog))):
                 if (agent_arm, selected.source) in not_applicable:
@@ -282,6 +322,13 @@ async def estimate_direct(
         lines=tuple(counts.values()),
         stand_in_searches=len(getattr(retriever, "stand_in_queries", ())),
         planned_requests_by_arm=planned,
+        candidate_bound_searches={
+            "hybrid@20+jev": len(jev_retrieval.bounded),
+            "agent@20": len(agent_retrieval.bounded),
+        },
+        candidate_bound_method="Short/empty missing-dense BM25 stand-ins: min(K, applicable catalog size) longest "
+        "FULL cards by Jev heuristic text or agent wire tokens; actual Jev planner limits/detail retained. "
+        "Complete cached hybrid matches unchanged; other lexical stand-ins approximate, not a guaranteed bound.",
     )
 
 

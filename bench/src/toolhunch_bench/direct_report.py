@@ -234,6 +234,9 @@ def build_direct_report(run_dir: Path, *, out_dir: Path) -> dict[str, Any]:
     estimated = manifest["estimate"]["usd"]
     full_estimate = manifest.get("full_estimate", manifest["estimate"])["usd"]
     remaining, projection_method = _remaining_projection(manifest, applicable, calls, not_applicable=not_applicable)
+    budget_charge = sum(call["budget_charge_usd"] for call in calls)
+    workload = _remaining_workload(manifest, applicable, not_applicable=not_applicable)
+    budget_reference = full_estimate if any(workload.values()) else 0.0
     summary = {
         "schema_version": 1,
         "manifest": manifest,
@@ -258,15 +261,26 @@ def build_direct_report(run_dir: Path, *, out_dir: Path) -> dict[str, Any]:
         "run_cost": {
             "provider_attempts": len(calls),
             "verified_usd": actual_usd,
-            "budget_charge_usd": sum(call["budget_charge_usd"] for call in calls),
+            "budget_charge_usd": budget_charge,
             "unpriced_attempts": sum(call["usd"] is None for call in calls),
             "estimate_usd": estimated,
             "actual_to_estimate": actual_usd / estimated if estimated else None,
             "projected_remaining_usd": remaining,
-            "projected_p1_total_usd": manifest.get("prior_p1_usd", 0) + actual_usd + remaining
+            "projected_p1_total_usd": manifest.get("prior_p1_usd", 0) + budget_charge + remaining
             if remaining is not None
             else None,
             "projection_method": projection_method,
+            "observed_remaining_usd": remaining if projection_method.startswith("observed projection") else None,
+            "remaining_requests_by_arm": {
+                arm: sum(count for (_, planned_arm, _), count in workload.items() if planned_arm == arm)
+                for arm in DIRECT_ARMS
+            },
+            "uncached_remaining_budget_reference_usd": budget_reference,
+            "uncached_p1_budget_reference_usd": manifest.get("prior_p1_usd", 0) + budget_charge + budget_reference,
+            "budget_reference_method": "Recorded full uncached/max-output estimate retained as a conservative "
+            "reference for any unfinished workload, without subtracting successful request costs. Historical "
+            "retrieval approximations and token framing prevent a guaranteed upper bound; physical-call guard "
+            "reservations remain independent. This report does not authorize another run.",
             "full_estimate_usd": full_estimate,
         },
         "caveats": [
@@ -285,6 +299,33 @@ def build_direct_report(run_dir: Path, *, out_dir: Path) -> dict[str, Any]:
     return summary
 
 
+def _remaining_workload(
+    manifest: dict[str, Any],
+    records: Sequence[dict[str, Any]],
+    *,
+    not_applicable: dict[tuple[str, str], Any],
+) -> dict[tuple[str, str, str], int]:
+    if not manifest["pilot"] and manifest["completed"] is True:
+        return {}
+    workload: dict[tuple[str, str, str], int] = {}
+    for catalog in manifest.get("full_catalogs", manifest["catalogs"]):
+        for arm in DIRECT_ARMS:
+            if (arm, catalog["source"]) in not_applicable:
+                continue
+            for variant, field in (("positive", "positives"), ("negative", "negatives")):
+                successful = {
+                    r["task"]
+                    for r in records
+                    if r["catalog"] == catalog["source"]
+                    and r["arm"] == arm
+                    and r["variant"] == variant
+                    and r["error"] is None
+                    and r["abstained"] is not None
+                }
+                workload[(catalog["source"], arm, variant)] = max(0, catalog[field] - len(successful))
+    return workload
+
+
 def _remaining_projection(
     manifest: dict[str, Any],
     records: Sequence[dict[str, Any]],
@@ -292,17 +333,24 @@ def _remaining_projection(
     *,
     not_applicable: dict[tuple[str, str], Any],
 ) -> tuple[float | None, str]:
-    if not manifest["pilot"]:
+    if not manifest["pilot"] and manifest["completed"] is True:
         return 0.0, "completed full run"
-    if any(call["usd"] is None for call in calls):
-        return None, "failed attempts have unknown billed usage"
     remaining = 0.0
     full_estimate = manifest.get("full_estimate", manifest["estimate"])
+    workload = _remaining_workload(manifest, records, not_applicable=not_applicable)
+    if not manifest["pilot"] and not any(workload.values()):
+        return None, "incomplete full run: recorded workload covered but completion unconfirmed"
+    if any(call["model"] == "text-embedding-3-small" and call["usd"] is None for call in calls):
+        return (
+            full_estimate["usd"],
+            "conservative recorded uncached estimate fallback: applicable embedding attempts have unknown "
+            "usage; unknown usage is not zero; not guaranteed upper bound",
+        )
     for catalog in manifest.get("full_catalogs", manifest["catalogs"]):
         for arm in DIRECT_ARMS[1:]:
             if (arm, catalog["source"]) in not_applicable:
                 continue
-            for variant, phase, field in (("positive", "warm", "positives"), ("negative", "negative", "negatives")):
+            for variant, phase in (("positive", "warm"), ("negative", "negative")):
                 own = [
                     r
                     for r in records
@@ -310,19 +358,34 @@ def _remaining_projection(
                     and r["arm"] == arm
                     and r["variant"] == variant
                     and r["error"] is None
+                    and r["abstained"] is not None
                 ]
-                count = max(0, catalog[field] - len(own))
+                count = workload[(catalog["source"], arm, variant)]
                 real = [r for r in own if r["phase"] == phase and r["provider_calls"]]
                 if not count:
                     continue
                 if not real:
-                    return full_estimate["usd"], "conservative uncached estimate: a source/arm has no measured phase"
-                paid = sum(call["usd"] or 0 for r in real for call in r["provider_calls"])
+                    return (
+                        full_estimate["usd"],
+                        "conservative recorded uncached estimate fallback: an applicable source/arm has no "
+                        "measured phase; whole-workload reference, not guaranteed upper bound",
+                    )
+                if any(call["usd"] is None for r in real for call in r["provider_calls"]):
+                    return (
+                        full_estimate["usd"],
+                        "conservative recorded uncached estimate fallback: an applicable phase has unpriced "
+                        "attempts; unknown usage is not zero; not guaranteed upper bound",
+                    )
+                paid = sum(call["usd"] for r in real for call in r["provider_calls"])
                 remaining += paid / len(real) * count
     full_embedding = sum(line["usd"] for line in full_estimate["lines"] if line["model"] == "text-embedding-3-small")
     paid_embedding = sum(call["usd"] or 0 for call in calls if call["model"] == "text-embedding-3-small")
     remaining += max(0.0, full_embedding - paid_embedding)
-    return remaining, "per-source warm-positive and negative observed rates; pilot requests replayed; embedding bound"
+    return (
+        remaining,
+        "observed projection: per-source warm-positive and negative applicable priced rates; "
+        "successful requests already covered; embedding reference; not a guaranteed upper bound",
+    )
 
 
 def _markdown(summary: dict[str, Any]) -> str:
@@ -359,10 +422,11 @@ def _markdown(summary: dict[str, Any]) -> str:
             )
             continue
         none = row["none_option"]
+        delta = "—" if row["arm"] == "hybrid@20" else interval(row["delta_vs_hybrid"])
         mix = f"{none['negative_share']:.1%}" if none["negative_share"] is not None else "n/a"
         lines.append(
             f"| {row['arm']} | {row['catalog']} | {interval(row['relevant_pick_rate'])} | "
-            f"{interval(row['delta_vs_hybrid'])} | {none['correct']} / {none['wrong']} / {none['abstained']} | "
+            f"{delta} | {none['correct']} / {none['wrong']} / {none['abstained']} | "
             f"{none['negative_requests']}/{none['requests']} ({mix}) | {none['errors']} |"
         )
     lines += [
@@ -434,6 +498,15 @@ def _markdown(summary: dict[str, Any]) -> str:
         "```",
         "",
         f"Verified provider usage in this run: {money(summary['run_cost']['verified_usd'])}.",
+        f"Guarded charges, including all failed/excluded attempts: {money(summary['run_cost']['budget_charge_usd'])}; "
+        f"{summary['run_cost']['unpriced_attempts']} attempts have unknown usage.",
+        f"Projected remaining spend: {money(summary['run_cost']['projected_remaining_usd'])}; "
+        f"cumulative P1 including historical prior and all guarded charges: "
+        f"{money(summary['run_cost']['projected_p1_total_usd'])}.",
+        f"Method: {summary['run_cost']['projection_method']}.",
+        f"Separate recorded uncached budget reference for remaining workload: "
+        f"{money(summary['run_cost']['uncached_remaining_budget_reference_usd'])}. "
+        f"{summary['run_cost']['budget_reference_method']}",
         "",
         "Not affiliated with TypeSafe, OpenAI or Pydantic.",
         "",

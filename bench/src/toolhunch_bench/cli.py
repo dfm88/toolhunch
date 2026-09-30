@@ -552,7 +552,9 @@ def direct(
             "pilot": asdict(pilot_estimate),
             "prior_p1_usd": spend.usd,
             "full_plus_prior_usd": spend.usd + full_estimate.usd,
-            "assumptions": "No prompt-cache or replay savings; configured maximum output tokens per agent request.",
+            "assumptions": "No prompt-cache or replay savings; configured maximum output tokens per agent request. "
+            "Short missing-dense lexical stand-ins use longest applicable FULL cards; Jev planner limits/detail "
+            "retained. Other lexical stand-ins and token framing are approximate, not a guaranteed upper bound.",
         }
         typer.echo(
             "Conservative estimate (no cache savings, bounded output): "

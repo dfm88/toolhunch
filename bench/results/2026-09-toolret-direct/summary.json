@@ -5630,6 +5630,17 @@
     "projected_remaining_usd": 0.0,
     "projected_p1_total_usd": 1.316649898,
     "projection_method": "completed full run",
+    "observed_remaining_usd": null,
+    "remaining_requests_by_arm": {
+      "hybrid@20": 0,
+      "hybrid@20+jev": 0,
+      "jev-all": 0,
+      "agent@20": 0,
+      "agent-all": 0
+    },
+    "uncached_remaining_budget_reference_usd": 0.0,
+    "uncached_p1_budget_reference_usd": 1.316649898,
+    "budget_reference_method": "Recorded full uncached/max-output estimate retained as a conservative reference for any unfinished workload, without subtracting successful request costs. Historical retrieval approximations and token framing prevent a guaranteed upper bound; physical-call guard reservations remain independent. This report does not authorize another run.",
     "full_estimate_usd": 2.9063856500000016
   },
   "caveats": [

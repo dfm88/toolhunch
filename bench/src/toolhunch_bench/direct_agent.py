@@ -147,7 +147,6 @@ class CachedAgent:
         if isinstance(nested := body.get("error"), dict):
             body = cast("Mapping[str, object]", nested)
         codes = {
-            "x",
             "invalid_request_error",
             "invalid_value",
             "array_above_max_length",
@@ -187,7 +186,13 @@ class CachedAgent:
         payload = agent_payload(query, functions, catalog_name=catalog_name)
         payload["model"] = self._model.model_name
         canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-        key = hashlib.sha256(canonical.encode()).hexdigest()
+        replay_identity = payload | {
+            "card_ids": sorted(functions.card_ids.items()),
+            "replay_identity": "direct-agent-replay-v2",
+        }
+        key = hashlib.sha256(
+            json.dumps(replay_identity, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+        ).hexdigest()
         row = self._db.execute("SELECT response FROM agent_responses WHERE key = ?", (key,)).fetchone()
         if row is not None:
             self.hits += 1

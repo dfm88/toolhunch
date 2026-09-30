@@ -48,9 +48,9 @@ The [technical page](docs/experiments/toolret.md) explains the protocol, interva
 thresholds and limitations. All figures come from the generated
 [summary](bench/results/2026-09-toolret-decision/summary.json).
 
-In a separate [direct-choice test](docs/experiments/toolret.md#direct-choice-on-small-catalogs), Jev selected a relevant tool from the whole catalog on **74.1%** of 290 positive requests across four catalogs of 40–101 tools, versus **54.5%** for hybrid retrieval; abstentions count as misses.
+In a separate [direct-choice test](docs/experiments/toolret.md#direct-choice-on-small-catalogs), a relevant tool was selected on **74.1%** of 290 positives by Jev on the whole catalog, **71.4%** by hybrid + Jev, **60.7%** by the agent on the whole catalog, **61.7%** by the agent on 20 candidates, and **54.5%** by hybrid retrieval. These are point estimates across four catalogs of 40–101 tools; abstentions count as misses.
 
-Across five [candidate orders](docs/experiments/toolret.md#candidate-order-sensitivity) at K=20 on 200 positive plain-query tasks, top-card pairwise agreement was **76.5%** for Jev and **60.5%** for logprobs, versus **96.0% / 98.0%** in three historical fixed-order repeats; this is an observational comparison.
+Across five [candidate orders](docs/experiments/toolret.md#candidate-order-sensitivity) at K=20 on 200 positive plain-query tasks, original versus mean shuffled ranking P@1 (abstention ignored) was **30.5% → 31.2%** for Jev and **33.0% → 29.0%** for logprobs. Picks often changed: pairwise agreement was **76.5% / 60.5%**, versus **96.0% / 98.0%** in three historical fixed-order repeats; the baseline comparison is observational.
 
 ## Pydantic AI example
 

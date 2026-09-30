@@ -325,7 +325,16 @@ billed usage, with a **$0.170782800** conservative budget reserve, not a measure
 Including that reserve, the recorded P1 budget total is **$1.316649898**, below the $7 cap
 (a dollar counted as a euro for the guard). These physical provider totals differ from per-strategy
 costs, which attribute shared search work to each strategy and exclude replay usage.
-The pilot's remaining-spend projection stays unknown because failed-attempt billing is unknown.
+The regenerated pilot report projects **$1.048989796** in remaining usage and **$1.356229174**
+in cumulative P1 spending, including its historical prior and all guarded charges. It uses only
+applicable, priced warm-positive and negative samples; the excluded rejections retain their
+unknown billing and budget reserves. This is an observed projection, not a guaranteed upper bound:
+future cache routing and output lengths can change. The separate recorded uncached/max-output
+reference is **$4.601294792** for the original full workload, including the subsequently excluded pair
+and without subtracting covered requests, or **$4.908534170** including the pilot's guarded charges.
+That historical estimate is also approximate;
+the independent guard reserves each physical call before it runs. Report regeneration authorizes
+no new execution and preserves the pilot's original incomplete status.
 
 Regenerate either report from local raw runs without provider calls:
 
@@ -341,6 +350,13 @@ the pinned dataset. Start with `uv run toolhunch-bench direct --dry-run`, then
 `uv run toolhunch-bench direct --pilot`; inspect validity, cache fields and spending before
 running `uv run toolhunch-bench direct`. The recorded non-applicable pair is skipped.
 Every paid run prints an estimate first, appends to the cost ledger and applies the P1 spend guard.
+Future direct dry estimates expose missing-dense retrieval fallbacks. If a BM25 stand-in has fewer
+than 20 matches, they budget the longest applicable FULL cards up to `min(20, catalog size)`,
+separately by Jev's heuristic text size and the agent's function-schema token size; Jev's planner
+still applies the declared limits and may reduce detail. Cached hybrid candidates stay unchanged.
+Other lexical stand-ins and token framing remain approximate. The historical manifest's
+`stand_in_searches=0` is preserved as provenance, but its diagnostic counter was hidden by a wrapper
+and does not prove that every embedding was cached.
 
 ## Candidate-order sensitivity
 

@@ -10,13 +10,13 @@ Original run completed: True; original stop reason: none. Applicability does not
 
 | Arm | Catalog | Relevant picks / positives | Paired Δ vs hybrid | Correct / wrong / abstained | Negatives | Errors |
 |---|---|---:|---:|---:|---:|---:|
-| hybrid@20 | pooled | 0.545 (0.486 to 0.600) | 0.000 (0.000 to 0.000) | 158 / 277 / 0 | 145/435 (33.3%) | 0 |
-| hybrid@20 | all_catalogs | 0.524 (0.480 to 0.567) | 0.000 (0.000 to 0.000) | 257 / 478 / 0 | 245/735 (33.3%) | 0 |
-| hybrid@20 | webtools_spotify | 0.650 (0.500 to 0.800) | 0.000 (0.000 to 0.000) | 26 / 34 / 0 | 20/60 (33.3%) | 0 |
-| hybrid@20 | webtools_tmdb | 0.500 (0.370 to 0.630) | 0.000 (0.000 to 0.000) | 27 / 54 / 0 | 27/81 (33.3%) | 0 |
-| hybrid@20 | tooleyes | 0.453 (0.358 to 0.558) | 0.000 (0.000 to 0.000) | 43 / 100 / 0 | 48/143 (33.6%) | 0 |
-| hybrid@20 | apibank | 0.614 (0.515 to 0.703) | 0.000 (0.000 to 0.000) | 62 / 89 / 0 | 50/151 (33.1%) | 0 |
-| hybrid@20 | metatool_which | 0.495 (0.430 to 0.560) | 0.000 (0.000 to 0.000) | 99 / 201 / 0 | 100/300 (33.3%) | 0 |
+| hybrid@20 | pooled | 0.545 (0.486 to 0.600) | — | 158 / 277 / 0 | 145/435 (33.3%) | 0 |
+| hybrid@20 | all_catalogs | 0.524 (0.480 to 0.567) | — | 257 / 478 / 0 | 245/735 (33.3%) | 0 |
+| hybrid@20 | webtools_spotify | 0.650 (0.500 to 0.800) | — | 26 / 34 / 0 | 20/60 (33.3%) | 0 |
+| hybrid@20 | webtools_tmdb | 0.500 (0.370 to 0.630) | — | 27 / 54 / 0 | 27/81 (33.3%) | 0 |
+| hybrid@20 | tooleyes | 0.453 (0.358 to 0.558) | — | 43 / 100 / 0 | 48/143 (33.6%) | 0 |
+| hybrid@20 | apibank | 0.614 (0.515 to 0.703) | — | 62 / 89 / 0 | 50/151 (33.1%) | 0 |
+| hybrid@20 | metatool_which | 0.495 (0.430 to 0.560) | — | 99 / 201 / 0 | 100/300 (33.3%) | 0 |
 | hybrid@20+jev | pooled | 0.714 (0.659 to 0.766) | 0.169 (0.107 to 0.231) | 207 / 122 / 106 | 145/435 (33.3%) | 0 |
 | hybrid@20+jev | all_catalogs | 0.690 (0.645 to 0.729) | 0.165 (0.118 to 0.210) | 338 / 225 / 172 | 245/735 (33.3%) | 0 |
 | hybrid@20+jev | webtools_spotify | 0.900 (0.800 to 0.975) | 0.250 (0.075 to 0.425) | 36 / 11 / 13 | 20/60 (33.3%) | 0 |
@@ -113,5 +113,9 @@ uv run toolhunch-bench direct-report bench/runs/RUN --out bench/results/2026-09-
 ```
 
 Verified provider usage in this run: $1.0094.
+Guarded charges, including all failed/excluded attempts: $1.0094; 0 attempts have unknown usage.
+Projected remaining spend: $0.0000; cumulative P1 including historical prior and all guarded charges: $1.3166.
+Method: completed full run.
+Separate recorded uncached budget reference for remaining workload: $0.0000. Recorded full uncached/max-output estimate retained as a conservative reference for any unfinished workload, without subtracting successful request costs. Historical retrieval approximations and token framing prevent a guaranteed upper bound; physical-call guard reservations remain independent. This report does not authorize another run.
 
 Not affiliated with TypeSafe, OpenAI or Pydantic.
