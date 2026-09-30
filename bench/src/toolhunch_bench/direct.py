@@ -19,7 +19,7 @@ from toolhunch.retrieval import Retrieval, ScoredCard
 from toolhunch.retrieval.base import clean_queries
 from toolhunch.tokens import HeuristicTokenizer
 from toolhunch_bench.datasets.toolret import TOOLRET_CORPUS_SHA256, TOOLRET_DATASET, TOOLRET_REVISION, ToolRetData
-from toolhunch_bench.decision import DecisionArm, SharedRetrieval, estimate_decisions
+from toolhunch_bench.decision import LUNA_MODEL, DecisionArm, SharedRetrieval, estimate_decisions
 from toolhunch_bench.direct_agent import (
     AGENT_MAX_OUTPUT_TOKENS,
     AGENT_PROMPT_VERSION,
@@ -55,11 +55,26 @@ CATALOGS: Mapping[str, str] = {
     "metatool_which": "metatool",
 }
 DIRECT_ARMS = ("hybrid@20", "hybrid@20+jev", "jev-all", "agent@20", "agent-all")
+LUNA_ARMS = ("agent-luna@20", "agent-luna-all")
+"""The agent arms again with GPT-6 Luna, reasoning off: a later run, reported beside `DIRECT_ARMS`."""
+AGENT_MODELS: Mapping[str, str] = {
+    "agent@20": AGENT_MODEL,
+    "agent-all": AGENT_MODEL,
+    "agent-luna@20": LUNA_MODEL,
+    "agent-luna-all": LUNA_MODEL,
+}
+SEARCHING_ARMS = frozenset({"hybrid@20", "hybrid@20+jev", "agent@20", "agent-luna@20"})
 NOT_APPLICABLE: Mapping[tuple[str, str], Mapping[str, str]] = {
     ("agent-all", "metatool_which"): {
         "reason": "OpenAI Chat Completions rejected 200 function tools: HTTP 400 "
         "array_above_max_length, param tools (4/4 attempts); exact maximum not established",
         "source": "bench/runs/20260929T221520Z-direct-pilot/run.jsonl",
+        "date": "2026-09-30",
+    },
+    ("agent-luna-all", "metatool_which"): {
+        "reason": "OpenAI Chat Completions rejected 200 function tools for gpt-6-luna: HTTP 400 "
+        "array_above_max_length, param tools (4/4 attempts)",
+        "source": "bench/runs/20260930T165646Z-direct-luna-pilot/run.jsonl",
         "date": "2026-09-30",
     },
 }
@@ -181,6 +196,7 @@ async def estimate_direct(
     jev_model: DecisionModel,
     embeddings: CachedEmbedder | None = None,
     not_applicable: Mapping[tuple[str, str], Mapping[str, str]] = NOT_APPLICABLE,
+    arms: Sequence[str] = DIRECT_ARMS,
 ) -> DirectEstimate:
     """Estimate identical planned requests without contacting a decision model or a missing embedding.
 
@@ -209,16 +225,14 @@ async def estimate_direct(
     query_texts: list[str] = []
     document_texts: list[str] = []
     positives = negatives = 0
-    planned: dict[str, int] = dict.fromkeys(DIRECT_ARMS, 0)
+    planned: dict[str, int] = dict.fromkeys(arms, 0)
     for selected in catalogs:
         positives += len(selected.positives)
         negatives += len(selected.negatives)
-        searches = any(
-            (arm, selected.source) not in not_applicable for arm in ("hybrid@20", "hybrid@20+jev", "agent@20")
-        )
+        searches = any((arm, selected.source) not in not_applicable for arm in arms if arm in SEARCHING_ARMS)
         if searches:
             document_texts += [default_search_text(card) for card in selected.catalog]
-        for arm in DIRECT_ARMS:
+        for arm in arms:
             if (arm, selected.source) not in not_applicable:
                 planned[arm] += len(selected.positives) + len(selected.negatives)
         for task, _variant, catalog, _ in selected.requests():
@@ -235,6 +249,7 @@ async def estimate_direct(
                     model=jev_model,
                 )
                 for name in ("hybrid@20+jev", "jev-all")
+                if name in arms
             ]
             for arm in models:
                 if (arm.name, selected.source) in not_applicable:
@@ -266,20 +281,21 @@ async def estimate_direct(
                     row["requests"] += line.calls
                     row["input_tokens"] += line.input_tokens
                     row["usd"] += line.usd or 0.0
+            agent_arms = [arm for arm in arms if arm in AGENT_MODELS and (arm, selected.source) not in not_applicable]
             candidates = []
-            if ("agent@20", selected.source) not in not_applicable:
+            if any(arm.endswith("@20") for arm in agent_arms):
                 retrieved = await agent_retrieval.retrieve([task.query], catalog, k=20)
                 candidates = [match.card for match in retrieved.matches]
-            for agent_arm, cards in (("agent@20", candidates), ("agent-all", list(catalog))):
-                if (agent_arm, selected.source) in not_applicable:
-                    continue
+            for agent_arm in agent_arms:
+                cards = candidates if agent_arm.endswith("@20") else list(catalog)
+                model = AGENT_MODELS[agent_arm]
                 payload = wire_request(task.query, function_cards(cards))
                 tokens = len(encoding.encode(json.dumps(payload, ensure_ascii=False), disallowed_special=())) + 120
                 row = counts.setdefault(
                     agent_arm,
                     {
                         "provider": "openai",
-                        "model": AGENT_MODEL,
+                        "model": model,
                         "arm": agent_arm,
                         "requests": 0,
                         "input_tokens": 0,
@@ -290,7 +306,7 @@ async def estimate_direct(
                 row["requests"] += 1
                 row["input_tokens"] += tokens
                 row["output_tokens"] += AGENT_MAX_OUTPUT_TOKENS
-                row["usd"] += openai_usd(model=AGENT_MODEL, input_tokens=tokens, output_tokens=AGENT_MAX_OUTPUT_TOKENS)
+                row["usd"] += openai_usd(model=model, input_tokens=tokens, output_tokens=AGENT_MAX_OUTPUT_TOKENS)
     batches: tuple[tuple[EmbeddingKind, list[str]], ...] = (("query", query_texts), ("document", document_texts))
     for kind, texts in batches:
         price = estimate_embedding_cost(
@@ -340,12 +356,15 @@ class DirectRunner:
         *,
         retriever: Retriever,
         jev_model: DecisionModel,
-        agent: CachedAgent,
+        agent: CachedAgent | None,
         guard: SpendGuard,
         not_applicable: Mapping[tuple[str, str], Mapping[str, str]] = NOT_APPLICABLE,
+        arms: Sequence[str] = DIRECT_ARMS,
+        luna_agent: CachedAgent | None = None,
     ) -> None:
         self.retriever = SharedRetrieval(retriever)
         self.jev_model, self.agent, self.guard = jev_model, agent, guard
+        self.arms, self.luna_agent = tuple(arms), luna_agent
         self.not_applicable = not_applicable
         self._searches: dict[tuple[str, str], tuple[Retrieval, float, float]] = {}
 
@@ -361,7 +380,7 @@ class DirectRunner:
         """Write requests incrementally and stop on budget exhaustion, a crash, or more than 5% errors in an arm."""
         run_dir = out_dir / run_id
         run_dir.mkdir(parents=True, exist_ok=False)
-        manifest = _manifest(catalogs, run_id=run_id, pilot=pilot, estimate=estimate)
+        manifest = _manifest(catalogs, run_id=run_id, pilot=pilot, estimate=estimate, arms=self.arms)
         manifest["not_applicable"] = [
             {"arm": arm, "catalog": source, **evidence}
             for (arm, source), evidence in self.not_applicable.items()
@@ -371,7 +390,7 @@ class DirectRunner:
             arm: sum(
                 len(c.positives) + len(c.negatives) for c in catalogs if (arm, c.source) not in self.not_applicable
             )
-            for arm in DIRECT_ARMS
+            for arm in self.arms
         }
         manifest["planned_requests_by_arm"] = planned
         manifest["jev"] = {
@@ -383,13 +402,13 @@ class DirectRunner:
         }
         (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
         completed = False
-        errors = dict.fromkeys(DIRECT_ARMS, 0)
-        counts = dict.fromkeys(DIRECT_ARMS, 0)
+        errors = dict.fromkeys(self.arms, 0)
+        counts = dict.fromkeys(self.arms, 0)
         stop_reason: str | None = None
         try:
             with (run_dir / "run.jsonl").open("w") as output:
                 for selected in catalogs:
-                    for arm in DIRECT_ARMS:
+                    for arm in self.arms:
                         if (arm, selected.source) in self.not_applicable:
                             continue
                         for task, variant, catalog, phase in selected.requests():
@@ -474,7 +493,7 @@ class DirectRunner:
         }
         before: int | None = None
         try:
-            if arm in {"hybrid@20", "hybrid@20+jev", "agent@20"}:
+            if arm in SEARCHING_ARMS:
                 retrieval, seconds, usd = await self._retrieval(task, catalog)
                 cards = [match.card for match in retrieval.matches]
                 record |= {"search_seconds": seconds, "search_usd": usd}
@@ -504,7 +523,9 @@ class DirectRunner:
                 record["replayed"] = len(self.guard.calls) == before and bool(decision.exchanges)
                 record["historical_usage"] = asdict(decision.usage)
             else:
-                answer, replayed = await self.agent.ask(task.query, function_cards(cards), catalog_name=selected.source)
+                agent = self.luna_agent if arm in LUNA_ARMS else self.agent
+                assert agent is not None, f"no agent for {arm}"
+                answer, replayed = await agent.ask(task.query, function_cards(cards), catalog_name=selected.source)
                 record |= {
                     "pick": answer.pick,
                     "abstained": answer.pick is None,
@@ -534,10 +555,12 @@ def _manifest(
     run_id: str,
     pilot: bool,
     estimate: DirectEstimate,
+    arms: Sequence[str],
 ) -> dict[str, Any]:
     def git(*args: str) -> str:
         return subprocess.run(["git", *args], capture_output=True, text=True, check=True, timeout=10).stdout.strip()
 
+    models = sorted({AGENT_MODELS[arm] for arm in arms if arm in AGENT_MODELS})
     tasks = {
         selected.source: {
             "positive": [task.id for task in selected.positives],
@@ -566,14 +589,15 @@ def _manifest(
         ],
         "tasks": tasks,
         "tasks_sha256": hashlib.sha256(json.dumps(tasks, sort_keys=True).encode()).hexdigest(),
-        "arms": list(DIRECT_ARMS),
+        "arms": list(arms),
         "order": "catalog, arm, positives, negatives",
         "concurrency": 1,
         "negative_seed": 0,
         "negative_allocation": "largest remainder, stable source order",
         "prompt_versions": {"jev": PROMPT_VERSION, "agent": AGENT_PROMPT_VERSION},
         "agent": {
-            "model": AGENT_MODEL,
+            "model": models[0] if len(models) == 1 else models,
+            **({"reasoning_effort": "none"} if LUNA_MODEL in models else {}),
             "api": "openai-chat-completions",
             "endpoint": "api.openai.com",
             "description_shape": "JSON object with original name and complete description",

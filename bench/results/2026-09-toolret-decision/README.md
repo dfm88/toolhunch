@@ -805,5 +805,3 @@ For every exchange with Jev, the input tokens Jev reported against the heuristic
 | 0.85 | 0.781 | 0.205 | 128 | 497 | 175 | 50% | 0.621 | -0.461 |
 | 0.90 | 0.748 | 0.206 | 123 | 475 | 202 | 50% | 0.594 | -0.440 |
 | **0.95** | 0.694 | 0.213 | 118 | 437 | 245 | 50% | 0.546 | -0.399 |
-
-Not affiliated with TypeSafe, OpenAI or Pydantic.

@@ -119,5 +119,3 @@ Guarded charges, including all failed/excluded attempts: $0.3072; 4 attempts hav
 Projected remaining spend: $1.0490; cumulative P1 including historical prior and all guarded charges: $1.3562.
 Method: observed projection: per-source warm-positive and negative applicable priced rates; successful requests already covered; embedding reference; not a guaranteed upper bound.
 Separate recorded uncached budget reference for remaining workload: $4.6013. Recorded full uncached/max-output estimate retained as a conservative reference for any unfinished workload, without subtracting successful request costs. Historical retrieval approximations and token framing prevent a guaranteed upper bound; physical-call guard reservations remain independent. This report does not authorize another run.
-
-Not affiliated with TypeSafe, OpenAI or Pydantic.

@@ -6,10 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-30
+
+First release on PyPI. Pre-alpha: the API may change.
+
 ### Added
 
+- GPT-6 Luna results, reasoning off: agent arms in the direct-choice test (`direct --luna`, merged with
+  `direct-report --add`) and, since Luna returns at most 5 logprobs, a structured-output letter decider on the
+  44,453-tool held-out searches, with five candidate orders (`decision --deciders luna --orders`) and
+  `luna-report` (`bench/results/2026-09-toolret-luna/`).
 - `toolhunch-bench readme-charts`: the README figures (direct choice, “none” outcomes, re-ranking at
-  44,453 tools, candidate order), drawn from the published summaries without provider calls, as SVG or PNG.
+  44,453 tools, candidate order, precision against latency and cost), drawn from the published summaries
+  without provider calls, as SVG or PNG.
 - Jev-compatible local-server example and smoke-test write-up for laya-serve and rizzo-flow,
   with declared limits and model provenance; the two-tool example is not a catalog benchmark
   (`bench/results/2026-09-jev-compatible-smoke/`).
@@ -50,3 +59,6 @@ All notable changes to this project are documented here. The format follows
   separate MetaTool results, single-turn provider prompt-cache reads, and billed/list cost accounting
   that separates new calls, local replays and historical pilot cold measurements
   (`bench/results/2026-09-toolret-direct/`).
+
+[Unreleased]: https://github.com/dfm88/toolhunch/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/dfm88/toolhunch/releases/tag/v0.1.0

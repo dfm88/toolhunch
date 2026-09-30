@@ -1065,6 +1065,1040 @@
     "prior_p1_usd": 0.307239378,
     "purpose": "P1: direct choice full"
   },
+  "added_runs": [
+    {
+      "manifest": {
+        "run_id": "20260930T170103Z-direct-luna",
+        "started": "2026-09-30T17:01:07+00:00",
+        "pilot": false,
+        "git": {
+          "commit": "67bb324edf531f9946f8cf1e0cf8ea2f1c060ecc",
+          "dirty": true
+        },
+        "versions": {
+          "pydantic-ai-slim": "2.50.0",
+          "genai-prices": "0.1.9",
+          "toolhunch": "0.1.0"
+        },
+        "dataset": {
+          "name": "mteb/ToolRetrieval",
+          "revision": "76d45e560059754e289ea202462865a585679619",
+          "corpus_sha256": "774aa8c5263eed9870fb6eefc47491c67d3998e7eda1d897f9b359e20be67efb"
+        },
+        "catalogs": [
+          {
+            "source": "webtools_spotify",
+            "subtask": "restgpt-spotify",
+            "tools": 40,
+            "fingerprint": "sha256:78d9a19eae3ce2af1b83deca205e340ae55133be6530cf5792b5c1620dbda741",
+            "positives": 40,
+            "negatives": 20,
+            "dropped": 0
+          },
+          {
+            "source": "webtools_tmdb",
+            "subtask": "restgpt-tmdb",
+            "tools": 54,
+            "fingerprint": "sha256:4e34a18c0062e3558bcdb185634dcf55ed38733879130c4602eae84e50fd5839",
+            "positives": 54,
+            "negatives": 27,
+            "dropped": 0
+          },
+          {
+            "source": "tooleyes",
+            "subtask": "tooleyes",
+            "tools": 95,
+            "fingerprint": "sha256:74b4afe94d710fed05eb462c026c27f0da69b4800aeaa1ea4cf393cf767b760a",
+            "positives": 95,
+            "negatives": 48,
+            "dropped": 0
+          },
+          {
+            "source": "apibank",
+            "subtask": "apibank",
+            "tools": 101,
+            "fingerprint": "sha256:86e380c431e0c2b17b5ff4cfa19f93226a9e736928ef055376ef6548bdbc42ac",
+            "positives": 101,
+            "negatives": 50,
+            "dropped": 0
+          },
+          {
+            "source": "metatool_which",
+            "subtask": "metatool",
+            "tools": 200,
+            "fingerprint": "sha256:e206d08d679dbaed1191be294bc6c090ec02eca7b611e8fb29b5af3c3e708d4d",
+            "positives": 200,
+            "negatives": 100,
+            "dropped": 0
+          }
+        ],
+        "tasks": {
+          "webtools_spotify": {
+            "positive": [
+              "webtools_spotify_query_0",
+              "webtools_spotify_query_1",
+              "webtools_spotify_query_10",
+              "webtools_spotify_query_11",
+              "webtools_spotify_query_12",
+              "webtools_spotify_query_13",
+              "webtools_spotify_query_14",
+              "webtools_spotify_query_15",
+              "webtools_spotify_query_16",
+              "webtools_spotify_query_17",
+              "webtools_spotify_query_18",
+              "webtools_spotify_query_19",
+              "webtools_spotify_query_2",
+              "webtools_spotify_query_20",
+              "webtools_spotify_query_21",
+              "webtools_spotify_query_22",
+              "webtools_spotify_query_23",
+              "webtools_spotify_query_24",
+              "webtools_spotify_query_25",
+              "webtools_spotify_query_26",
+              "webtools_spotify_query_27",
+              "webtools_spotify_query_28",
+              "webtools_spotify_query_29",
+              "webtools_spotify_query_3",
+              "webtools_spotify_query_30",
+              "webtools_spotify_query_31",
+              "webtools_spotify_query_32",
+              "webtools_spotify_query_33",
+              "webtools_spotify_query_34",
+              "webtools_spotify_query_35",
+              "webtools_spotify_query_36",
+              "webtools_spotify_query_37",
+              "webtools_spotify_query_38",
+              "webtools_spotify_query_39",
+              "webtools_spotify_query_4",
+              "webtools_spotify_query_5",
+              "webtools_spotify_query_6",
+              "webtools_spotify_query_7",
+              "webtools_spotify_query_8",
+              "webtools_spotify_query_9"
+            ],
+            "negative": [
+              "webtools_spotify_query_30",
+              "webtools_spotify_query_32",
+              "webtools_spotify_query_10",
+              "webtools_spotify_query_23",
+              "webtools_spotify_query_38",
+              "webtools_spotify_query_37",
+              "webtools_spotify_query_31",
+              "webtools_spotify_query_26",
+              "webtools_spotify_query_36",
+              "webtools_spotify_query_19",
+              "webtools_spotify_query_25",
+              "webtools_spotify_query_34",
+              "webtools_spotify_query_14",
+              "webtools_spotify_query_6",
+              "webtools_spotify_query_12",
+              "webtools_spotify_query_17",
+              "webtools_spotify_query_39",
+              "webtools_spotify_query_11",
+              "webtools_spotify_query_5",
+              "webtools_spotify_query_16"
+            ]
+          },
+          "webtools_tmdb": {
+            "positive": [
+              "webtools_tmdb_query_0",
+              "webtools_tmdb_query_1",
+              "webtools_tmdb_query_10",
+              "webtools_tmdb_query_11",
+              "webtools_tmdb_query_12",
+              "webtools_tmdb_query_13",
+              "webtools_tmdb_query_14",
+              "webtools_tmdb_query_15",
+              "webtools_tmdb_query_16",
+              "webtools_tmdb_query_17",
+              "webtools_tmdb_query_18",
+              "webtools_tmdb_query_19",
+              "webtools_tmdb_query_2",
+              "webtools_tmdb_query_20",
+              "webtools_tmdb_query_21",
+              "webtools_tmdb_query_22",
+              "webtools_tmdb_query_23",
+              "webtools_tmdb_query_24",
+              "webtools_tmdb_query_25",
+              "webtools_tmdb_query_26",
+              "webtools_tmdb_query_27",
+              "webtools_tmdb_query_28",
+              "webtools_tmdb_query_29",
+              "webtools_tmdb_query_3",
+              "webtools_tmdb_query_30",
+              "webtools_tmdb_query_31",
+              "webtools_tmdb_query_32",
+              "webtools_tmdb_query_33",
+              "webtools_tmdb_query_34",
+              "webtools_tmdb_query_35",
+              "webtools_tmdb_query_36",
+              "webtools_tmdb_query_37",
+              "webtools_tmdb_query_38",
+              "webtools_tmdb_query_39",
+              "webtools_tmdb_query_4",
+              "webtools_tmdb_query_40",
+              "webtools_tmdb_query_41",
+              "webtools_tmdb_query_42",
+              "webtools_tmdb_query_43",
+              "webtools_tmdb_query_44",
+              "webtools_tmdb_query_45",
+              "webtools_tmdb_query_46",
+              "webtools_tmdb_query_47",
+              "webtools_tmdb_query_48",
+              "webtools_tmdb_query_49",
+              "webtools_tmdb_query_5",
+              "webtools_tmdb_query_50",
+              "webtools_tmdb_query_51",
+              "webtools_tmdb_query_52",
+              "webtools_tmdb_query_53",
+              "webtools_tmdb_query_6",
+              "webtools_tmdb_query_7",
+              "webtools_tmdb_query_8",
+              "webtools_tmdb_query_9"
+            ],
+            "negative": [
+              "webtools_tmdb_query_30",
+              "webtools_tmdb_query_52",
+              "webtools_tmdb_query_32",
+              "webtools_tmdb_query_10",
+              "webtools_tmdb_query_23",
+              "webtools_tmdb_query_38",
+              "webtools_tmdb_query_37",
+              "webtools_tmdb_query_31",
+              "webtools_tmdb_query_26",
+              "webtools_tmdb_query_36",
+              "webtools_tmdb_query_29",
+              "webtools_tmdb_query_42",
+              "webtools_tmdb_query_20",
+              "webtools_tmdb_query_8",
+              "webtools_tmdb_query_16",
+              "webtools_tmdb_query_25",
+              "webtools_tmdb_query_44",
+              "webtools_tmdb_query_14",
+              "webtools_tmdb_query_53",
+              "webtools_tmdb_query_4",
+              "webtools_tmdb_query_17",
+              "webtools_tmdb_query_5",
+              "webtools_tmdb_query_41",
+              "webtools_tmdb_query_3",
+              "webtools_tmdb_query_6",
+              "webtools_tmdb_query_34",
+              "webtools_tmdb_query_33"
+            ]
+          },
+          "tooleyes": {
+            "positive": [
+              "tooleyes_query_0",
+              "tooleyes_query_1",
+              "tooleyes_query_10",
+              "tooleyes_query_11",
+              "tooleyes_query_12",
+              "tooleyes_query_13",
+              "tooleyes_query_14",
+              "tooleyes_query_15",
+              "tooleyes_query_16",
+              "tooleyes_query_17",
+              "tooleyes_query_18",
+              "tooleyes_query_19",
+              "tooleyes_query_2",
+              "tooleyes_query_20",
+              "tooleyes_query_21",
+              "tooleyes_query_22",
+              "tooleyes_query_23",
+              "tooleyes_query_24",
+              "tooleyes_query_25",
+              "tooleyes_query_26",
+              "tooleyes_query_27",
+              "tooleyes_query_28",
+              "tooleyes_query_29",
+              "tooleyes_query_3",
+              "tooleyes_query_30",
+              "tooleyes_query_31",
+              "tooleyes_query_32",
+              "tooleyes_query_33",
+              "tooleyes_query_34",
+              "tooleyes_query_35",
+              "tooleyes_query_36",
+              "tooleyes_query_37",
+              "tooleyes_query_38",
+              "tooleyes_query_39",
+              "tooleyes_query_4",
+              "tooleyes_query_40",
+              "tooleyes_query_41",
+              "tooleyes_query_42",
+              "tooleyes_query_43",
+              "tooleyes_query_44",
+              "tooleyes_query_45",
+              "tooleyes_query_46",
+              "tooleyes_query_47",
+              "tooleyes_query_48",
+              "tooleyes_query_49",
+              "tooleyes_query_5",
+              "tooleyes_query_50",
+              "tooleyes_query_51",
+              "tooleyes_query_52",
+              "tooleyes_query_53",
+              "tooleyes_query_54",
+              "tooleyes_query_55",
+              "tooleyes_query_56",
+              "tooleyes_query_57",
+              "tooleyes_query_58",
+              "tooleyes_query_59",
+              "tooleyes_query_6",
+              "tooleyes_query_60",
+              "tooleyes_query_61",
+              "tooleyes_query_62",
+              "tooleyes_query_63",
+              "tooleyes_query_64",
+              "tooleyes_query_65",
+              "tooleyes_query_66",
+              "tooleyes_query_67",
+              "tooleyes_query_68",
+              "tooleyes_query_69",
+              "tooleyes_query_7",
+              "tooleyes_query_70",
+              "tooleyes_query_71",
+              "tooleyes_query_72",
+              "tooleyes_query_73",
+              "tooleyes_query_74",
+              "tooleyes_query_75",
+              "tooleyes_query_76",
+              "tooleyes_query_77",
+              "tooleyes_query_78",
+              "tooleyes_query_79",
+              "tooleyes_query_8",
+              "tooleyes_query_80",
+              "tooleyes_query_81",
+              "tooleyes_query_82",
+              "tooleyes_query_83",
+              "tooleyes_query_84",
+              "tooleyes_query_85",
+              "tooleyes_query_86",
+              "tooleyes_query_87",
+              "tooleyes_query_88",
+              "tooleyes_query_89",
+              "tooleyes_query_9",
+              "tooleyes_query_90",
+              "tooleyes_query_91",
+              "tooleyes_query_92",
+              "tooleyes_query_93",
+              "tooleyes_query_94"
+            ],
+            "negative": [
+              "tooleyes_query_53",
+              "tooleyes_query_57",
+              "tooleyes_query_13",
+              "tooleyes_query_39",
+              "tooleyes_query_68",
+              "tooleyes_query_65",
+              "tooleyes_query_55",
+              "tooleyes_query_43",
+              "tooleyes_query_64",
+              "tooleyes_query_5",
+              "tooleyes_query_76",
+              "tooleyes_query_33",
+              "tooleyes_query_67",
+              "tooleyes_query_24",
+              "tooleyes_query_41",
+              "tooleyes_query_82",
+              "tooleyes_query_2",
+              "tooleyes_query_38",
+              "tooleyes_query_70",
+              "tooleyes_query_25",
+              "tooleyes_query_44",
+              "tooleyes_query_8",
+              "tooleyes_query_17",
+              "tooleyes_query_47",
+              "tooleyes_query_63",
+              "tooleyes_query_75",
+              "tooleyes_query_86",
+              "tooleyes_query_59",
+              "tooleyes_query_45",
+              "tooleyes_query_32",
+              "tooleyes_query_87",
+              "tooleyes_query_6",
+              "tooleyes_query_7",
+              "tooleyes_query_91",
+              "tooleyes_query_23",
+              "tooleyes_query_11",
+              "tooleyes_query_89",
+              "tooleyes_query_40",
+              "tooleyes_query_0",
+              "tooleyes_query_92",
+              "tooleyes_query_50",
+              "tooleyes_query_93",
+              "tooleyes_query_31",
+              "tooleyes_query_78",
+              "tooleyes_query_54",
+              "tooleyes_query_73",
+              "tooleyes_query_69",
+              "tooleyes_query_66"
+            ]
+          },
+          "apibank": {
+            "positive": [
+              "apibank_query_0",
+              "apibank_query_1",
+              "apibank_query_10",
+              "apibank_query_100",
+              "apibank_query_11",
+              "apibank_query_12",
+              "apibank_query_13",
+              "apibank_query_14",
+              "apibank_query_15",
+              "apibank_query_16",
+              "apibank_query_17",
+              "apibank_query_18",
+              "apibank_query_19",
+              "apibank_query_2",
+              "apibank_query_20",
+              "apibank_query_21",
+              "apibank_query_22",
+              "apibank_query_23",
+              "apibank_query_24",
+              "apibank_query_25",
+              "apibank_query_26",
+              "apibank_query_27",
+              "apibank_query_28",
+              "apibank_query_29",
+              "apibank_query_3",
+              "apibank_query_30",
+              "apibank_query_31",
+              "apibank_query_32",
+              "apibank_query_33",
+              "apibank_query_34",
+              "apibank_query_35",
+              "apibank_query_36",
+              "apibank_query_37",
+              "apibank_query_38",
+              "apibank_query_39",
+              "apibank_query_4",
+              "apibank_query_40",
+              "apibank_query_41",
+              "apibank_query_42",
+              "apibank_query_43",
+              "apibank_query_44",
+              "apibank_query_45",
+              "apibank_query_46",
+              "apibank_query_47",
+              "apibank_query_48",
+              "apibank_query_49",
+              "apibank_query_5",
+              "apibank_query_50",
+              "apibank_query_51",
+              "apibank_query_52",
+              "apibank_query_53",
+              "apibank_query_54",
+              "apibank_query_55",
+              "apibank_query_56",
+              "apibank_query_57",
+              "apibank_query_58",
+              "apibank_query_59",
+              "apibank_query_6",
+              "apibank_query_60",
+              "apibank_query_61",
+              "apibank_query_62",
+              "apibank_query_63",
+              "apibank_query_64",
+              "apibank_query_65",
+              "apibank_query_66",
+              "apibank_query_67",
+              "apibank_query_68",
+              "apibank_query_69",
+              "apibank_query_7",
+              "apibank_query_70",
+              "apibank_query_71",
+              "apibank_query_72",
+              "apibank_query_73",
+              "apibank_query_74",
+              "apibank_query_75",
+              "apibank_query_76",
+              "apibank_query_77",
+              "apibank_query_78",
+              "apibank_query_79",
+              "apibank_query_8",
+              "apibank_query_80",
+              "apibank_query_81",
+              "apibank_query_82",
+              "apibank_query_83",
+              "apibank_query_84",
+              "apibank_query_85",
+              "apibank_query_86",
+              "apibank_query_87",
+              "apibank_query_88",
+              "apibank_query_89",
+              "apibank_query_9",
+              "apibank_query_90",
+              "apibank_query_91",
+              "apibank_query_92",
+              "apibank_query_93",
+              "apibank_query_94",
+              "apibank_query_95",
+              "apibank_query_96",
+              "apibank_query_97",
+              "apibank_query_98",
+              "apibank_query_99"
+            ],
+            "negative": [
+              "apibank_query_52",
+              "apibank_query_96",
+              "apibank_query_56",
+              "apibank_query_12",
+              "apibank_query_38",
+              "apibank_query_67",
+              "apibank_query_64",
+              "apibank_query_54",
+              "apibank_query_42",
+              "apibank_query_63",
+              "apibank_query_49",
+              "apibank_query_75",
+              "apibank_query_32",
+              "apibank_query_66",
+              "apibank_query_23",
+              "apibank_query_40",
+              "apibank_query_86",
+              "apibank_query_19",
+              "apibank_query_8",
+              "apibank_query_37",
+              "apibank_query_7",
+              "apibank_query_78",
+              "apibank_query_24",
+              "apibank_query_43",
+              "apibank_query_83",
+              "apibank_query_16",
+              "apibank_query_46",
+              "apibank_query_62",
+              "apibank_query_72",
+              "apibank_query_77",
+              "apibank_query_9",
+              "apibank_query_58",
+              "apibank_query_44",
+              "apibank_query_31",
+              "apibank_query_90",
+              "apibank_query_59",
+              "apibank_query_95",
+              "apibank_query_14",
+              "apibank_query_92",
+              "apibank_query_60",
+              "apibank_query_4",
+              "apibank_query_68",
+              "apibank_query_0",
+              "apibank_query_98",
+              "apibank_query_5",
+              "apibank_query_97",
+              "apibank_query_30",
+              "apibank_query_71",
+              "apibank_query_55",
+              "apibank_query_53"
+            ]
+          },
+          "metatool_which": {
+            "positive": [
+              "metatool_which_query_0",
+              "metatool_which_query_1",
+              "metatool_which_query_10",
+              "metatool_which_query_100",
+              "metatool_which_query_101",
+              "metatool_which_query_102",
+              "metatool_which_query_103",
+              "metatool_which_query_104",
+              "metatool_which_query_105",
+              "metatool_which_query_106",
+              "metatool_which_query_107",
+              "metatool_which_query_108",
+              "metatool_which_query_109",
+              "metatool_which_query_11",
+              "metatool_which_query_110",
+              "metatool_which_query_111",
+              "metatool_which_query_112",
+              "metatool_which_query_113",
+              "metatool_which_query_114",
+              "metatool_which_query_115",
+              "metatool_which_query_116",
+              "metatool_which_query_117",
+              "metatool_which_query_118",
+              "metatool_which_query_119",
+              "metatool_which_query_12",
+              "metatool_which_query_120",
+              "metatool_which_query_121",
+              "metatool_which_query_122",
+              "metatool_which_query_123",
+              "metatool_which_query_124",
+              "metatool_which_query_125",
+              "metatool_which_query_126",
+              "metatool_which_query_127",
+              "metatool_which_query_128",
+              "metatool_which_query_129",
+              "metatool_which_query_13",
+              "metatool_which_query_130",
+              "metatool_which_query_131",
+              "metatool_which_query_132",
+              "metatool_which_query_133",
+              "metatool_which_query_134",
+              "metatool_which_query_135",
+              "metatool_which_query_136",
+              "metatool_which_query_137",
+              "metatool_which_query_138",
+              "metatool_which_query_139",
+              "metatool_which_query_14",
+              "metatool_which_query_140",
+              "metatool_which_query_141",
+              "metatool_which_query_142",
+              "metatool_which_query_143",
+              "metatool_which_query_144",
+              "metatool_which_query_145",
+              "metatool_which_query_146",
+              "metatool_which_query_147",
+              "metatool_which_query_148",
+              "metatool_which_query_149",
+              "metatool_which_query_15",
+              "metatool_which_query_150",
+              "metatool_which_query_151",
+              "metatool_which_query_152",
+              "metatool_which_query_153",
+              "metatool_which_query_154",
+              "metatool_which_query_155",
+              "metatool_which_query_156",
+              "metatool_which_query_157",
+              "metatool_which_query_158",
+              "metatool_which_query_159",
+              "metatool_which_query_16",
+              "metatool_which_query_160",
+              "metatool_which_query_161",
+              "metatool_which_query_162",
+              "metatool_which_query_163",
+              "metatool_which_query_164",
+              "metatool_which_query_165",
+              "metatool_which_query_166",
+              "metatool_which_query_167",
+              "metatool_which_query_168",
+              "metatool_which_query_169",
+              "metatool_which_query_17",
+              "metatool_which_query_170",
+              "metatool_which_query_171",
+              "metatool_which_query_172",
+              "metatool_which_query_173",
+              "metatool_which_query_174",
+              "metatool_which_query_175",
+              "metatool_which_query_176",
+              "metatool_which_query_177",
+              "metatool_which_query_178",
+              "metatool_which_query_179",
+              "metatool_which_query_18",
+              "metatool_which_query_180",
+              "metatool_which_query_181",
+              "metatool_which_query_182",
+              "metatool_which_query_183",
+              "metatool_which_query_184",
+              "metatool_which_query_185",
+              "metatool_which_query_186",
+              "metatool_which_query_187",
+              "metatool_which_query_188",
+              "metatool_which_query_189",
+              "metatool_which_query_19",
+              "metatool_which_query_190",
+              "metatool_which_query_191",
+              "metatool_which_query_192",
+              "metatool_which_query_193",
+              "metatool_which_query_194",
+              "metatool_which_query_195",
+              "metatool_which_query_196",
+              "metatool_which_query_197",
+              "metatool_which_query_198",
+              "metatool_which_query_199",
+              "metatool_which_query_2",
+              "metatool_which_query_20",
+              "metatool_which_query_21",
+              "metatool_which_query_22",
+              "metatool_which_query_23",
+              "metatool_which_query_24",
+              "metatool_which_query_25",
+              "metatool_which_query_26",
+              "metatool_which_query_27",
+              "metatool_which_query_28",
+              "metatool_which_query_29",
+              "metatool_which_query_3",
+              "metatool_which_query_30",
+              "metatool_which_query_31",
+              "metatool_which_query_32",
+              "metatool_which_query_33",
+              "metatool_which_query_34",
+              "metatool_which_query_35",
+              "metatool_which_query_36",
+              "metatool_which_query_37",
+              "metatool_which_query_38",
+              "metatool_which_query_39",
+              "metatool_which_query_4",
+              "metatool_which_query_40",
+              "metatool_which_query_41",
+              "metatool_which_query_42",
+              "metatool_which_query_43",
+              "metatool_which_query_44",
+              "metatool_which_query_45",
+              "metatool_which_query_46",
+              "metatool_which_query_47",
+              "metatool_which_query_48",
+              "metatool_which_query_49",
+              "metatool_which_query_5",
+              "metatool_which_query_50",
+              "metatool_which_query_51",
+              "metatool_which_query_52",
+              "metatool_which_query_53",
+              "metatool_which_query_54",
+              "metatool_which_query_55",
+              "metatool_which_query_56",
+              "metatool_which_query_57",
+              "metatool_which_query_58",
+              "metatool_which_query_59",
+              "metatool_which_query_6",
+              "metatool_which_query_60",
+              "metatool_which_query_61",
+              "metatool_which_query_62",
+              "metatool_which_query_63",
+              "metatool_which_query_64",
+              "metatool_which_query_65",
+              "metatool_which_query_66",
+              "metatool_which_query_67",
+              "metatool_which_query_68",
+              "metatool_which_query_69",
+              "metatool_which_query_7",
+              "metatool_which_query_70",
+              "metatool_which_query_71",
+              "metatool_which_query_72",
+              "metatool_which_query_73",
+              "metatool_which_query_74",
+              "metatool_which_query_75",
+              "metatool_which_query_76",
+              "metatool_which_query_77",
+              "metatool_which_query_78",
+              "metatool_which_query_79",
+              "metatool_which_query_8",
+              "metatool_which_query_80",
+              "metatool_which_query_81",
+              "metatool_which_query_82",
+              "metatool_which_query_83",
+              "metatool_which_query_84",
+              "metatool_which_query_85",
+              "metatool_which_query_86",
+              "metatool_which_query_87",
+              "metatool_which_query_88",
+              "metatool_which_query_89",
+              "metatool_which_query_9",
+              "metatool_which_query_90",
+              "metatool_which_query_91",
+              "metatool_which_query_92",
+              "metatool_which_query_93",
+              "metatool_which_query_94",
+              "metatool_which_query_95",
+              "metatool_which_query_96",
+              "metatool_which_query_97",
+              "metatool_which_query_98",
+              "metatool_which_query_99"
+            ],
+            "negative": [
+              "metatool_which_query_187",
+              "metatool_which_query_94",
+              "metatool_which_query_195",
+              "metatool_which_query_107",
+              "metatool_which_query_158",
+              "metatool_which_query_36",
+              "metatool_which_query_30",
+              "metatool_which_query_191",
+              "metatool_which_query_168",
+              "metatool_which_query_29",
+              "metatool_which_query_180",
+              "metatool_which_query_53",
+              "metatool_which_query_148",
+              "metatool_which_query_35",
+              "metatool_which_query_13",
+              "metatool_which_query_163",
+              "metatool_which_query_86",
+              "metatool_which_query_12",
+              "metatool_which_query_61",
+              "metatool_which_query_156",
+              "metatool_which_query_41",
+              "metatool_which_query_58",
+              "metatool_which_query_131",
+              "metatool_which_query_17",
+              "metatool_which_query_120",
+              "metatool_which_query_114",
+              "metatool_which_query_174",
+              "metatool_which_query_27",
+              "metatool_which_query_48",
+              "metatool_which_query_77",
+              "metatool_which_query_18",
+              "metatool_which_query_199",
+              "metatool_which_query_170",
+              "metatool_which_query_6",
+              "metatool_which_query_66",
+              "metatool_which_query_145",
+              "metatool_which_query_46",
+              "metatool_which_query_90",
+              "metatool_which_query_20",
+              "metatool_which_query_39",
+              "metatool_which_query_95",
+              "metatool_which_query_111",
+              "metatool_which_query_45",
+              "metatool_which_query_100",
+              "metatool_which_query_119",
+              "metatool_which_query_190",
+              "metatool_which_query_0",
+              "metatool_which_query_32",
+              "metatool_which_query_175",
+              "metatool_which_query_154",
+              "metatool_which_query_173",
+              "metatool_which_query_112",
+              "metatool_which_query_141",
+              "metatool_which_query_5",
+              "metatool_which_query_149",
+              "metatool_which_query_153",
+              "metatool_which_query_130",
+              "metatool_which_query_44",
+              "metatool_which_query_21",
+              "metatool_which_query_59",
+              "metatool_which_query_116",
+              "metatool_which_query_171",
+              "metatool_which_query_98",
+              "metatool_which_query_31",
+              "metatool_which_query_122",
+              "metatool_which_query_91",
+              "metatool_which_query_165",
+              "metatool_which_query_126",
+              "metatool_which_query_55",
+              "metatool_which_query_67",
+              "metatool_which_query_164",
+              "metatool_which_query_64",
+              "metatool_which_query_60",
+              "metatool_which_query_167",
+              "metatool_which_query_8",
+              "metatool_which_query_142",
+              "metatool_which_query_134",
+              "metatool_which_query_87",
+              "metatool_which_query_125",
+              "metatool_which_query_79",
+              "metatool_which_query_33",
+              "metatool_which_query_83",
+              "metatool_which_query_193",
+              "metatool_which_query_26",
+              "metatool_which_query_101",
+              "metatool_which_query_169",
+              "metatool_which_query_75",
+              "metatool_which_query_128",
+              "metatool_which_query_152",
+              "metatool_which_query_105",
+              "metatool_which_query_108",
+              "metatool_which_query_176",
+              "metatool_which_query_185",
+              "metatool_which_query_52",
+              "metatool_which_query_115",
+              "metatool_which_query_22",
+              "metatool_which_query_96",
+              "metatool_which_query_179",
+              "metatool_which_query_160",
+              "metatool_which_query_177"
+            ]
+          }
+        },
+        "tasks_sha256": "4c667b98e6aabdeab50e36e56e89d4289f85d808deeece7b13542d7315e78d1b",
+        "arms": [
+          "agent-luna@20",
+          "agent-luna-all"
+        ],
+        "order": "catalog, arm, positives, negatives",
+        "concurrency": 1,
+        "negative_seed": 0,
+        "negative_allocation": "largest remainder, stable source order",
+        "prompt_versions": {
+          "jev": "tool-choice-v1",
+          "agent": "direct-choice-v1"
+        },
+        "agent": {
+          "model": "gpt-6-luna",
+          "reasoning_effort": "none",
+          "api": "openai-chat-completions",
+          "endpoint": "api.openai.com",
+          "description_shape": "JSON object with original name and complete description",
+          "parameters": "names as string properties",
+          "max_output_tokens": 256,
+          "retry": 1,
+          "cache_key": "catalog source"
+        },
+        "estimate": {
+          "usd": 0.7142612800000011,
+          "requests_per_arm": 735,
+          "positives_per_arm": 490,
+          "negatives_per_arm": 245,
+          "lines": [
+            {
+              "provider": "openai",
+              "model": "gpt-6-luna",
+              "arm": "agent-luna@20",
+              "requests": 735,
+              "input_tokens": 1595675,
+              "output_tokens": 188160,
+              "usd": 0.2536474999999999
+            },
+            {
+              "provider": "openai",
+              "model": "gpt-6-luna",
+              "arm": "agent-luna-all",
+              "requests": 435,
+              "input_tokens": 4049323,
+              "output_tokens": 111360,
+              "usd": 0.4606123000000012
+            },
+            {
+              "provider": "openai",
+              "model": "text-embedding-3-small",
+              "requests": 3,
+              "input_tokens": 74,
+              "output_tokens": 0,
+              "usd": 1.48e-06
+            }
+          ],
+          "stand_in_searches": 0,
+          "planned_requests_by_arm": {
+            "agent-luna@20": 735,
+            "agent-luna-all": 435
+          },
+          "candidate_bound_searches": {
+            "hybrid@20+jev": 0,
+            "agent@20": 0
+          },
+          "candidate_bound_method": "Short/empty missing-dense BM25 stand-ins: min(K, applicable catalog size) longest FULL cards by Jev heuristic text or agent wire tokens; actual Jev planner limits/detail retained. Complete cached hybrid matches unchanged; other lexical stand-ins approximate, not a guaranteed bound."
+        },
+        "completed": true,
+        "not_applicable": [
+          {
+            "arm": "agent-all",
+            "catalog": "metatool_which",
+            "reason": "OpenAI Chat Completions rejected 200 function tools: HTTP 400 array_above_max_length, param tools (4/4 attempts); exact maximum not established",
+            "source": "bench/runs/20260929T221520Z-direct-pilot/run.jsonl",
+            "date": "2026-09-30"
+          },
+          {
+            "arm": "agent-luna-all",
+            "catalog": "metatool_which",
+            "reason": "OpenAI Chat Completions rejected 200 function tools for gpt-6-luna: HTTP 400 array_above_max_length, param tools (4/4 attempts)",
+            "source": "bench/runs/20260930T165646Z-direct-luna-pilot/run.jsonl",
+            "date": "2026-09-30"
+          }
+        ],
+        "planned_requests_by_arm": {
+          "agent-luna@20": 735,
+          "agent-luna-all": 435
+        },
+        "jev": {
+          "model": "jev-1.13.0@api.typesafe.ai",
+          "limits": {
+            "max_options_per_choice": 255,
+            "max_request_tokens": 64000,
+            "max_state_plus_question_tokens": 32000,
+            "max_text_tokens": null,
+            "max_questions_per_request": null,
+            "score_levels": [
+              2,
+              10
+            ],
+            "price_input_per_mtok": 0.042,
+            "price_output_per_mtok": 0.0,
+            "source": "https://docs.typesafe.ai (limits and pricing)",
+            "checked": "2026-09-27"
+          },
+          "max_detail": "FULL",
+          "abstention": {
+            "reserved_option": true,
+            "threshold": 0
+          },
+          "expected_rounds": 1
+        },
+        "stop_reason": null,
+        "counts": {
+          "agent-luna@20": 735,
+          "agent-luna-all": 435
+        },
+        "errors": {
+          "agent-luna@20": 0,
+          "agent-luna-all": 0
+        },
+        "budget_charge_usd": 0.16999999,
+        "full_estimate": {
+          "usd": 0.7142612800000011,
+          "requests_per_arm": 735,
+          "positives_per_arm": 490,
+          "negatives_per_arm": 245,
+          "lines": [
+            {
+              "provider": "openai",
+              "model": "gpt-6-luna",
+              "arm": "agent-luna@20",
+              "requests": 735,
+              "input_tokens": 1595675,
+              "output_tokens": 188160,
+              "usd": 0.2536474999999999
+            },
+            {
+              "provider": "openai",
+              "model": "gpt-6-luna",
+              "arm": "agent-luna-all",
+              "requests": 435,
+              "input_tokens": 4049323,
+              "output_tokens": 111360,
+              "usd": 0.4606123000000012
+            },
+            {
+              "provider": "openai",
+              "model": "text-embedding-3-small",
+              "requests": 3,
+              "input_tokens": 74,
+              "output_tokens": 0,
+              "usd": 1.48e-06
+            }
+          ],
+          "stand_in_searches": 0,
+          "planned_requests_by_arm": {
+            "agent-luna@20": 735,
+            "agent-luna-all": 435
+          },
+          "candidate_bound_searches": {
+            "hybrid@20+jev": 0,
+            "agent@20": 0
+          },
+          "candidate_bound_method": "Short/empty missing-dense BM25 stand-ins: min(K, applicable catalog size) longest FULL cards by Jev heuristic text or agent wire tokens; actual Jev planner limits/detail retained. Complete cached hybrid matches unchanged; other lexical stand-ins approximate, not a guaranteed bound."
+        },
+        "full_catalogs": [
+          {
+            "source": "webtools_spotify",
+            "positives": 40,
+            "negatives": 20
+          },
+          {
+            "source": "webtools_tmdb",
+            "positives": 54,
+            "negatives": 27
+          },
+          {
+            "source": "tooleyes",
+            "positives": 95,
+            "negatives": 48
+          },
+          {
+            "source": "apibank",
+            "positives": 101,
+            "negatives": 50
+          },
+          {
+            "source": "metatool_which",
+            "positives": 200,
+            "negatives": 100
+          }
+        ],
+        "prior_p1_usd": 2.5568847880000005,
+        "purpose": "P1: direct choice luna full"
+      },
+      "verified_usd": 0.16999999
+    }
+  ],
   "applicability": {
     "common_catalogs": [
       "webtools_spotify",
@@ -1072,7 +2106,7 @@
       "tooleyes",
       "apibank"
     ],
-    "primary_pool": "pooled: common catalogs across all five arms",
+    "primary_pool": "pooled: common catalogs across all 7 arms",
     "secondary_pool": "all_catalogs: all selected catalogs, only for arms applicable everywhere",
     "not_applicable": [
       {
@@ -1080,6 +2114,13 @@
         "catalog": "metatool_which",
         "reason": "OpenAI Chat Completions rejected 200 function tools: HTTP 400 array_above_max_length, param tools (4/4 attempts); exact maximum not established",
         "source": "bench/runs/20260929T221520Z-direct-pilot/run.jsonl",
+        "date": "2026-09-30"
+      },
+      {
+        "arm": "agent-luna-all",
+        "catalog": "metatool_which",
+        "reason": "OpenAI Chat Completions rejected 200 function tools for gpt-6-luna: HTTP 400 array_above_max_length, param tools (4/4 attempts)",
+        "source": "bench/runs/20260930T165646Z-direct-luna-pilot/run.jsonl",
         "date": "2026-09-30"
       }
     ],
@@ -5526,6 +6567,1590 @@
           "known_list_subtotal_usd": 0
         }
       }
+    },
+    {
+      "arm": "agent-luna@20",
+      "catalog": "pooled",
+      "status": "applicable",
+      "catalogs": [
+        "apibank",
+        "tooleyes",
+        "webtools_spotify",
+        "webtools_tmdb"
+      ],
+      "positives": 290,
+      "relevant_pick_rate": {
+        "value": 0.7758620689655172,
+        "ci95": [
+          0.7241379310344828,
+          0.8207758620689658
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.23103448275862068,
+        "ci95": [
+          0.17586206896551723,
+          0.2896551724137931
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.5172413793103449,
+          "ci95": [
+            0.4795431195516812,
+            0.5547687353629978
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.4827586206896552,
+          "ci95": [
+            0.4452312646370023,
+            0.5204568804483188
+          ]
+        },
+        "abstention_precision": null,
+        "abstention_recall": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ]
+        },
+        "correct": 225,
+        "wrong": 210,
+        "abstained": 0,
+        "requests": 435,
+        "parsed_requests": 435,
+        "errors": 0,
+        "negative_requests": 145,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 435,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 0,
+          "provider_calls": 0,
+          "replays": 4,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": null,
+          "list_usd": null,
+          "billed_usd_per_1000": null,
+          "list_usd_per_1000": null,
+          "latency_p50_ms": null,
+          "latency_p95_ms": null,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0,
+          "known_list_subtotal_usd": 0
+        },
+        "warm": {
+          "observed_searches": 250,
+          "provider_calls": 250,
+          "replays": 36,
+          "input_tokens": 419421,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.0449941,
+          "list_usd": 0.0449941,
+          "billed_usd_per_1000": 0.1799764,
+          "list_usd_per_1000": 0.1799764,
+          "latency_p50_ms": 1237.0976664824411,
+          "latency_p95_ms": 2697.6402900880216,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.0449941,
+          "known_list_subtotal_usd": 0.0449941
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 118,
+        "provider_calls": 118,
+        "replays": 27,
+        "input_tokens": 200098,
+        "cache_read_tokens": 0,
+        "cache_share": 0.0,
+        "billed_usd": 0.0214108,
+        "list_usd": 0.0214108,
+        "billed_usd_per_1000": 0.18144745762711867,
+        "list_usd_per_1000": 0.18144745762711867,
+        "latency_p50_ms": 1266.8793129269034,
+        "latency_p95_ms": 2339.488597202581,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.0214108,
+        "known_list_subtotal_usd": 0.0214108
+      }
+    },
+    {
+      "arm": "agent-luna@20",
+      "catalog": "all_catalogs",
+      "status": "applicable",
+      "catalogs": [
+        "apibank",
+        "metatool_which",
+        "tooleyes",
+        "webtools_spotify",
+        "webtools_tmdb"
+      ],
+      "positives": 490,
+      "relevant_pick_rate": {
+        "value": 0.726530612244898,
+        "ci95": [
+          0.6877551020408164,
+          0.763265306122449
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.20204081632653062,
+        "ci95": [
+          0.15918367346938775,
+          0.24489795918367346
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 0.998639455782313,
+          "ci95": [
+            0.9958504787301296,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.48501362397820164,
+          "ci95": [
+            0.455013748647674,
+            0.5146036161335188
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.5142857142857142,
+          "ci95": [
+            0.48418156808803303,
+            0.5433084202889273
+          ]
+        },
+        "abstention_precision": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "abstention_recall": {
+          "value": 0.0033783783783783786,
+          "ci95": [
+            0.0,
+            0.010344827586206896
+          ]
+        },
+        "correct": 356,
+        "wrong": 378,
+        "abstained": 1,
+        "requests": 735,
+        "parsed_requests": 735,
+        "errors": 0,
+        "negative_requests": 245,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 735,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 1,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 0,
+          "provider_calls": 0,
+          "replays": 5,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": null,
+          "list_usd": null,
+          "billed_usd_per_1000": null,
+          "list_usd_per_1000": null,
+          "latency_p50_ms": null,
+          "latency_p95_ms": null,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0,
+          "known_list_subtotal_usd": 0
+        },
+        "warm": {
+          "observed_searches": 440,
+          "provider_calls": 440,
+          "replays": 45,
+          "input_tokens": 606943,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.0651513,
+          "list_usd": 0.0651513,
+          "billed_usd_per_1000": 0.14807113636363634,
+          "list_usd_per_1000": 0.14807113636363634,
+          "latency_p50_ms": 1119.107395876199,
+          "latency_p95_ms": 2460.5886974022724,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.0651513,
+          "known_list_subtotal_usd": 0.0651513
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 200,
+        "provider_calls": 200,
+        "replays": 45,
+        "input_tokens": 280757,
+        "cache_read_tokens": 0,
+        "cache_share": 0.0,
+        "billed_usd": 0.0300587,
+        "list_usd": 0.0300587,
+        "billed_usd_per_1000": 0.1502935,
+        "list_usd_per_1000": 0.1502935,
+        "latency_p50_ms": 1140.5107914470136,
+        "latency_p95_ms": 2255.821758264211,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.0300587,
+        "known_list_subtotal_usd": 0.0300587
+      }
+    },
+    {
+      "arm": "agent-luna@20",
+      "catalog": "webtools_spotify",
+      "status": "applicable",
+      "catalogs": [
+        "webtools_spotify"
+      ],
+      "positives": 40,
+      "relevant_pick_rate": {
+        "value": 0.9,
+        "ci95": [
+          0.8,
+          0.975
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.25,
+        "ci95": [
+          0.075,
+          0.425
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.6,
+          "ci95": [
+            0.5081967213114754,
+            0.6923076923076923
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.4,
+          "ci95": [
+            0.3076923076923077,
+            0.4918032786885246
+          ]
+        },
+        "abstention_precision": null,
+        "abstention_recall": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ]
+        },
+        "correct": 36,
+        "wrong": 24,
+        "abstained": 0,
+        "requests": 60,
+        "parsed_requests": 60,
+        "errors": 0,
+        "negative_requests": 20,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 60,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 0,
+          "provider_calls": 0,
+          "replays": 1,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": null,
+          "list_usd": null,
+          "billed_usd_per_1000": null,
+          "list_usd_per_1000": null,
+          "latency_p50_ms": null,
+          "latency_p95_ms": null,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0,
+          "known_list_subtotal_usd": 0
+        },
+        "warm": {
+          "observed_searches": 30,
+          "provider_calls": 30,
+          "replays": 9,
+          "input_tokens": 35536,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.0038761,
+          "list_usd": 0.0038761,
+          "billed_usd_per_1000": 0.12920333333333334,
+          "list_usd_per_1000": 0.12920333333333334,
+          "latency_p50_ms": 1123.515916406177,
+          "latency_p95_ms": 2046.5267522027716,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.0038761,
+          "known_list_subtotal_usd": 0.0038761
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 15,
+        "provider_calls": 15,
+        "replays": 5,
+        "input_tokens": 18063,
+        "cache_read_tokens": 0,
+        "cache_share": 0.0,
+        "billed_usd": 0.0019668,
+        "list_usd": 0.0019668,
+        "billed_usd_per_1000": 0.13112,
+        "list_usd_per_1000": 0.13112,
+        "latency_p50_ms": 1204.7892920672894,
+        "latency_p95_ms": 2041.7799964547162,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.0019668,
+        "known_list_subtotal_usd": 0.0019668
+      }
+    },
+    {
+      "arm": "agent-luna@20",
+      "catalog": "webtools_tmdb",
+      "status": "applicable",
+      "catalogs": [
+        "webtools_tmdb"
+      ],
+      "positives": 54,
+      "relevant_pick_rate": {
+        "value": 0.7962962962962963,
+        "ci95": [
+          0.6851851851851852,
+          0.8888888888888888
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.2962962962962963,
+        "ci95": [
+          0.14814814814814814,
+          0.4444444444444444
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.5308641975308642,
+          "ci95": [
+            0.45,
+            0.6164594960257062
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.4691358024691358,
+          "ci95": [
+            0.3835405039742939,
+            0.55
+          ]
+        },
+        "abstention_precision": null,
+        "abstention_recall": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ]
+        },
+        "correct": 43,
+        "wrong": 38,
+        "abstained": 0,
+        "requests": 81,
+        "parsed_requests": 81,
+        "errors": 0,
+        "negative_requests": 27,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 81,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 0,
+          "provider_calls": 0,
+          "replays": 1,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": null,
+          "list_usd": null,
+          "billed_usd_per_1000": null,
+          "list_usd_per_1000": null,
+          "latency_p50_ms": null,
+          "latency_p95_ms": null,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0,
+          "known_list_subtotal_usd": 0
+        },
+        "warm": {
+          "observed_searches": 44,
+          "provider_calls": 44,
+          "replays": 9,
+          "input_tokens": 84544,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.0088844,
+          "list_usd": 0.0088844,
+          "billed_usd_per_1000": 0.20191818181818186,
+          "list_usd_per_1000": 0.20191818181818186,
+          "latency_p50_ms": 1184.2516044853255,
+          "latency_p95_ms": 4327.44546016911,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.0088844,
+          "known_list_subtotal_usd": 0.0088844
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 22,
+        "provider_calls": 22,
+        "replays": 5,
+        "input_tokens": 42901,
+        "cache_read_tokens": 0,
+        "cache_share": 0.0,
+        "billed_usd": 0.0045036,
+        "list_usd": 0.0045036,
+        "billed_usd_per_1000": 0.2047090909090909,
+        "list_usd_per_1000": 0.2047090909090909,
+        "latency_p50_ms": 1174.6444584568962,
+        "latency_p95_ms": 1915.8633957966229,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.0045036,
+        "known_list_subtotal_usd": 0.0045036
+      }
+    },
+    {
+      "arm": "agent-luna@20",
+      "catalog": "tooleyes",
+      "status": "applicable",
+      "catalogs": [
+        "tooleyes"
+      ],
+      "positives": 95,
+      "relevant_pick_rate": {
+        "value": 0.6842105263157895,
+        "ci95": [
+          0.5894736842105263,
+          0.7789473684210526
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.23157894736842105,
+        "ci95": [
+          0.14736842105263157,
+          0.3157894736842105
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.45454545454545453,
+          "ci95": [
+            0.38513513513513514,
+            0.5289961636828645
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.5454545454545454,
+          "ci95": [
+            0.47100383631713555,
+            0.6148648648648649
+          ]
+        },
+        "abstention_precision": null,
+        "abstention_recall": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ]
+        },
+        "correct": 65,
+        "wrong": 78,
+        "abstained": 0,
+        "requests": 143,
+        "parsed_requests": 143,
+        "errors": 0,
+        "negative_requests": 48,
+        "negative_share": 0.3356643356643357
+      },
+      "detail_counts": {
+        "FULL": 143,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 0,
+          "provider_calls": 0,
+          "replays": 1,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": null,
+          "list_usd": null,
+          "billed_usd_per_1000": null,
+          "list_usd_per_1000": null,
+          "latency_p50_ms": null,
+          "latency_p95_ms": null,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0,
+          "known_list_subtotal_usd": 0
+        },
+        "warm": {
+          "observed_searches": 85,
+          "provider_calls": 85,
+          "replays": 9,
+          "input_tokens": 140635,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.015487,
+          "list_usd": 0.015487,
+          "billed_usd_per_1000": 0.1822,
+          "list_usd_per_1000": 0.1822,
+          "latency_p50_ms": 1414.7180828731507,
+          "latency_p95_ms": 2423.9623076748094,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.015487,
+          "known_list_subtotal_usd": 0.015487
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 36,
+        "provider_calls": 36,
+        "replays": 12,
+        "input_tokens": 60201,
+        "cache_read_tokens": 0,
+        "cache_share": 0.0,
+        "billed_usd": 0.0065881,
+        "list_usd": 0.0065881,
+        "billed_usd_per_1000": 0.1830027777777778,
+        "list_usd_per_1000": 0.1830027777777778,
+        "latency_p50_ms": 1368.7598131364211,
+        "latency_p95_ms": 2219.8555621434934,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.0065881,
+        "known_list_subtotal_usd": 0.0065881
+      }
+    },
+    {
+      "arm": "agent-luna@20",
+      "catalog": "apibank",
+      "status": "applicable",
+      "catalogs": [
+        "apibank"
+      ],
+      "positives": 101,
+      "relevant_pick_rate": {
+        "value": 0.801980198019802,
+        "ci95": [
+          0.7227722772277227,
+          0.8811881188118812
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.18811881188118812,
+        "ci95": [
+          0.0891089108910891,
+          0.2871287128712871
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.5364238410596026,
+          "ci95": [
+            0.477124183006536,
+            0.5948325163398696
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.46357615894039733,
+          "ci95": [
+            0.4051674836601307,
+            0.5228758169934641
+          ]
+        },
+        "abstention_precision": null,
+        "abstention_recall": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ]
+        },
+        "correct": 81,
+        "wrong": 70,
+        "abstained": 0,
+        "requests": 151,
+        "parsed_requests": 151,
+        "errors": 0,
+        "negative_requests": 50,
+        "negative_share": 0.33112582781456956
+      },
+      "detail_counts": {
+        "FULL": 151,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 0,
+          "provider_calls": 0,
+          "replays": 1,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": null,
+          "list_usd": null,
+          "billed_usd_per_1000": null,
+          "list_usd_per_1000": null,
+          "latency_p50_ms": null,
+          "latency_p95_ms": null,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0,
+          "known_list_subtotal_usd": 0
+        },
+        "warm": {
+          "observed_searches": 91,
+          "provider_calls": 91,
+          "replays": 9,
+          "input_tokens": 158706,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.0167466,
+          "list_usd": 0.0167466,
+          "billed_usd_per_1000": 0.18402857142857143,
+          "list_usd_per_1000": 0.18402857142857143,
+          "latency_p50_ms": 1154.574417276308,
+          "latency_p95_ms": 2583.5245420457795,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.0167466,
+          "known_list_subtotal_usd": 0.0167466
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 45,
+        "provider_calls": 45,
+        "replays": 5,
+        "input_tokens": 78933,
+        "cache_read_tokens": 0,
+        "cache_share": 0.0,
+        "billed_usd": 0.0083523,
+        "list_usd": 0.0083523,
+        "billed_usd_per_1000": 0.18560666666666667,
+        "list_usd_per_1000": 0.18560666666666667,
+        "latency_p50_ms": 1193.5701670590788,
+        "latency_p95_ms": 2463.386141136288,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.0083523,
+        "known_list_subtotal_usd": 0.0083523
+      }
+    },
+    {
+      "arm": "agent-luna@20",
+      "catalog": "metatool_which",
+      "status": "applicable",
+      "catalogs": [
+        "metatool_which"
+      ],
+      "positives": 200,
+      "relevant_pick_rate": {
+        "value": 0.655,
+        "ci95": [
+          0.59,
+          0.72
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.16,
+        "ci95": [
+          0.1,
+          0.22
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 0.9966666666666667,
+          "ci95": [
+            0.9896551724137931,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.43812709030100333,
+          "ci95": [
+            0.3892612140005097,
+            0.4863036995620166
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.56,
+          "ci95": [
+            0.5117805966643176,
+            0.6071458038661008
+          ]
+        },
+        "abstention_precision": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "abstention_recall": {
+          "value": 0.0072992700729927005,
+          "ci95": [
+            0.0,
+            0.02273160999306039
+          ]
+        },
+        "correct": 131,
+        "wrong": 168,
+        "abstained": 1,
+        "requests": 300,
+        "parsed_requests": 300,
+        "errors": 0,
+        "negative_requests": 100,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 300,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 1,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 0,
+          "provider_calls": 0,
+          "replays": 1,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": null,
+          "list_usd": null,
+          "billed_usd_per_1000": null,
+          "list_usd_per_1000": null,
+          "latency_p50_ms": null,
+          "latency_p95_ms": null,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0,
+          "known_list_subtotal_usd": 0
+        },
+        "warm": {
+          "observed_searches": 190,
+          "provider_calls": 190,
+          "replays": 9,
+          "input_tokens": 187522,
+          "cache_read_tokens": 0,
+          "cache_share": 0.0,
+          "billed_usd": 0.0201572,
+          "list_usd": 0.0201572,
+          "billed_usd_per_1000": 0.10609052631578947,
+          "list_usd_per_1000": 0.10609052631578947,
+          "latency_p50_ms": 991.9251042883843,
+          "latency_p95_ms": 1919.0774768823767,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.0201572,
+          "known_list_subtotal_usd": 0.0201572
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 82,
+        "provider_calls": 82,
+        "replays": 18,
+        "input_tokens": 80659,
+        "cache_read_tokens": 0,
+        "cache_share": 0.0,
+        "billed_usd": 0.0086479,
+        "list_usd": 0.0086479,
+        "billed_usd_per_1000": 0.10546219512195122,
+        "list_usd_per_1000": 0.10546219512195122,
+        "latency_p50_ms": 997.2242504591122,
+        "latency_p95_ms": 1728.9537963224577,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.0086479,
+        "known_list_subtotal_usd": 0.0086479
+      }
+    },
+    {
+      "arm": "agent-luna-all",
+      "catalog": "pooled",
+      "status": "applicable",
+      "catalogs": [
+        "apibank",
+        "tooleyes",
+        "webtools_spotify",
+        "webtools_tmdb"
+      ],
+      "positives": 290,
+      "relevant_pick_rate": {
+        "value": 0.7965517241379311,
+        "ci95": [
+          0.7482758620689656,
+          0.8413793103448276
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.2517241379310345,
+        "ci95": [
+          0.19310344827586207,
+          0.3103448275862069
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.5310344827586206,
+          "ci95": [
+            0.4942320780399274,
+            0.5678239229115234
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.4689655172413793,
+          "ci95": [
+            0.43217607708847655,
+            0.5057679219600727
+          ]
+        },
+        "abstention_precision": null,
+        "abstention_recall": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ]
+        },
+        "correct": 231,
+        "wrong": 204,
+        "abstained": 0,
+        "requests": 435,
+        "parsed_requests": 435,
+        "errors": 0,
+        "negative_requests": 145,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 435,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 0,
+          "provider_calls": 0,
+          "replays": 4,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": null,
+          "list_usd": null,
+          "billed_usd_per_1000": null,
+          "list_usd_per_1000": null,
+          "latency_p50_ms": null,
+          "latency_p95_ms": null,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0,
+          "known_list_subtotal_usd": 0
+        },
+        "warm": {
+          "observed_searches": 250,
+          "provider_calls": 250,
+          "replays": 36,
+          "input_tokens": 1507792,
+          "cache_read_tokens": 1501854,
+          "cache_share": 0.9960617910162675,
+          "billed_usd": 0.01865934,
+          "list_usd": 0.1538262,
+          "billed_usd_per_1000": 0.07463736,
+          "list_usd_per_1000": 0.6153048,
+          "latency_p50_ms": 1452.467083116062,
+          "latency_p95_ms": 2410.131320590154,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.01865934,
+          "known_list_subtotal_usd": 0.1538262
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 125,
+        "provider_calls": 125,
+        "replays": 20,
+        "input_tokens": 738504,
+        "cache_read_tokens": 214925,
+        "cache_share": 0.29102753674997023,
+        "billed_usd": 0.05613065,
+        "list_usd": 0.0754739,
+        "billed_usd_per_1000": 0.4490452,
+        "list_usd_per_1000": 0.6037912,
+        "latency_p50_ms": 1470.0413329992443,
+        "latency_p95_ms": 2759.9278086796403,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.05613065,
+        "known_list_subtotal_usd": 0.0754739
+      }
+    },
+    {
+      "arm": "agent-luna-all",
+      "catalog": "webtools_spotify",
+      "status": "applicable",
+      "catalogs": [
+        "webtools_spotify"
+      ],
+      "positives": 40,
+      "relevant_pick_rate": {
+        "value": 0.9,
+        "ci95": [
+          0.8,
+          0.975
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.25,
+        "ci95": [
+          0.1,
+          0.4
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.6,
+          "ci95": [
+            0.5161164314516129,
+            0.6909090909090909
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.4,
+          "ci95": [
+            0.3090909090909091,
+            0.48388356854838716
+          ]
+        },
+        "abstention_precision": null,
+        "abstention_recall": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ]
+        },
+        "correct": 36,
+        "wrong": 24,
+        "abstained": 0,
+        "requests": 60,
+        "parsed_requests": 60,
+        "errors": 0,
+        "negative_requests": 20,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 60,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 0,
+          "provider_calls": 0,
+          "replays": 1,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": null,
+          "list_usd": null,
+          "billed_usd_per_1000": null,
+          "list_usd_per_1000": null,
+          "latency_p50_ms": null,
+          "latency_p95_ms": null,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0,
+          "known_list_subtotal_usd": 0
+        },
+        "warm": {
+          "observed_searches": 30,
+          "provider_calls": 30,
+          "replays": 9,
+          "input_tokens": 68856,
+          "cache_read_tokens": 68340,
+          "cache_share": 0.9925060996863019,
+          "billed_usd": 0.001055,
+          "list_usd": 0.0072055999999999995,
+          "billed_usd_per_1000": 0.035166666666666666,
+          "list_usd_per_1000": 0.24018666666666666,
+          "latency_p50_ms": 1145.5744999693707,
+          "latency_p95_ms": 2124.9203940504235,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.001055,
+          "known_list_subtotal_usd": 0.0072055999999999995
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 15,
+        "provider_calls": 15,
+        "replays": 5,
+        "input_tokens": 32272,
+        "cache_read_tokens": 4205,
+        "cache_share": 0.13029871095686663,
+        "billed_usd": 0.00300675,
+        "list_usd": 0.0033852,
+        "billed_usd_per_1000": 0.20045,
+        "list_usd_per_1000": 0.22568000000000002,
+        "latency_p50_ms": 1131.1752919573337,
+        "latency_p95_ms": 3433.5843998705977,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.00300675,
+        "known_list_subtotal_usd": 0.0033852
+      }
+    },
+    {
+      "arm": "agent-luna-all",
+      "catalog": "webtools_tmdb",
+      "status": "applicable",
+      "catalogs": [
+        "webtools_tmdb"
+      ],
+      "positives": 54,
+      "relevant_pick_rate": {
+        "value": 0.8888888888888888,
+        "ci95": [
+          0.7962962962962963,
+          0.9629629629629629
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.3888888888888889,
+        "ci95": [
+          0.24074074074074073,
+          0.5370370370370371
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.5925925925925926,
+          "ci95": [
+            0.5168539325842697,
+            0.6756756756756757
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.4074074074074074,
+          "ci95": [
+            0.32432432432432434,
+            0.48314606741573035
+          ]
+        },
+        "abstention_precision": null,
+        "abstention_recall": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ]
+        },
+        "correct": 48,
+        "wrong": 33,
+        "abstained": 0,
+        "requests": 81,
+        "parsed_requests": 81,
+        "errors": 0,
+        "negative_requests": 27,
+        "negative_share": 0.3333333333333333
+      },
+      "detail_counts": {
+        "FULL": 81,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 0,
+          "provider_calls": 0,
+          "replays": 1,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": null,
+          "list_usd": null,
+          "billed_usd_per_1000": null,
+          "list_usd_per_1000": null,
+          "latency_p50_ms": null,
+          "latency_p95_ms": null,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0,
+          "known_list_subtotal_usd": 0
+        },
+        "warm": {
+          "observed_searches": 44,
+          "provider_calls": 44,
+          "replays": 9,
+          "input_tokens": 204516,
+          "cache_read_tokens": 203632,
+          "cache_share": 0.995677599796593,
+          "billed_usd": 0.00255272,
+          "list_usd": 0.020879599999999998,
+          "billed_usd_per_1000": 0.05801636363636364,
+          "list_usd_per_1000": 0.47453636363636353,
+          "latency_p50_ms": 1198.7546044401824,
+          "latency_p95_ms": 2581.245451769793,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.00255272,
+          "known_list_subtotal_usd": 0.020879599999999998
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 22,
+        "provider_calls": 22,
+        "replays": 5,
+        "input_tokens": 98309,
+        "cache_read_tokens": 4535,
+        "cache_share": 0.04613005930281053,
+        "billed_usd": 0.00964525,
+        "list_usd": 0.0100534,
+        "billed_usd_per_1000": 0.4384204545454545,
+        "list_usd_per_1000": 0.45697272727272725,
+        "latency_p50_ms": 1296.1331669939682,
+        "latency_p95_ms": 2141.2816043826747,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.00964525,
+        "known_list_subtotal_usd": 0.0100534
+      }
+    },
+    {
+      "arm": "agent-luna-all",
+      "catalog": "tooleyes",
+      "status": "applicable",
+      "catalogs": [
+        "tooleyes"
+      ],
+      "positives": 95,
+      "relevant_pick_rate": {
+        "value": 0.6736842105263158,
+        "ci95": [
+          0.5789473684210527,
+          0.7684210526315789
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.22105263157894736,
+        "ci95": [
+          0.12631578947368421,
+          0.3157894736842105
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.44755244755244755,
+          "ci95": [
+            0.37748344370860926,
+            0.522396540027137
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.5524475524475524,
+          "ci95": [
+            0.47760345997286296,
+            0.6225165562913907
+          ]
+        },
+        "abstention_precision": null,
+        "abstention_recall": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ]
+        },
+        "correct": 64,
+        "wrong": 79,
+        "abstained": 0,
+        "requests": 143,
+        "parsed_requests": 143,
+        "errors": 0,
+        "negative_requests": 48,
+        "negative_share": 0.3356643356643357
+      },
+      "detail_counts": {
+        "FULL": 143,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 0,
+          "provider_calls": 0,
+          "replays": 1,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": null,
+          "list_usd": null,
+          "billed_usd_per_1000": null,
+          "list_usd_per_1000": null,
+          "latency_p50_ms": null,
+          "latency_p95_ms": null,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0,
+          "known_list_subtotal_usd": 0
+        },
+        "warm": {
+          "observed_searches": 85,
+          "provider_calls": 85,
+          "replays": 9,
+          "input_tokens": 542383,
+          "cache_read_tokens": 539920,
+          "cache_share": 0.9954589284693658,
+          "billed_usd": 0.007021,
+          "list_usd": 0.0556138,
+          "billed_usd_per_1000": 0.08259999999999999,
+          "list_usd_per_1000": 0.65428,
+          "latency_p50_ms": 1668.443749891594,
+          "latency_p95_ms": 2761.9325412437315,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.007021,
+          "known_list_subtotal_usd": 0.0556138
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 43,
+        "provider_calls": 43,
+        "replays": 5,
+        "input_tokens": 271906,
+        "cache_read_tokens": 94445,
+        "cache_share": 0.34734430281053014,
+        "billed_usd": 0.01945955,
+        "list_usd": 0.0279596,
+        "billed_usd_per_1000": 0.45254767441860466,
+        "list_usd_per_1000": 0.6502232558139536,
+        "latency_p50_ms": 1744.0284581389278,
+        "latency_p95_ms": 2669.705375307239,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.01945955,
+        "known_list_subtotal_usd": 0.0279596
+      }
+    },
+    {
+      "arm": "agent-luna-all",
+      "catalog": "apibank",
+      "status": "applicable",
+      "catalogs": [
+        "apibank"
+      ],
+      "positives": 101,
+      "relevant_pick_rate": {
+        "value": 0.8217821782178217,
+        "ci95": [
+          0.7425742574257426,
+          0.8910891089108911
+        ]
+      },
+      "delta_vs_hybrid": {
+        "value": 0.2079207920792079,
+        "ci95": [
+          0.10891089108910891,
+          0.31683168316831684
+        ]
+      },
+      "ranking_ignoring_abstention": null,
+      "none_option": {
+        "coverage": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "selective_accuracy": {
+          "value": 0.5496688741721855,
+          "ci95": [
+            0.4935897435897436,
+            0.6083992094861661
+          ]
+        },
+        "wrong_tool_rate": {
+          "value": 0.4503311258278146,
+          "ci95": [
+            0.391600790513834,
+            0.5064102564102564
+          ]
+        },
+        "abstention_precision": null,
+        "abstention_recall": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ]
+        },
+        "correct": 83,
+        "wrong": 68,
+        "abstained": 0,
+        "requests": 151,
+        "parsed_requests": 151,
+        "errors": 0,
+        "negative_requests": 50,
+        "negative_share": 0.33112582781456956
+      },
+      "detail_counts": {
+        "FULL": 151,
+        "BRIEF": 0,
+        "NAME": 0
+      },
+      "multi_calls": 0,
+      "agent_text_none": 0,
+      "agent_other_text_abstentions": 0,
+      "positive_cost": {
+        "cold": {
+          "observed_searches": 0,
+          "provider_calls": 0,
+          "replays": 1,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": null,
+          "list_usd": null,
+          "billed_usd_per_1000": null,
+          "list_usd_per_1000": null,
+          "latency_p50_ms": null,
+          "latency_p95_ms": null,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0,
+          "known_list_subtotal_usd": 0
+        },
+        "warm": {
+          "observed_searches": 91,
+          "provider_calls": 91,
+          "replays": 9,
+          "input_tokens": 692037,
+          "cache_read_tokens": 689962,
+          "cache_share": 0.9970016054054913,
+          "billed_usd": 0.00803062,
+          "list_usd": 0.0701272,
+          "billed_usd_per_1000": 0.08824857142857144,
+          "list_usd_per_1000": 0.7706285714285714,
+          "latency_p50_ms": 1409.5008329022676,
+          "latency_p95_ms": 2089.1724169487134,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0.00803062,
+          "known_list_subtotal_usd": 0.0701272
+        }
+      },
+      "negative_cost": {
+        "observed_searches": 45,
+        "provider_calls": 45,
+        "replays": 5,
+        "input_tokens": 336017,
+        "cache_read_tokens": 111740,
+        "cache_share": 0.3325426987325046,
+        "billed_usd": 0.024019099999999998,
+        "list_usd": 0.0340757,
+        "billed_usd_per_1000": 0.5337577777777778,
+        "list_usd_per_1000": 0.7572377777777777,
+        "latency_p50_ms": 1441.114875022322,
+        "latency_p95_ms": 2759.9278086796403,
+        "unpriced_attempts": 0,
+        "known_billed_subtotal_usd": 0.024019099999999998,
+        "known_list_subtotal_usd": 0.0340757
+      }
+    },
+    {
+      "arm": "agent-luna-all",
+      "catalog": "metatool_which",
+      "status": "not applicable",
+      "reason": "OpenAI Chat Completions rejected 200 function tools for gpt-6-luna: HTTP 400 array_above_max_length, param tools (4/4 attempts)",
+      "evidence": {
+        "reason": "OpenAI Chat Completions rejected 200 function tools for gpt-6-luna: HTTP 400 array_above_max_length, param tools (4/4 attempts)",
+        "source": "bench/runs/20260930T165646Z-direct-luna-pilot/run.jsonl",
+        "date": "2026-09-30"
+      },
+      "excluded_requests": 0,
+      "excluded_rejected_attempts": 0,
+      "rejection_diagnostics": [],
+      "positives": null,
+      "relevant_pick_rate": null,
+      "delta_vs_hybrid": null,
+      "ranking_ignoring_abstention": null,
+      "none_option": null,
+      "positive_cost": null,
+      "negative_cost": null,
+      "excluded_attempt_cost": {
+        "cold": {
+          "observed_searches": 0,
+          "provider_calls": 0,
+          "replays": 0,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": null,
+          "list_usd": null,
+          "billed_usd_per_1000": null,
+          "list_usd_per_1000": null,
+          "latency_p50_ms": null,
+          "latency_p95_ms": null,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0,
+          "known_list_subtotal_usd": 0
+        },
+        "warm": {
+          "observed_searches": 0,
+          "provider_calls": 0,
+          "replays": 0,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": null,
+          "list_usd": null,
+          "billed_usd_per_1000": null,
+          "list_usd_per_1000": null,
+          "latency_p50_ms": null,
+          "latency_p95_ms": null,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0,
+          "known_list_subtotal_usd": 0
+        },
+        "negative": {
+          "observed_searches": 0,
+          "provider_calls": 0,
+          "replays": 0,
+          "input_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_share": null,
+          "billed_usd": null,
+          "list_usd": null,
+          "billed_usd_per_1000": null,
+          "list_usd_per_1000": null,
+          "latency_p50_ms": null,
+          "latency_p95_ms": null,
+          "unpriced_attempts": 0,
+          "known_billed_subtotal_usd": 0,
+          "known_list_subtotal_usd": 0
+        }
+      }
     }
   ],
   "validation": {
@@ -5602,6 +8227,42 @@
       "cache_usage_received": true
     },
     "agent-all": {
+      "planned_requests": 435,
+      "raw_requests": 435,
+      "raw_errors": 0,
+      "raw_provider_calls": 375,
+      "excluded_requests": 0,
+      "excluded_rejected_attempts": 0,
+      "requests": 435,
+      "errors": 0,
+      "error_rate": 0.0,
+      "classified_successful": 435,
+      "successful_requests": 435,
+      "classified_fraction": 1.0,
+      "provider_calls": 375,
+      "replayed_requests": 60,
+      "cache_fields_present": true,
+      "cache_usage_received": true
+    },
+    "agent-luna@20": {
+      "planned_requests": 735,
+      "raw_requests": 735,
+      "raw_errors": 0,
+      "raw_provider_calls": 640,
+      "excluded_requests": 0,
+      "excluded_rejected_attempts": 0,
+      "requests": 735,
+      "errors": 0,
+      "error_rate": 0.0,
+      "classified_successful": 735,
+      "successful_requests": 735,
+      "classified_fraction": 1.0,
+      "provider_calls": 640,
+      "replayed_requests": 95,
+      "cache_fields_present": true,
+      "cache_usage_received": true
+    },
+    "agent-luna-all": {
       "planned_requests": 435,
       "raw_requests": 435,
       "raw_errors": 0,

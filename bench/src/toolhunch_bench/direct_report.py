@@ -7,7 +7,7 @@ from collections import defaultdict
 from dataclasses import asdict
 from typing import TYPE_CHECKING, Any
 
-from toolhunch_bench.direct import DIRECT_ARMS, NOT_APPLICABLE
+from toolhunch_bench.direct import DIRECT_ARMS, LUNA_ARMS, NOT_APPLICABLE
 from toolhunch_bench.metrics import Outcome, cluster_bootstrap_ci, percentile, selective_metrics
 
 if TYPE_CHECKING:
@@ -144,18 +144,37 @@ def _row(
     }
 
 
-def build_direct_report(run_dir: Path, *, out_dir: Path) -> dict[str, Any]:
-    """Generate a summary and public table from recorded requests; this never contacts a provider."""
+def _lines(path: Path) -> list[dict[str, Any]]:
+    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+
+
+def build_direct_report(run_dir: Path, *, out_dir: Path, added: Sequence[Path] = ()) -> dict[str, Any]:
+    """Generate a summary and public table from recorded requests; this never contacts a provider.
+
+    `added` runs contribute only their own arms, such as `LUNA_ARMS`, on the same catalogs and tasks; the run cost
+    stays that of `run_dir`, and each added run's provenance and cost are listed under `added_runs`.
+    """
     manifest = json.loads((run_dir / "manifest.json").read_text())
-    records = [json.loads(line) for line in (run_dir / "run.jsonl").read_text().splitlines() if line.strip()]
-    calls = [json.loads(line) for line in (run_dir / "calls.jsonl").read_text().splitlines() if line.strip()]
+    records, calls = _lines(run_dir / "run.jsonl"), _lines(run_dir / "calls.jsonl")
+    own_calls = list(calls)
+    manifests = [manifest]
+    for path in added:
+        extra = json.loads((path / "manifest.json").read_text())
+        if extra["tasks_sha256"] != manifest["tasks_sha256"] or extra["dataset"] != manifest["dataset"]:
+            raise ValueError(f"{path} ran other tasks or another dataset than {run_dir}")
+        if set(extra["arms"]) & set(manifest["arms"]):
+            raise ValueError(f"{path} repeats arms of {run_dir}")
+        manifests.append(extra)
+        records += _lines(path / "run.jsonl")
+        calls += _lines(path / "calls.jsonl")
     not_applicable = dict(NOT_APPLICABLE)
-    for exclusion in manifest.get("not_applicable", []):
+    for exclusion in (item for recorded in manifests for item in recorded.get("not_applicable", [])):
         not_applicable[(exclusion["arm"], exclusion["catalog"])] = {
             field: exclusion[field] for field in ("reason", "source", "date")
         }
+    arms = [*DIRECT_ARMS, *(arm for arm in LUNA_ARMS if any(r["arm"] == arm for r in records))]
     sources = [c["source"] for c in manifest["catalogs"]]
-    common = [source for source in sources if all((arm, source) not in not_applicable for arm in DIRECT_ARMS)]
+    common = [source for source in sources if all((arm, source) not in not_applicable for arm in arms)]
     applicable = [r for r in records if (r["arm"], r["catalog"]) not in not_applicable]
     baseline = {
         (r["catalog"], r["task"]): r["error"] is None and r["pick"] in r["relevant"]
@@ -164,7 +183,7 @@ def build_direct_report(run_dir: Path, *, out_dir: Path) -> dict[str, Any]:
     }
     rows: list[dict[str, Any]] = []
     validation: dict[str, Any] = {}
-    for arm in DIRECT_ARMS:
+    for arm in arms:
         raw = [r for r in records if r["arm"] == arm]
         excluded = [r for r in raw if (arm, r["catalog"]) in not_applicable]
         own = [r for r in applicable if r["arm"] == arm]
@@ -230,6 +249,7 @@ def build_direct_report(run_dir: Path, *, out_dir: Path) -> dict[str, Any]:
                 call["cache_read_tokens"] is not None for call in actual if call["error"] is None
             ),
         }
+    calls = own_calls  # the run cost below is that of `run_dir`
     actual_usd = sum(call["usd"] or 0 for call in calls)
     estimated = manifest["estimate"]["usd"]
     full_estimate = manifest.get("full_estimate", manifest["estimate"])["usd"]
@@ -240,9 +260,18 @@ def build_direct_report(run_dir: Path, *, out_dir: Path) -> dict[str, Any]:
     summary = {
         "schema_version": 1,
         "manifest": manifest,
+        "added_runs": [
+            {
+                "manifest": extra,
+                "verified_usd": sum(
+                    call["usd"] or 0 for call in _lines(path / "calls.jsonl") if call["arm"] in extra["arms"]
+                ),
+            }
+            for path, extra in zip(added, manifests[1:], strict=True)
+        ],
         "applicability": {
             "common_catalogs": common,
-            "primary_pool": "pooled: common catalogs across all five arms",
+            "primary_pool": f"pooled: common catalogs across all {len(arms)} arms",
             "secondary_pool": "all_catalogs: all selected catalogs, only for arms applicable everywhere",
             "not_applicable": [
                 {"arm": arm, "catalog": source, **evidence}
@@ -507,8 +536,6 @@ def _markdown(summary: dict[str, Any]) -> str:
         f"Separate recorded uncached budget reference for remaining workload: "
         f"{money(summary['run_cost']['uncached_remaining_budget_reference_usd'])}. "
         f"{summary['run_cost']['budget_reference_method']}",
-        "",
-        "Not affiliated with TypeSafe, OpenAI or Pydantic.",
         "",
     ]
     return "\n".join(lines)

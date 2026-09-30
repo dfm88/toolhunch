@@ -44,6 +44,19 @@ Original run completed: True; original stop reason: none. Applicability does not
 | agent-all | tooleyes | 0.611 (0.516 to 0.705) | 0.158 (0.053 to 0.263) | 58 / 49 / 36 | 48/143 (33.6%) | 0 |
 | agent-all | apibank | 0.337 (0.248 to 0.426) | -0.277 (-0.416 to -0.129) | 34 / 22 / 95 | 50/151 (33.1%) | 0 |
 | agent-all | metatool_which (not applicable) | n/a | n/a | n/a | n/a | 0 rejected attempts, excluded |
+| agent-luna@20 | pooled | 0.776 (0.724 to 0.821) | 0.231 (0.176 to 0.290) | 225 / 210 / 0 | 145/435 (33.3%) | 0 |
+| agent-luna@20 | all_catalogs | 0.727 (0.688 to 0.763) | 0.202 (0.159 to 0.245) | 356 / 378 / 1 | 245/735 (33.3%) | 0 |
+| agent-luna@20 | webtools_spotify | 0.900 (0.800 to 0.975) | 0.250 (0.075 to 0.425) | 36 / 24 / 0 | 20/60 (33.3%) | 0 |
+| agent-luna@20 | webtools_tmdb | 0.796 (0.685 to 0.889) | 0.296 (0.148 to 0.444) | 43 / 38 / 0 | 27/81 (33.3%) | 0 |
+| agent-luna@20 | tooleyes | 0.684 (0.589 to 0.779) | 0.232 (0.147 to 0.316) | 65 / 78 / 0 | 48/143 (33.6%) | 0 |
+| agent-luna@20 | apibank | 0.802 (0.723 to 0.881) | 0.188 (0.089 to 0.287) | 81 / 70 / 0 | 50/151 (33.1%) | 0 |
+| agent-luna@20 | metatool_which | 0.655 (0.590 to 0.720) | 0.160 (0.100 to 0.220) | 131 / 168 / 1 | 100/300 (33.3%) | 0 |
+| agent-luna-all | pooled | 0.797 (0.748 to 0.841) | 0.252 (0.193 to 0.310) | 231 / 204 / 0 | 145/435 (33.3%) | 0 |
+| agent-luna-all | webtools_spotify | 0.900 (0.800 to 0.975) | 0.250 (0.100 to 0.400) | 36 / 24 / 0 | 20/60 (33.3%) | 0 |
+| agent-luna-all | webtools_tmdb | 0.889 (0.796 to 0.963) | 0.389 (0.241 to 0.537) | 48 / 33 / 0 | 27/81 (33.3%) | 0 |
+| agent-luna-all | tooleyes | 0.674 (0.579 to 0.768) | 0.221 (0.126 to 0.316) | 64 / 79 / 0 | 48/143 (33.6%) | 0 |
+| agent-luna-all | apibank | 0.822 (0.743 to 0.891) | 0.208 (0.109 to 0.317) | 83 / 68 / 0 | 50/151 (33.1%) | 0 |
+| agent-luna-all | metatool_which (not applicable) | n/a | n/a | n/a | n/a | 0 rejected attempts, excluded |
 
 ## Observed provider cost
 
@@ -85,10 +98,24 @@ Replay responses do not contribute usage or timing. Search cost and latency are 
 | agent-all | tooleyes | n/a | $0.8512 | $2.5855 | 91.8% | 853.6 / 2239.1 | $1.6383 |
 | agent-all | apibank | n/a | $0.9435 | $3.0602 | 93.8% | 999.4 / 1632.8 | $2.0875 |
 | agent-all | metatool_which (not applicable) | n/a | n/a | n/a | n/a | n/a | n/a |
+| agent-luna@20 | pooled | n/a | $0.1800 | $0.1800 | 0.0% | 1237.1 / 2697.6 | $0.1814 |
+| agent-luna@20 | all_catalogs | n/a | $0.1481 | $0.1481 | 0.0% | 1119.1 / 2460.6 | $0.1503 |
+| agent-luna@20 | webtools_spotify | n/a | $0.1292 | $0.1292 | 0.0% | 1123.5 / 2046.5 | $0.1311 |
+| agent-luna@20 | webtools_tmdb | n/a | $0.2019 | $0.2019 | 0.0% | 1184.3 / 4327.4 | $0.2047 |
+| agent-luna@20 | tooleyes | n/a | $0.1822 | $0.1822 | 0.0% | 1414.7 / 2424.0 | $0.1830 |
+| agent-luna@20 | apibank | n/a | $0.1840 | $0.1840 | 0.0% | 1154.6 / 2583.5 | $0.1856 |
+| agent-luna@20 | metatool_which | n/a | $0.1061 | $0.1061 | 0.0% | 991.9 / 1919.1 | $0.1055 |
+| agent-luna-all | pooled | n/a | $0.0746 | $0.6153 | 99.6% | 1452.5 / 2410.1 | $0.4490 |
+| agent-luna-all | webtools_spotify | n/a | $0.0352 | $0.2402 | 99.3% | 1145.6 / 2124.9 | $0.2004 |
+| agent-luna-all | webtools_tmdb | n/a | $0.0580 | $0.4745 | 99.6% | 1198.8 / 2581.2 | $0.4384 |
+| agent-luna-all | tooleyes | n/a | $0.0826 | $0.6543 | 99.5% | 1668.4 / 2761.9 | $0.4525 |
+| agent-luna-all | apibank | n/a | $0.0882 | $0.7706 | 99.7% | 1409.5 / 2089.2 | $0.5338 |
+| agent-luna-all | metatool_which (not applicable) | n/a | n/a | n/a | n/a | n/a | n/a |
 
 ## Non-applicable pairs and historical rejections
 
 - agent-all / metatool_which: OpenAI Chat Completions rejected 200 function tools: HTTP 400 array_above_max_length, param tools (4/4 attempts); exact maximum not established. Evidence: bench/runs/20260929T221520Z-direct-pilot/run.jsonl (2026-09-30); 0 historical requests excluded, 0 rejected attempts.
+- agent-luna-all / metatool_which: OpenAI Chat Completions rejected 200 function tools for gpt-6-luna: HTTP 400 array_above_max_length, param tools (4/4 attempts). Evidence: bench/runs/20260930T165646Z-direct-luna-pilot/run.jsonl (2026-09-30); 0 historical requests excluded, 0 rejected attempts.
 
 | Arm | Catalog | Historical phase | Rejected provider attempts | Billed | List | Billed / 1,000 | List / 1,000 |
 |---|---|---|---:|---:|---:|---:|---:|
@@ -117,5 +144,3 @@ Guarded charges, including all failed/excluded attempts: $1.0094; 0 attempts hav
 Projected remaining spend: $0.0000; cumulative P1 including historical prior and all guarded charges: $1.3166.
 Method: completed full run.
 Separate recorded uncached budget reference for remaining workload: $0.0000. Recorded full uncached/max-output estimate retained as a conservative reference for any unfinished workload, without subtracting successful request costs. Historical retrieval approximations and token framing prevent a guaranteed upper bound; physical-call guard reservations remain independent. This report does not authorize another run.
-
-Not affiliated with TypeSafe, OpenAI or Pydantic.

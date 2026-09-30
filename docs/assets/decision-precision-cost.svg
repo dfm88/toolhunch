@@ -569,7 +569,7 @@ L 63.103906 90.419687
    </g>
   </g>
   <g id="text_17">
-   <text style="font-size: 8px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: middle" x="292.19976" y="408.11976" transform="rotate(-0 292.19976 408.11976)">Decision cost excludes shared retrieval. Not affiliated with TypeSafe, OpenAI or Pydantic.</text>
+   <text style="font-size: 8px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: middle" x="292.19976" y="408.11976" transform="rotate(-0 292.19976 408.11976)">Decision cost excludes shared retrieval. </text>
   </g>
  </g>
  <defs>

@@ -94,5 +94,3 @@ Only this date, K=20, plain queries and these two configurations are covered. Th
 Verified run cost $1.122490; guarded charge $1.122490. Model, prompt, payload, catalog, task, seed, order, git and scheduling provenance are pinned in summary.json and the raw manifest.
 
 Calls are serialized and never locally replayed. Provider cache reads use their returned discount; unreported cache usage is charged at list price. Jev cache usage is unmeasured.
-
-Not affiliated with TypeSafe, OpenAI or Pydantic.

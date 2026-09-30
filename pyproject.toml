@@ -31,6 +31,9 @@ pydantic-ai = ["pydantic-ai-slim>=2.50"]
 
 [project.urls]
 Source = "https://github.com/dfm88/toolhunch"
+Changelog = "https://github.com/dfm88/toolhunch/blob/main/CHANGELOG.md"
+Issues = "https://github.com/dfm88/toolhunch/issues"
+Benchmark = "https://github.com/dfm88/toolhunch/blob/main/docs/experiments/toolret.md"
 
 [build-system]
 requires = ["uv_build>=0.12.4,<0.13.0"]

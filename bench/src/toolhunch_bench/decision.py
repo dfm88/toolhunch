@@ -64,6 +64,7 @@ __all__ = [
     "JEV_MODEL",
     "JEV_REQUEST_OVERHEAD_TOKENS",
     "LOGPROB_MODEL",
+    "LUNA_MODEL",
     "QUERY_SOURCES",
     "CacheOnlyRetrieval",
     "DecisionArm",
@@ -85,7 +86,7 @@ type QuerySource = Literal["plain", "model"]
 type Split = Literal["dev", "heldout"]
 """The task split of a run: settings and thresholds are chosen on dev, and results are reported on held-out."""
 
-DECIDERS = ("jev", "clm", "logprob")
+DECIDERS = ("jev", "clm", "logprob", "luna")
 """The deciders a run can compare, each asking its own model."""
 QUERY_SOURCES: tuple[QuerySource, ...] = ("plain", "model")
 """Every query source."""
@@ -93,6 +94,8 @@ JEV_MODEL = "jev-1.13.0"
 """The pinned Jev version: `jev-latest` would move under a run."""
 LOGPROB_MODEL = "gpt-4.1-mini-2025-04-14"
 """The logprob baseline's model: an OpenAI snapshot that returns 20 top logprobs."""
+LUNA_MODEL = "gpt-6-luna"
+"""GPT-6 Luna, reasoning off: the `luna` decider asks it for a structured letter, the direct agent arms for a call."""
 CLM_MODEL = "clm-latest"
 """The model `clm-serve` answers with."""
 CLM_DEPLOYMENT: dict[str, Any] = {
@@ -108,6 +111,7 @@ JEV_REQUEST_OVERHEAD_TOKENS = 300
 """What Jev bills beyond the text of a request, for its own prompt: a round figure, for estimates only."""
 
 _LOGPROB_REQUEST_OVERHEAD_TOKENS = 120  # the fixed system prompt and the template around the question, estimates only
+_LUNA_OUTPUT_TOKENS = 16  # the structured letter's completion cap, estimates only
 _CLM_GPU_SECONDS_PER_CALL = 0.3  # estimates only: CLM is billed by GPU time, never by tokens
 _HEALTH_TIMEOUT_SECONDS = 30.0
 _WARM_UP_REQUEST = DecisionRequest(
@@ -479,7 +483,7 @@ async def estimate_decisions(
 
     - Jev: the tokens plus `JEV_REQUEST_OVERHEAD_TOKENS` per ask, at the input price `JEV_LIMITS` declares;
     - logprob: the tokens plus 120 per ask for the prompt around the question, and one output token per ask, priced
-      by genai-prices;
+      by genai-prices; luna the same, with its 16-token completion cap per ask;
     - CLM: no dollars in the cap, 0.3 GPU seconds per ask in the note.
 
     Every ask is counted, including those the decision cache would answer, so the estimate leans high. With
@@ -550,16 +554,17 @@ def _decider_line(name: str, *, calls: int, tokens: int) -> EstimateLine:
                 f"ask, at the declared ${_declared_input_price(JEV_LIMITS)}/M"
             )
             return EstimateLine("typesafe", JEV_MODEL, calls, priced, jev_usd(priced), note)
-        case "logprob":
+        case "logprob" | "luna":
+            model, output = (LOGPROB_MODEL, 1) if name == "logprob" else (LUNA_MODEL, _LUNA_OUTPUT_TOKENS)
             priced = tokens + _LOGPROB_REQUEST_OVERHEAD_TOKENS * calls
             price = calc_price(
-                Usage(input_tokens=priced, output_tokens=calls), model_ref=LOGPROB_MODEL, provider_id="openai"
+                Usage(input_tokens=priced, output_tokens=output * calls), model_ref=model, provider_id="openai"
             )
             note = (
                 f"{calls:,} asks, {priced:,} input tokens (the heuristic count plus {_LOGPROB_REQUEST_OVERHEAD_TOKENS} "
-                "per ask) and one output token per ask, priced by genai-prices"
+                f"per ask) and {output} output tokens per ask, priced by genai-prices"
             )
-            return EstimateLine("openai", LOGPROB_MODEL, calls, priced, float(price.total_price), note)
+            return EstimateLine("openai", model, calls, priced, float(price.total_price), note)
         case _:
             seconds = calls * _CLM_GPU_SECONDS_PER_CALL
             note = (
@@ -649,6 +654,7 @@ async def run_decisions(
     order_seeds: Sequence[int] | None = None,
     manifest_extra: Mapping[str, Any] | None = None,
     before_search: Callable[[Mapping[str, Any]], None] | None = None,
+    stop_on_error: bool = True,
 ) -> Path:
     """Run every arm on every search; returns the run directory `out_dir/<run_id>`.
 
@@ -688,6 +694,7 @@ async def run_decisions(
         order_seeds: Opt-in identity and four task-seeded candidate shuffles, with fresh decisions for every order.
         manifest_extra: Additional experiment provenance written before the run starts.
         before_search: Receives each search's identity and presented candidates before its decision.
+        stop_on_error: In order mode, stop at the first failed search; off, record it and go on.
 
     Raises:
         ValueError: The `model` source has no queries or no queries file, or `repeat` is below 1.
@@ -779,7 +786,7 @@ async def run_decisions(
                         out.flush()
                     searches += 1
                     errors += record["error"] is not None
-                    if seed is not None and record["error"] is not None:
+                    if seed is not None and stop_on_error and record["error"] is not None:
                         raise DecisionError("order experiment stopped after an errored search")
             wall_seconds = time.perf_counter() - started
             summary = {

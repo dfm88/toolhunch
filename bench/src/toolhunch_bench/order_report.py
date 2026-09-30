@@ -634,7 +634,5 @@ def _readme(summary: Mapping[str, Any]) -> str:
         "Calls are serialized and never locally replayed. Provider cache reads use their returned discount; "
         "unreported cache usage is charged at list price. Jev cache usage is unmeasured.",
         "",
-        "Not affiliated with TypeSafe, OpenAI or Pydantic.",
-        "",
     ]
     return "\n".join(lines)

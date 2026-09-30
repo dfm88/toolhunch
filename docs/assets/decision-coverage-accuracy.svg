@@ -575,7 +575,7 @@ L 432.933594 50.417344
    <text style="font-size: 8px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: middle" x="260.103906" y="417.778125" transform="rotate(-0 260.103906 417.778125)">Counts at the marked thresholds; positives and negatives pooled.</text>
   </g>
   <g id="text_39">
-   <text style="font-size: 8px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: middle" x="260.103906" y="429.478125" transform="rotate(-0 260.103906 429.478125)">Not affiliated with TypeSafe, OpenAI or Pydantic.</text>
+   <text style="font-size: 8px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: middle" x="260.103906" y="429.478125" transform="rotate(-0 260.103906 429.478125)"></text>
   </g>
  </g>
  <defs>

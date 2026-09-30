@@ -1,0 +1,718 @@
+{
+  "model": "gpt-6-luna",
+  "decider": "structured output, reasoning off: one letter from a JSON-schema enum; no probabilities",
+  "bootstrap": {
+    "resamples": 2000,
+    "seed": 0,
+    "level": 0.95,
+    "unit": "task"
+  },
+  "runs": {
+    "orders": {
+      "run_id": "20260930T171259Z",
+      "started": "2026-09-30T17:12:59+00:00",
+      "git": {
+        "commit": "4c98060ed564692146110c79226a1d418c0f8247",
+        "dirty": true
+      },
+      "versions": {
+        "python": "3.14.3",
+        "toolhunch": "0.1.0",
+        "toolhunch-bench": "0.0.0",
+        "pydantic-ai-slim": "2.50.0",
+        "bm25s": "0.3.11",
+        "tiktoken": "0.14.0",
+        "genai-prices": "0.1.9"
+      },
+      "platform": {
+        "system": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "machine": "arm64"
+      },
+      "dataset": {
+        "name": "mteb/ToolRetrieval",
+        "revision": "76d45e560059754e289ea202462865a585679619",
+        "corpus_sha256": "774aa8c5263eed9870fb6eefc47491c67d3998e7eda1d897f9b359e20be67efb",
+        "tools": 44453,
+        "catalog_fingerprint": "sha256:7d56b70f34151288b0351d0764064e2d9852b9c2f1ef4e5ed076f1edb83debbf",
+        "mapping_stats": {
+          "name": 0.9999550086608328,
+          "description": 0.97766180010348,
+          "properties": 0.8109014014802151
+        }
+      },
+      "tasks": {
+        "file": "bench/tasks/toolret-heldout-200.json",
+        "sha256": "b632db8a5cb328b3d793a6491b0893e7fa62770dff1fd7285dc495e5adf8b3f3",
+        "count": 200
+      },
+      "seeds": {
+        "sample": 1
+      },
+      "split": "heldout",
+      "sources": [
+        "plain"
+      ],
+      "negatives": false,
+      "repeat": 1,
+      "model_queries": null,
+      "embedding_model": "text-embedding-3-small",
+      "retriever": {
+        "retriever": "HybridRetriever(bm25, dense)",
+        "rrf_k": 60,
+        "depth": 100,
+        "embedding_model": "text-embedding-3-small",
+        "embedder": "CachedEmbedder(TruncatingEmbedder(OpenAIEmbedder(model='text-embedding-3-small', url='https://api.openai.com/v1/embeddings', dimensions=None), max_tokens=8191, encoding='cl100k_base'))",
+        "text": "name, description and parameter names",
+        "instructed_format": "lexical for both halves",
+        "shared_depth": 100
+      },
+      "arms": {
+        "hybrid@20": {
+          "k": 20,
+          "decider": null,
+          "model_id": null,
+          "model": null,
+          "limits": null,
+          "prompt_version": null,
+          "max_detail": null,
+          "reserved_option": null
+        },
+        "hybrid+luna@20": {
+          "k": 20,
+          "decider": "luna",
+          "model_id": "gpt-6-luna@api.openai.com",
+          "model": "CachedDecisionModel(StructuredChoiceModel(model='gpt-6-luna', base_url='https://api.openai.com/v1'), bypass=True)",
+          "limits": {
+            "max_options_per_choice": 26,
+            "max_request_tokens": null,
+            "max_state_plus_question_tokens": null,
+            "max_text_tokens": null,
+            "max_questions_per_request": 1,
+            "score_levels": null,
+            "price_input_per_mtok": null,
+            "price_output_per_mtok": null,
+            "source": "letters A-Z in a JSON-schema enum; probe 2026-09-30: gpt-6-luna returns logprobs only with reasoning_effort none, top_logprobs at most 5, and 1-2 alternatives in practice",
+            "checked": "2026-09-30"
+          },
+          "prompt_version": "tool-choice-v1+letters-v1-json-v1",
+          "max_detail": "FULL",
+          "reserved_option": false
+        }
+      },
+      "orders": {
+        "version": "tool-order-v1",
+        "seeds": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "identity_seed": 0,
+        "seed_derivation": "SHA256(tool-order-v1:<task_id>:<seed>), Python Random.shuffle",
+        "cache_bypass": true,
+        "reserved_position": "last"
+      },
+      "task_ids": [
+        "apibank_query_29",
+        "apibank_query_62",
+        "apibank_query_98",
+        "apigen_query_101",
+        "apigen_query_134",
+        "apigen_query_248",
+        "apigen_query_370",
+        "apigen_query_497",
+        "apigen_query_499",
+        "apigen_query_502",
+        "apigen_query_597",
+        "apigen_query_613",
+        "apigen_query_653",
+        "apigen_query_66",
+        "apigen_query_680",
+        "apigen_query_695",
+        "apigen_query_724",
+        "apigen_query_732",
+        "apigen_query_746",
+        "apigen_query_792",
+        "apigen_query_820",
+        "apigen_query_852",
+        "apigen_query_883",
+        "apigen_query_893",
+        "apigen_query_965",
+        "appbench_query_12",
+        "appbench_query_13",
+        "craft_Math_algebra_query_119",
+        "craft_Math_algebra_query_133",
+        "craft_Math_algebra_query_53",
+        "craft_Math_algebra_query_54",
+        "craft_Math_algebra_query_65",
+        "craft_Math_algebra_query_71",
+        "craft_Math_algebra_query_89",
+        "craft_Tabmwp_query_100",
+        "craft_Tabmwp_query_26",
+        "craft_Tabmwp_query_50",
+        "craft_Tabmwp_query_87",
+        "craft_Tabmwp_query_90",
+        "craft_Vqa_query_127",
+        "craft_Vqa_query_194",
+        "craft_Vqa_query_195",
+        "craft_Vqa_query_38",
+        "craft_Vqa_query_99",
+        "gorilla_huggingface_query_107",
+        "gorilla_huggingface_query_110",
+        "gorilla_huggingface_query_211",
+        "gorilla_huggingface_query_227",
+        "gorilla_huggingface_query_282",
+        "gorilla_huggingface_query_302",
+        "gorilla_huggingface_query_319",
+        "gorilla_huggingface_query_323",
+        "gorilla_huggingface_query_368",
+        "gorilla_huggingface_query_439",
+        "gorilla_huggingface_query_485",
+        "gorilla_pytorch_query_2",
+        "gorilla_pytorch_query_39",
+        "gorilla_tensor_query_25",
+        "gorilla_tensor_query_43",
+        "gpt4tools_query_21",
+        "gpt4tools_query_27",
+        "gta_query_13",
+        "metatool_which_query_11",
+        "metatool_which_query_134",
+        "metatool_which_query_42",
+        "metatool_which_query_82",
+        "metatool_which_query_95",
+        "mnms_query_0",
+        "mnms_query_1",
+        "reversechain_query_134",
+        "reversechain_query_14",
+        "reversechain_query_180",
+        "reversechain_query_34",
+        "reversechain_query_95",
+        "rotbench_query_155",
+        "rotbench_query_271",
+        "rotbench_query_275",
+        "rotbench_query_382",
+        "rotbench_query_386",
+        "rotbench_query_440",
+        "rotbench_query_466",
+        "rotbench_query_467",
+        "rotbench_query_481",
+        "rotbench_query_520",
+        "rotbench_query_55",
+        "rotbench_query_61",
+        "t_eval_dialog_query_3",
+        "t_eval_dialog_query_9",
+        "t_eval_step_query_10",
+        "t_eval_step_query_26",
+        "taskbench_daily_query_8",
+        "taskbench_daily_query_9",
+        "taskbench_huggingface_query_1",
+        "taskbench_multimedia_query_29",
+        "taskbench_multimedia_query_9",
+        "toolACE_query_134",
+        "toolACE_query_243",
+        "toolACE_query_314",
+        "toolACE_query_319",
+        "toolACE_query_371",
+        "toolACE_query_439",
+        "toolACE_query_474",
+        "toolACE_query_522",
+        "toolACE_query_595",
+        "toolACE_query_673",
+        "toolACE_query_709",
+        "toolACE_query_732",
+        "toolACE_query_759",
+        "toolACE_query_764",
+        "toolACE_query_777",
+        "toolACE_query_789",
+        "toolACE_query_88",
+        "toolACE_query_886",
+        "toolACE_query_888",
+        "toolACE_query_901",
+        "toolACE_query_952",
+        "toolACE_query_969",
+        "toolLens_query_158",
+        "toolLens_query_178",
+        "toolLens_query_196",
+        "toolLens_query_215",
+        "toolLens_query_219",
+        "toolLens_query_225",
+        "toolLens_query_55",
+        "toolLens_query_62",
+        "tool_be_honest_query_146",
+        "tool_be_honest_query_269",
+        "tool_be_honest_query_283",
+        "tool_be_honest_query_289",
+        "tool_be_honest_query_38",
+        "tool_be_honest_query_59",
+        "tool_be_honest_query_6",
+        "tool_be_honest_query_62",
+        "toolalpaca_query_42",
+        "toolalpaca_query_43",
+        "toolalpaca_query_80",
+        "toolbench_query_1083",
+        "toolbench_query_130",
+        "toolbench_query_210",
+        "toolbench_query_380",
+        "toolbench_query_384",
+        "toolbench_query_428",
+        "toolbench_query_441",
+        "toolbench_query_463",
+        "toolbench_query_472",
+        "toolbench_query_558",
+        "toolbench_query_565",
+        "toolbench_query_605",
+        "toolbench_query_641",
+        "toolbench_query_734",
+        "toolbench_query_74",
+        "toolbench_query_750",
+        "toolbench_query_754",
+        "toolbench_query_788",
+        "toolbench_query_789",
+        "toolbench_query_82",
+        "toolbench_query_900",
+        "toolbench_query_909",
+        "toolbench_query_93",
+        "toolbench_query_984",
+        "toolbench_sam_query_104",
+        "toolbench_sam_query_146",
+        "toolbench_sam_query_31",
+        "toolbench_sam_query_82",
+        "toolbench_sam_query_89",
+        "toolemu_query_26",
+        "toolemu_query_9",
+        "tooleyes_query_40",
+        "tooleyes_query_45",
+        "tooleyes_query_76",
+        "toolink_query_1",
+        "toolink_query_14",
+        "toolink_query_176",
+        "toolink_query_207",
+        "toolink_query_277",
+        "toolink_query_316",
+        "toolink_query_331",
+        "toolink_query_384",
+        "toolink_query_432",
+        "toolink_query_437",
+        "toolink_query_86",
+        "ultraTool_query_122",
+        "ultraTool_query_191",
+        "ultraTool_query_220",
+        "ultraTool_query_246",
+        "ultraTool_query_262",
+        "ultraTool_query_277",
+        "ultraTool_query_368",
+        "ultraTool_query_384",
+        "ultraTool_query_39",
+        "ultraTool_query_424",
+        "ultraTool_query_96",
+        "webtools_food_query_9",
+        "webtools_music_query_0",
+        "webtools_music_query_21",
+        "webtools_spotify_query_1",
+        "webtools_spotify_query_28",
+        "webtools_tmdb_query_21",
+        "webtools_tmdb_query_38",
+        "webtools_weather_query_10"
+      ]
+    },
+    "none": {
+      "run_id": "20260930T170022Z",
+      "started": "2026-09-30T17:00:22+00:00",
+      "git": {
+        "commit": "67bb324edf531f9946f8cf1e0cf8ea2f1c060ecc",
+        "dirty": true
+      },
+      "versions": {
+        "python": "3.14.3",
+        "toolhunch": "0.1.0",
+        "toolhunch-bench": "0.0.0",
+        "pydantic-ai-slim": "2.50.0",
+        "bm25s": "0.3.11",
+        "tiktoken": "0.14.0",
+        "genai-prices": "0.1.9"
+      },
+      "platform": {
+        "system": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "machine": "arm64"
+      },
+      "dataset": {
+        "name": "mteb/ToolRetrieval",
+        "revision": "76d45e560059754e289ea202462865a585679619",
+        "corpus_sha256": "774aa8c5263eed9870fb6eefc47491c67d3998e7eda1d897f9b359e20be67efb",
+        "tools": 44453,
+        "catalog_fingerprint": "sha256:7d56b70f34151288b0351d0764064e2d9852b9c2f1ef4e5ed076f1edb83debbf",
+        "mapping_stats": {
+          "name": 0.9999550086608328,
+          "description": 0.97766180010348,
+          "properties": 0.8109014014802151
+        }
+      },
+      "tasks": {
+        "file": "bench/tasks/toolret-heldout-200.json",
+        "sha256": "b632db8a5cb328b3d793a6491b0893e7fa62770dff1fd7285dc495e5adf8b3f3",
+        "count": 200
+      },
+      "seeds": {
+        "sample": 1
+      },
+      "split": "heldout",
+      "sources": [
+        "plain"
+      ],
+      "negatives": true,
+      "repeat": 1,
+      "model_queries": null,
+      "embedding_model": "text-embedding-3-small",
+      "retriever": {
+        "retriever": "HybridRetriever(bm25, dense)",
+        "rrf_k": 60,
+        "depth": 100,
+        "embedding_model": "text-embedding-3-small",
+        "embedder": "CachedEmbedder(TruncatingEmbedder(OpenAIEmbedder(model='text-embedding-3-small', url='https://api.openai.com/v1/embeddings', dimensions=None), max_tokens=8191, encoding='cl100k_base'))",
+        "text": "name, description and parameter names",
+        "instructed_format": "lexical for both halves",
+        "shared_depth": 100
+      },
+      "clm_deployment": null,
+      "arms": {
+        "hybrid@20": {
+          "k": 20,
+          "decider": null,
+          "model_id": null,
+          "model": null,
+          "limits": null,
+          "prompt_version": null,
+          "max_detail": null,
+          "reserved_option": null
+        },
+        "hybrid+luna@20": {
+          "k": 20,
+          "decider": "luna",
+          "model_id": "gpt-6-luna@api.openai.com",
+          "model": "CachedDecisionModel(StructuredChoiceModel(model='gpt-6-luna', base_url='https://api.openai.com/v1'), bypass=False)",
+          "limits": {
+            "max_options_per_choice": 26,
+            "max_request_tokens": null,
+            "max_state_plus_question_tokens": null,
+            "max_text_tokens": null,
+            "max_questions_per_request": 1,
+            "score_levels": null,
+            "price_input_per_mtok": null,
+            "price_output_per_mtok": null,
+            "source": "letters A-Z in a JSON-schema enum; probe 2026-09-30: gpt-6-luna returns logprobs only with reasoning_effort none, top_logprobs at most 5, and 1-2 alternatives in practice",
+            "checked": "2026-09-30"
+          },
+          "prompt_version": "tool-choice-v1+letters-v1-json-v1",
+          "max_detail": "FULL",
+          "reserved_option": true
+        }
+      }
+    },
+    "repeats": {
+      "run_id": "20260930T170024Z",
+      "started": "2026-09-30T17:00:24+00:00",
+      "git": {
+        "commit": "67bb324edf531f9946f8cf1e0cf8ea2f1c060ecc",
+        "dirty": true
+      },
+      "versions": {
+        "python": "3.14.3",
+        "toolhunch": "0.1.0",
+        "toolhunch-bench": "0.0.0",
+        "pydantic-ai-slim": "2.50.0",
+        "bm25s": "0.3.11",
+        "tiktoken": "0.14.0",
+        "genai-prices": "0.1.9"
+      },
+      "platform": {
+        "system": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "machine": "arm64"
+      },
+      "dataset": {
+        "name": "mteb/ToolRetrieval",
+        "revision": "76d45e560059754e289ea202462865a585679619",
+        "corpus_sha256": "774aa8c5263eed9870fb6eefc47491c67d3998e7eda1d897f9b359e20be67efb",
+        "tools": 44453,
+        "catalog_fingerprint": "sha256:7d56b70f34151288b0351d0764064e2d9852b9c2f1ef4e5ed076f1edb83debbf",
+        "mapping_stats": {
+          "name": 0.9999550086608328,
+          "description": 0.97766180010348,
+          "properties": 0.8109014014802151
+        }
+      },
+      "tasks": {
+        "file": "bench/tasks/toolret-heldout-200.json",
+        "sha256": "b632db8a5cb328b3d793a6491b0893e7fa62770dff1fd7285dc495e5adf8b3f3",
+        "count": 200
+      },
+      "seeds": {
+        "sample": 1
+      },
+      "split": "heldout",
+      "sources": [
+        "plain"
+      ],
+      "negatives": false,
+      "repeat": 3,
+      "model_queries": null,
+      "embedding_model": "text-embedding-3-small",
+      "retriever": {
+        "retriever": "HybridRetriever(bm25, dense)",
+        "rrf_k": 60,
+        "depth": 100,
+        "embedding_model": "text-embedding-3-small",
+        "embedder": "CachedEmbedder(TruncatingEmbedder(OpenAIEmbedder(model='text-embedding-3-small', url='https://api.openai.com/v1/embeddings', dimensions=None), max_tokens=8191, encoding='cl100k_base'))",
+        "text": "name, description and parameter names",
+        "instructed_format": "lexical for both halves",
+        "shared_depth": 100
+      },
+      "clm_deployment": null,
+      "arms": {
+        "hybrid@20": {
+          "k": 20,
+          "decider": null,
+          "model_id": null,
+          "model": null,
+          "limits": null,
+          "prompt_version": null,
+          "max_detail": null,
+          "reserved_option": null
+        },
+        "hybrid+luna@20": {
+          "k": 20,
+          "decider": "luna",
+          "model_id": "gpt-6-luna@api.openai.com",
+          "model": "CachedDecisionModel(StructuredChoiceModel(model='gpt-6-luna', base_url='https://api.openai.com/v1'), bypass=True)",
+          "limits": {
+            "max_options_per_choice": 26,
+            "max_request_tokens": null,
+            "max_state_plus_question_tokens": null,
+            "max_text_tokens": null,
+            "max_questions_per_request": 1,
+            "score_levels": null,
+            "price_input_per_mtok": null,
+            "price_output_per_mtok": null,
+            "source": "letters A-Z in a JSON-schema enum; probe 2026-09-30: gpt-6-luna returns logprobs only with reasoning_effort none, top_logprobs at most 5, and 1-2 alternatives in practice",
+            "checked": "2026-09-30"
+          },
+          "prompt_version": "tool-choice-v1+letters-v1-json-v1",
+          "max_detail": "FULL",
+          "reserved_option": false
+        }
+      }
+    }
+  },
+  "first_pick": {
+    "definition": "forced pick (no none option), retrieval order: a relevant tool first on positives",
+    "errors": {
+      "searches": 0,
+      "tasks": [],
+      "messages": []
+    },
+    "p_at_1": {
+      "value": 0.34,
+      "ci95": [
+        0.27,
+        0.405
+      ],
+      "tasks": 200
+    },
+    "hybrid_p_at_1": {
+      "value": 0.22,
+      "ci95": [
+        0.165,
+        0.275
+      ],
+      "tasks": 200
+    },
+    "delta_vs_hybrid": {
+      "value": 0.12,
+      "ci95": [
+        0.065,
+        0.17512500000000045
+      ],
+      "tasks": 200
+    },
+    "ceiling": 0.59,
+    "cost": {
+      "searches": 200,
+      "input_tokens_per_search": 1138.955,
+      "output_tokens_per_search": 11.0,
+      "usd_per_1000_searches": 0.1193955,
+      "latency_ms": {
+        "p50": 1057.7731034718454,
+        "p95": 1981.8745034281178
+      }
+    }
+  },
+  "none_option": {
+    "definition": "the reserved \"none\" option as the last choice; positives and gold-removed negatives",
+    "errors": {
+      "searches": 0,
+      "tasks": [],
+      "messages": []
+    },
+    "coverage": 0.7925,
+    "selective_accuracy": 0.1892744479495268,
+    "wrong_tool_rate": 0.6425,
+    "abstention_precision": 0.927710843373494,
+    "abstention_recall": 0.2730496453900709,
+    "correct": 60,
+    "wrong": 257,
+    "abstained": 83,
+    "searches": 400,
+    "positives": {
+      "right": 0.3,
+      "wrong": 0.54,
+      "none": 0.16
+    },
+    "negatives_none": 0.255,
+    "cost": {
+      "searches": 400,
+      "input_tokens_per_search": 1150.705,
+      "output_tokens_per_search": 11.0075,
+      "usd_per_1000_searches": 0.12057425000000001,
+      "latency_ms": {
+        "p50": 1111.0511869192123,
+        "p95": 2319.2031641723593
+      }
+    }
+  },
+  "order": {
+    "definition": "forced pick in five candidate orders (0 = retrieval order, 1-4 task-seeded shuffles)",
+    "positive_tasks": 198,
+    "errors": {
+      "searches": 3,
+      "tasks": [
+        "craft_Tabmwp_query_50",
+        "toolLens_query_178"
+      ],
+      "messages": [
+        "gpt-6-luna@api.openai.com: no content: finish_reason 'stop', refusal ''"
+      ]
+    },
+    "p_at_1": {
+      "0": {
+        "value": 0.3434343434343434,
+        "ci95": [
+          0.2777777777777778,
+          0.4090909090909091
+        ],
+        "tasks": 198
+      },
+      "1": {
+        "value": 0.3383838383838384,
+        "ci95": [
+          0.2727272727272727,
+          0.40404040404040403
+        ],
+        "tasks": 198
+      },
+      "2": {
+        "value": 0.31313131313131315,
+        "ci95": [
+          0.25252525252525254,
+          0.3787878787878788
+        ],
+        "tasks": 198
+      },
+      "3": {
+        "value": 0.3282828282828283,
+        "ci95": [
+          0.26262626262626265,
+          0.3939393939393939
+        ],
+        "tasks": 198
+      },
+      "4": {
+        "value": 0.3383838383838384,
+        "ci95": [
+          0.2727272727272727,
+          0.40404040404040403
+        ],
+        "tasks": 198
+      }
+    },
+    "shuffle_p_at_1": {
+      "value": 0.32954545454545453,
+      "ci95": [
+        0.27146464646464646,
+        0.3888888888888889
+      ],
+      "tasks": 198
+    },
+    "pairwise_agreement": {
+      "value": 0.6287878787878788,
+      "ci95": [
+        0.5843434343434344,
+        0.6742550505050505
+      ],
+      "tasks": 198
+    },
+    "slot_1": {
+      "value": 0.08964646464646464,
+      "ci95": [
+        0.06944444444444445,
+        0.11237373737373738
+      ],
+      "tasks": 198
+    },
+    "slots_1_to_3": {
+      "value": 0.23106060606060605,
+      "ci95": [
+        0.20075757575757575,
+        0.2638888888888889
+      ],
+      "tasks": 198
+    },
+    "uniform_slots_1_to_3": 0.15
+  },
+  "same_order_noise": {
+    "definition": "forced pick, retrieval order, three fresh asks per positive (decision cache bypassed)",
+    "positive_tasks": 199,
+    "errors": {
+      "searches": 1,
+      "tasks": [
+        "toolbench_query_130"
+      ],
+      "messages": [
+        "gpt-6-luna@api.openai.com: the response has no JSON letter and token usage"
+      ]
+    },
+    "p_at_1_by_repeat": {
+      "0": {
+        "value": 0.33668341708542715,
+        "ci95": [
+          0.271356783919598,
+          0.4020100502512563
+        ],
+        "tasks": 199
+      },
+      "1": {
+        "value": 0.32663316582914576,
+        "ci95": [
+          0.2613065326633166,
+          0.39195979899497485
+        ],
+        "tasks": 199
+      },
+      "2": {
+        "value": 0.3417085427135678,
+        "ci95": [
+          0.27638190954773867,
+          0.40703517587939697
+        ],
+        "tasks": 199
+      }
+    },
+    "pairwise_agreement": {
+      "value": 0.9212730318257957,
+      "ci95": [
+        0.8894472361809045,
+        0.9514237855946399
+      ],
+      "tasks": 199
+    }
+  }
+}

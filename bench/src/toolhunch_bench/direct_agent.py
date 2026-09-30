@@ -16,6 +16,7 @@ from pydantic_ai.messages import ModelRequest, SystemPromptPart, TextPart, ToolC
 from pydantic_ai.models import ModelRequestParameters
 from pydantic_ai.tools import ToolDefinition
 
+from toolhunch_bench.decision import LUNA_MODEL
 from toolhunch_bench.direct_cost import AGENT_MODEL, ProviderCall, ProviderFailure, SpendGuard, openai_usd
 
 if TYPE_CHECKING:
@@ -36,6 +37,13 @@ AGENT_SETTINGS: OpenAIChatModelSettings = {
     "max_tokens": AGENT_MAX_OUTPUT_TOKENS,
     "timeout": 60,
 }
+
+
+def agent_settings(model: str) -> OpenAIChatModelSettings:
+    """GPT-6 Luna reasons unless told not to; with reasoning off it also accepts temperature 0."""
+    if model == LUNA_MODEL:
+        return {**AGENT_SETTINGS, "openai_reasoning_effort": "none"}
+    return AGENT_SETTINGS
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,15 +95,17 @@ def function_cards(cards: Sequence[ToolCard]) -> FunctionCards:
     return FunctionCards(tools=tuple(tools), card_ids=card_ids)
 
 
-def agent_payload(query: str, functions: FunctionCards, *, catalog_name: str) -> dict[str, Any]:
+def agent_payload(
+    query: str, functions: FunctionCards, *, catalog_name: str, model: str = AGENT_MODEL
+) -> dict[str, Any]:
     """Canonical request content for replay keys and the conservative runtime guard reservation."""
     return {
-        "model": AGENT_MODEL,
+        "model": model,
         "api": "openai-chat-completions",
         "prompt_version": AGENT_PROMPT_VERSION,
         "messages": [{"system": AGENT_INSTRUCTION}, {"user": query}],
         "tools": [asdict(tool) for tool in functions.tools],
-        "settings": dict(AGENT_SETTINGS) | {"openai_prompt_cache_key": catalog_name},
+        "settings": dict(agent_settings(model)) | {"openai_prompt_cache_key": catalog_name},
         "allow_text_output": True,
     }
 
@@ -183,8 +193,9 @@ class CachedAgent:
 
     async def ask(self, query: str, functions: FunctionCards, *, catalog_name: str) -> tuple[AgentAnswer, bool]:
         """Return a parsed answer and whether it came from local replay."""
-        payload = agent_payload(query, functions, catalog_name=catalog_name)
-        payload["model"] = self._model.model_name
+        model = self._model.model_name
+        payload = agent_payload(query, functions, catalog_name=catalog_name, model=model)
+        priced = LUNA_MODEL if model == LUNA_MODEL else AGENT_MODEL  # test models are priced as the snapshot
         canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         replay_identity = payload | {
             "card_ids": sorted(functions.card_ids.items()),
@@ -200,11 +211,11 @@ class CachedAgent:
         # Every byte can become a BPE token. Serialized ToolDefinition includes more fields than the wire, and the
         # additional envelope allowance covers the model's message/function framing.
         upper = openai_usd(
-            model=AGENT_MODEL,
+            model=priced,
             input_tokens=len(canonical.encode()) + 1024,
             output_tokens=AGENT_MAX_OUTPUT_TOKENS,
         )
-        settings: OpenAIChatModelSettings = {**AGENT_SETTINGS, "openai_prompt_cache_key": catalog_name}
+        settings: OpenAIChatModelSettings = {**agent_settings(model), "openai_prompt_cache_key": catalog_name}
         messages = [ModelRequest(parts=[SystemPromptPart(content=AGENT_INSTRUCTION), UserPromptPart(content=query)])]
         for attempt in range(2):
             self._guard.before(upper)
@@ -225,7 +236,7 @@ class CachedAgent:
                 self._guard.record(
                     ProviderCall(
                         provider="openai",
-                        model=AGENT_MODEL,
+                        model=priced,
                         input_tokens=None,
                         output_tokens=None,
                         cache_read_tokens=None,
@@ -244,7 +255,7 @@ class CachedAgent:
                 seconds = time.perf_counter() - started
                 usage = response.usage
                 usd = openai_usd(
-                    model=AGENT_MODEL,
+                    model=priced,
                     input_tokens=usage.input_tokens,
                     output_tokens=usage.output_tokens,
                     cache_read_tokens=usage.cache_read_tokens,
@@ -252,14 +263,14 @@ class CachedAgent:
                 self._guard.record(
                     ProviderCall(
                         provider="openai",
-                        model=AGENT_MODEL,
+                        model=priced,
                         input_tokens=usage.input_tokens,
                         output_tokens=usage.output_tokens,
                         cache_read_tokens=usage.cache_read_tokens,
                         seconds=seconds,
                         usd=usd,
                         list_usd=openai_usd(
-                            model=AGENT_MODEL,
+                            model=priced,
                             input_tokens=usage.input_tokens,
                             output_tokens=usage.output_tokens,
                         ),

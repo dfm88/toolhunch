@@ -578,11 +578,20 @@ def _cost(records: Sequence[Record], *, config: dict[str, Any], manifest: dict[s
             if limits["price_input_per_mtok"] is not None:
                 output_price = limits["price_output_per_mtok"] or 0.0
                 usd = (input_tokens * limits["price_input_per_mtok"] + output_tokens * output_price) / 1_000_000
-        case "logprob":
+        case "logprob" | "luna":
             model = config["model_id"].partition("@")[0]
             with contextlib.suppress(LookupError):  # a model genai-prices does not know stays unpriced
-                usage_price = Usage(input_tokens=input_tokens, output_tokens=output_tokens)
-                usd = float(calc_price(usage_price, model_ref=model, provider_id="openai").total_price)
+                # Per search: price tiers (gpt-6-luna: 2x above 272K input tokens) apply to one request.
+                usd = float(
+                    sum(
+                        calc_price(
+                            Usage(input_tokens=item["input_tokens"], output_tokens=item["output_tokens"]),
+                            model_ref=model,
+                            provider_id="openai",
+                        ).total_price
+                        for item in usage
+                    )
+                )
         case "clm":
             per_second = manifest["clm_deployment"]["usd_per_gpu_hour"] / 3600
             server = [record["server_seconds"] for record in records if record["server_seconds"] is not None]
@@ -729,7 +738,7 @@ def _markdown(summary: dict[str, Any], *, fallbacks_in_tau: bool) -> str:
         *_notes(fallbacks_in_tau=fallbacks_in_tau),
     ]
     return "\n".join(
-        [*lines, *_risk_coverage_section(summary), "Not affiliated with TypeSafe, OpenAI or Pydantic.", ""]
+        [*lines, *_risk_coverage_section(summary), ""]
     )
 
 

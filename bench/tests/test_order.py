@@ -120,7 +120,6 @@ async def test_five_orders_are_fresh_and_record_real_round_slot_mappings(
     assert logprob["chosen_slots_positive"]["p_value"] is None
     assert logprob["abstention_by_order"]["0"]["negative_share"] == 0.5
     assert sum(logprob["abstention_by_order"]["0"][key] for key in ("correct", "wrong", "abstained")) == 4
-    assert (tmp_path / "report/README.md").read_text().endswith("Not affiliated with TypeSafe, OpenAI or Pydantic.\n")
     assert logprob["identity_drift"]["comparable"] is False
 
 

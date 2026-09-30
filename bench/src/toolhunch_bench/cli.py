@@ -51,6 +51,7 @@ from toolhunch_bench.decision import (
     DECIDERS,
     JEV_MODEL,
     LOGPROB_MODEL,
+    LUNA_MODEL,
     QUERY_SOURCES,
     CacheOnlyRetrieval,
     DecisionArm,
@@ -66,7 +67,7 @@ from toolhunch_bench.decision import (
 )
 from toolhunch_bench.decision_cache import DECISION_CACHE_PATH, CachedDecisionModel
 from toolhunch_bench.decision_report import build_decision_report
-from toolhunch_bench.direct import DirectRunner, direct_catalogs, estimate_direct
+from toolhunch_bench.direct import DIRECT_ARMS, LUNA_ARMS, DirectRunner, direct_catalogs, estimate_direct
 from toolhunch_bench.direct_agent import CachedAgent
 from toolhunch_bench.direct_cost import (
     AGENT_MODEL,
@@ -95,6 +96,7 @@ from toolhunch_bench.retrieval import (
     query_text,
     run_arms,
 )
+from toolhunch_bench.structured import StructuredChoiceModel
 
 if TYPE_CHECKING:
     from toolhunch.retrieval import EmbeddingKind
@@ -282,6 +284,12 @@ def decision(
     estimate_out: Annotated[
         Path | None, typer.Option("--estimate-out", help="Order mode: write pilot/full estimates JSON.")
     ] = None,
+    orders: Annotated[
+        bool,
+        typer.Option(
+            "--orders", help="Ask every search in five candidate orders, the first the retrieval's; bypasses the cache."
+        ),
+    ] = False,
 ) -> None:
     """Run decision arms on the tasks of a task file. Paid: the estimate and the cap check come first."""
     names = _listed(deciders, allowed=DECIDERS, option="--deciders")
@@ -334,6 +342,12 @@ def decision(
         return
     if pilot or pilot_run is not None or estimate_out is not None:
         raise typer.BadParameter("--pilot, --pilot-run and --estimate-out require --order-sensitivity")
+    if orders and repeat != 1:
+        raise typer.BadParameter("--orders asks each search once per order", param_hint="--repeat")
+    from toolhunch_bench.order import ORDER_SEEDS
+
+    order_seeds = ORDER_SEEDS if orders else None
+    bypass_cache = bypass_cache or orders
     data = load_toolret(cache_dir=TOOLRET_CACHE)
     selected = read_task_file(tasks, data)[:limit]
     queries_file = model_queries_path(tasks) if "model" in source_list else None
@@ -366,9 +380,11 @@ def decision(
                 negatives=negatives,
                 repeat=repeat,
                 embeddings=cache,
+                order_seeds=order_seeds,
             )
         )
         searches = len(names) * len(ks) * len(source_list) * len(selected) * (2 if negatives else 1) * repeat
+        searches *= len(order_seeds or [None])
         _print_decision_estimate(lines, searches=searches, retrieval=free)
         _check_the_cap(sum(line.usd for line in lines if line.usd is not None))
         if dry_run:
@@ -389,6 +405,7 @@ def decision(
             if details.get(name, DetailLevel.FULL) < DetailLevel.FULL
         ]
         settings += [f"repeat {repeat}"] if repeat > 1 else []
+        settings += ["five orders"] if orders else []
         settings += ["cache bypassed"] if bypass_cache else []
         settings += [f"first {limit} tasks"] if limit is not None else []
         purpose = f"F2a: decision {split} ({'; '.join(settings)}) on {tasks.name}"
@@ -408,6 +425,8 @@ def decision(
             model_queries_file=queries_file,
             run_id=run_id,
             before_arm=_clm_warmer(adapters.get("clm"), base_url=clm_base_url),
+            order_seeds=order_seeds,
+            stop_on_error=False,
         )
         try:
             asyncio.run(_decide(run, adapters=adapters, inner=inner))
@@ -484,7 +503,7 @@ def decision_charts(
 
 @app.command("readme-charts")
 def readme_charts(
-    out: Annotated[Path, typer.Option(help="Directory for the four figures.")] = BENCH_DIR.parent / "docs/assets",
+    out: Annotated[Path, typer.Option(help="Directory for the figures.")] = BENCH_DIR.parent / "docs/assets",
     fmt: Annotated[
         Literal["svg", "png"], typer.Option("--format", help="svg for the docs, png for social posts.")
     ] = "svg",
@@ -495,12 +514,14 @@ def readme_charts(
     / "results/2026-09-toolret-decision/summary.json",
     order: Annotated[Path, typer.Option(help="Generated order summary.", exists=True, dir_okay=False)] = BENCH_DIR
     / "results/2026-09-toolret-order/summary.json",
+    luna: Annotated[Path, typer.Option(help="Generated Luna summary.", exists=True, dir_okay=False)] = BENCH_DIR
+    / "results/2026-09-toolret-luna/summary.json",
 ) -> None:
     """Draw the README figures from the published summaries without calling a provider."""
     from toolhunch_bench.readme_charts import build_readme_charts
 
     paths = build_readme_charts(
-        direct_summary=direct, decision_summary=decision, order_summary=order, out_dir=out, fmt=fmt
+        direct_summary=direct, decision_summary=decision, order_summary=order, luna_summary=luna, out_dir=out, fmt=fmt
     )
     for path in paths:
         typer.echo(f"chart written to {path}")
@@ -522,6 +543,21 @@ def order_report(
     typer.echo(f"report written to {out}")
 
 
+@app.command("luna-report")
+def luna_report(
+    orders: Annotated[Path, typer.Option(help="Luna run: forced pick, five orders.", exists=True, file_okay=False)],
+    none: Annotated[Path, typer.Option(help='Luna run: the "none" option, negatives.', exists=True, file_okay=False)],
+    repeats: Annotated[Path, typer.Option(help="Luna run: forced pick, three repeats.", exists=True, file_okay=False)],
+    out: Annotated[Path, typer.Option(help="Directory for summary.json and README.md.")] = BENCH_DIR
+    / "results/2026-09-toolret-luna",
+) -> None:
+    """Report GPT-6 Luna as a structured-output decider on the held-out searches, without provider calls."""
+    from toolhunch_bench.luna_report import build_luna_report
+
+    build_luna_report(orders_run=orders, none_run=none, repeats_run=repeats, out_dir=out)
+    typer.echo(f"report written to {out}")
+
+
 @app.command()
 def direct(
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Estimate pilot and full runs; no paid calls.")] = False,
@@ -529,6 +565,9 @@ def direct(
         bool, typer.Option("--pilot", help="Ten positives and five negatives per source catalog.")
     ] = False,
     estimate_out: Annotated[Path | None, typer.Option("--estimate-out", help="Write both estimates as JSON.")] = None,
+    luna: Annotated[
+        bool, typer.Option("--luna", help="Only the agent arms again, with GPT-6 Luna and reasoning off.")
+    ] = False,
 ) -> None:
     """Compare five direct-choice strategies; every paid attempt shares the P1 spend guard."""
     from dataclasses import asdict
@@ -540,7 +579,10 @@ def direct(
     data = load_toolret(cache_dir=TOOLRET_CACHE)
     full, small = direct_catalogs(data), direct_catalogs(data, pilot=True)
     spend = f2a_spend(read_ledger(LEDGER_PATH), purpose_prefix="P1:")
-    run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + ("-direct-pilot" if pilot else "-direct")
+    arms = LUNA_ARMS if luna else DIRECT_ARMS
+    run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + ("-direct-luna" if luna else "-direct")
+    run_id += "-pilot" if pilot else ""
+    purpose = "P1: direct choice " + ("luna " if luna else "") + ("pilot" if pilot else "full")
 
     def persist_call(call: dict[str, Any]) -> None:
         with (RUNS_DIR / run_id / "calls.jsonl").open("a") as journal:
@@ -565,10 +607,10 @@ def direct(
         [hybrid] = build_arms(["hybrid"], embedder=cache, raw_text=data.raw_text)
         free = CacheOnlyRetrieval(hybrid.retriever, stand_in=BM25Retriever(), embeddings=cache)
         full_estimate = asyncio.run(
-            estimate_direct(full, retriever=SharedRetrieval(free), jev_model=adapter, embeddings=cache)
+            estimate_direct(full, retriever=SharedRetrieval(free), jev_model=adapter, embeddings=cache, arms=arms)
         )
         pilot_estimate = asyncio.run(
-            estimate_direct(small, retriever=SharedRetrieval(free), jev_model=adapter, embeddings=cache)
+            estimate_direct(small, retriever=SharedRetrieval(free), jev_model=adapter, embeddings=cache, arms=arms)
         )
         estimate = pilot_estimate if pilot else full_estimate
         estimates = {
@@ -597,17 +639,24 @@ def direct(
         if dry_run:
             return
         load_dotenv(BENCH_DIR.parent / ".env", override=False)
-        if any(not os.environ.get(name) for name in ("OPENAI_API_KEY", "TYPESAFE_API_KEY")):
-            typer.echo("Paid direct choice requires OPENAI_API_KEY and TYPESAFE_API_KEY.", err=True)
+        if any(not os.environ.get(name) for name in ("OPENAI_API_KEY", "TYPESAFE_API_KEY")[: 1 if luna else 2]):
+            typer.echo("Paid direct choice requires OPENAI_API_KEY and, without --luna, TYPESAFE_API_KEY.", err=True)
             raise typer.Exit(code=2)
         client = AsyncOpenAI(base_url="https://api.openai.com/v1", max_retries=0, timeout=60)
-        model = OpenAIChatModel(AGENT_MODEL, provider=OpenAIProvider(openai_client=client))
+        model = OpenAIChatModel(LUNA_MODEL if luna else AGENT_MODEL, provider=OpenAIProvider(openai_client=client))
         agent = CachedAgent(model, path=BENCH_DIR / "runs" / "cache" / "agent.sqlite", guard=guard)
         models = CachedDecisionModel(
             GuardedDecisionModel(adapter, guard=guard),
             path=BENCH_DIR / "runs" / "cache" / "direct-decisions.sqlite",
         )
-        runner = DirectRunner(retriever=hybrid.retriever, jev_model=models, agent=agent, guard=guard)
+        runner = DirectRunner(
+            retriever=hybrid.retriever,
+            jev_model=models,
+            agent=None if luna else agent,
+            luna_agent=agent if luna else None,
+            guard=guard,
+            arms=arms,
+        )
 
         async def execute() -> Path:
             nonlocal paid_cleanup_done
@@ -629,7 +678,7 @@ def direct(
                 {"source": c.source, "positives": len(c.positives), "negatives": len(c.negatives)} for c in full
             ],
             "prior_p1_usd": spend.usd,
-            "purpose": "P1: direct choice " + ("pilot" if pilot else "full"),
+            "purpose": purpose,
         }
         (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
         typer.echo(f"run written to {run_dir}; verified/guarded cost ${guard.run_usd:.4f}")
@@ -657,7 +706,7 @@ def direct(
                     input_tokens=sum(call["input_tokens"] or 0 for call in calls),
                     output_tokens=sum(call["output_tokens"] or 0 for call in calls),
                     usd=charged,
-                    purpose="P1: direct choice " + ("pilot" if pilot else "full"),
+                    purpose=purpose,
                     note=f"Verified usage ${verified:.6f}; "
                     f"uncertain failed-attempt reserves ${charged - verified:.6f}; "
                     f"cache-read tokens {sum(call['cache_read_tokens'] or 0 for call in calls)}; "
@@ -681,9 +730,15 @@ def direct(
 def direct_report(
     run_dir: Annotated[Path, typer.Argument(help="Recorded direct-choice run.", exists=True, file_okay=False)],
     out: Annotated[Path, typer.Option(help="Directory for generated summary and public table.")],
+    added: Annotated[
+        list[Path] | None,
+        typer.Option(
+            "--add", help="A later run of other arms, such as --luna; repeatable.", exists=True, file_okay=False
+        ),
+    ] = None,
 ) -> None:
     """Report direct-choice outcomes and observed provider cache costs without paid calls."""
-    build_direct_report(run_dir, out_dir=out)
+    build_direct_report(run_dir, out_dir=out, added=added or ())
     typer.echo(f"report written to {out}")
 
 
@@ -822,6 +877,8 @@ def _decision_models(names: Sequence[str], *, clm_base_url: str) -> dict[str, Je
             models[name] = jev(JEV_MODEL)
         elif name == "clm":
             models[name] = clm(clm_base_url, model=CLM_MODEL)
+        elif name == "luna":
+            models[name] = StructuredChoiceModel(LUNA_MODEL)
         else:
             models[name] = OpenAILogprobModel(LOGPROB_MODEL)
     return models
@@ -935,9 +992,11 @@ def _decision_ledger_entries(
         elif name == "jev":
             provider, billed_model, usd = "typesafe", JEV_MODEL, jev_usd(billed.input_tokens)
         else:
+            billed_model = LUNA_MODEL if name == "luna" else LOGPROB_MODEL
+            # Priced on the sum: a tier meant for one long request (gpt-6-luna above 272K) overstates, never under.
             usage = Usage(input_tokens=billed.input_tokens, output_tokens=billed.output_tokens)
-            price = calc_price(usage, model_ref=LOGPROB_MODEL, provider_id="openai")
-            provider, billed_model, usd = "openai", LOGPROB_MODEL, float(price.total_price)
+            price = calc_price(usage, model_ref=billed_model, provider_id="openai")
+            provider, usd = "openai", float(price.total_price)
         entries.append(
             LedgerEntry(
                 timestamp=timestamp,

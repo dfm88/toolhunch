@@ -1,7 +1,8 @@
 # ToolRet: does a decision stage improve tool retrieval?
 
 A relevant tool appeared first on 22.0% of held-out requests with hybrid retrieval, 32.0%
-with Jev and 33.0% with a GPT-4.1 mini logprob decision stage, at 20 candidates.
+with Jev and 33.0% with a GPT-4.1 mini logprob decision stage, at 20 candidates; GPT-6 Luna,
+answering as structured output in a later run, reached 34.0%.
 These are ranking measurements. Abstention changes which requests get a tool, and the observed
 thresholds sacrifice many useful picks as well as preventing wrong ones.
 
@@ -148,7 +149,10 @@ five strategies on identical requests within small catalogs from individual Tool
 Its [generated summary](https://github.com/dfm88/toolhunch/blob/main/bench/results/2026-09-toolret-direct/summary.json)
 records run `20260930T050455Z-direct`, started on 2026-09-30 at commit `8f9cf16` with a clean
 checkout and Pydantic AI 2.50.0. The dataset revision is the same as F2a; catalog fingerprints,
-task identities, model limits and payload shapes are pinned in the manifest.
+task identities, model limits and payload shapes are pinned in the manifest. The two GPT-6 Luna
+arms come from a later run on the same requests, `20260930T170103Z-direct-luna`, started on
+2026-09-30 at commit `67bb324` with the Luna changes not yet committed (they are in `4c98060`);
+the summary lists it under `added_runs`.
 
 ### Protocol and applicability
 
@@ -173,10 +177,13 @@ Unlabelled alternatives might still be useful, so these are approximate negative
 | `jev-all` | Jev choice question, including “none” | Whole source catalog |
 | `agent@20` | One GPT-4.1 mini function-tool request | Hybrid's 20 candidates |
 | `agent-all` | One GPT-4.1 mini function-tool request | Whole source catalog |
+| `agent-luna@20` | One GPT-6 Luna function-tool request, reasoning off | Hybrid's 20 candidates |
+| `agent-luna-all` | One GPT-6 Luna function-tool request, reasoning off | Whole source catalog |
 
 Hybrid uses the same BM25/embedding fusion as F2a. Jev is `jev-1.13.0@api.typesafe.ai`,
 prompt `tool-choice-v1`; the agent is `gpt-4.1-mini-2025-04-14` through OpenAI Chat Completions,
-prompt `direct-choice-v1`. Every selector receives the original name, complete description and
+prompt `direct-choice-v1`; the Luna arms send the same request to `gpt-6-luna` with
+`reasoning_effort="none"`. Every selector receives the original name, complete description and
 parameter names. All recorded selector requests used FULL detail; the planner needed no
 reduction. Function definitions encode parameter names as string properties, and sanitised
 function names map back to card IDs.
@@ -194,6 +201,8 @@ MetaTool (`metatool_which`, 200 tools) is separate. In the
 `agent-all` received HTTP 400 `array_above_max_length`, parameter `tools`, on **4/4 attempts**
 with 200 function definitions. The exact provider maximum was not determined. That pair is
 **not applicable**, rather than a selection failure; the four other strategies retain MetaTool.
+`agent-luna-all` received the same rejection on 4/4 attempts in its pilot and is not applicable
+there either.
 The pilot's original `completed: false` and stop reason remain historical facts. Under the
 recorded applicability restriction, the full run completed all 3,375 planned strategy requests
 with zero errors; rejected pilot attempts remain in provenance and budget accounting.
@@ -210,8 +219,11 @@ the measurement does not establish task completion.
 | `jev-all` | 74.1% (69.0 to 79.0%) | +19.7 pp (13.8 to 25.9) |
 | `agent@20` | 61.7% (55.9 to 66.9%) | +7.2 pp (0.0 to 14.5) |
 | `agent-all` | 60.7% (55.2 to 66.2%) | +6.2 pp (−1.4 to 13.5) |
+| `agent-luna@20` | 77.6% (72.4 to 82.1%) | +23.1 pp (17.6 to 29.0) |
+| `agent-luna-all` | 79.7% (74.8 to 84.1%) | +25.2 pp (19.3 to 31.0) |
 
-Jev improved relevant picks relative to retrieval in this configuration. Reading the whole
+GPT-6 Luna had the highest observed rates; its arms ran later than the others, on the same
+requests. Jev improved relevant picks relative to retrieval in this configuration. Reading the whole
 catalog had the highest observed rate, but the delta intervals above compare each strategy
 only with hybrid; they do not establish a difference between the two Jev strategies.
 
@@ -225,7 +237,10 @@ The following “none” outcomes use **435 requests per row: 290 positives and 
 | `jev-all` | 215 | 121 | 99 | 77.2% | 64.0% | 27.8% (23.9 to 32.4%) |
 | `agent@20` | 179 | 145 | 111 | 74.5% | 55.2% | 33.3% (29.1 to 37.5%) |
 | `agent-all` | 176 | 120 | 139 | 68.0% | 59.5% | 27.6% (23.4 to 31.6%) |
+| `agent-luna@20` | 225 | 210 | 0 | 100.0% | 51.7% | 48.3% (44.5 to 52.0%) |
+| `agent-luna-all` | 231 | 204 | 0 | 100.0% | 53.1% | 46.9% (43.2 to 50.6%) |
 
+GPT-6 Luna never answered without a function call: it picked a tool for every negative.
 No direct-choice abstention threshold was tuned. The summary also includes Jev's ranking with
 “none” ignored as a diagnostic; that is separate from the symmetric headline above. Coverage,
 accuracy of picks and abstention metrics depend on this artificial negative mix.
@@ -241,8 +256,10 @@ MetaTool alone has **200 positives and 100 negatives (33.3% negatives)** per app
 | `jev-all` | 72.0% (65.5 to 78.0%) | 144 | 149 | 7 |
 | `agent@20` | 60.0% (53.0 to 66.5%) | 120 | 113 | 67 |
 | `agent-all` | n/a | n/a | n/a | n/a |
+| `agent-luna@20` | 65.5% (59.0 to 72.0%) | 131 | 168 | 1 |
+| `agent-luna-all` | n/a | n/a | n/a | n/a |
 
-The secondary `all_catalogs` pool combines all five sources for the four applicable strategies:
+The secondary `all_catalogs` pool combines all five sources for the strategies applicable everywhere:
 **490 positives and 245 negatives (33.3% negatives)**. It is not a five-strategy comparison.
 
 | Strategy, secondary all-catalog pool, 33.3% negatives | Relevant picks / positives (95% CI) | Correct | Wrong | Abstained |
@@ -251,6 +268,7 @@ The secondary `all_catalogs` pool combines all five sources for the four applica
 | `hybrid@20+jev` | 69.0% (64.5 to 72.9%) | 338 | 225 | 172 |
 | `jev-all` | 73.3% (69.2 to 77.1%) | 359 | 270 | 106 |
 | `agent@20` | 61.0% (56.7 to 65.3%) | 299 | 258 | 178 |
+| `agent-luna@20` | 72.7% (68.8 to 76.3%) | 356 | 378 | 1 |
 
 Per-source selection intervals and all cost rows are in the generated summary.
 These rates cannot be compared with F2a's headline as an effect of the model or catalog size:
@@ -279,8 +297,10 @@ usage costs, not invoice verification.
 | `jev-all` | 250 | $0.2807 | $0.2807 | n/a (unmeasured) | 323 / 439 ms | $0.2752 |
 | `agent@20` | 250 | $0.6804 | $0.6804 | 0.0% | 936 / 2,000 ms | $0.6934 |
 | `agent-all` | 250 | $0.7856 | $2.4286 | 92.1% | 861 / 1,932 ms | $1.6857 |
+| `agent-luna@20` | 250 | $0.1800 | $0.1800 | 0.0% | 1,237 / 2,698 ms | $0.1814 |
+| `agent-luna-all` | 250 | $0.0746 | $0.6153 | 99.6% | 1,452 / 2,410 ms | $0.4490 |
 
-The observed negative denominators are 145, 117, 125, 118 and 125 respectively;
+The observed negative denominators are 145, 117, 125, 118, 125, 118 and 125 respectively;
 replays account for the remaining requests. Search cost and latency are included for strategies
 that search first, with physical searches shared and paid once. Retrieval used an existing
 embedding cache: the near-zero incremental embedding cost is not a fresh-index price, and
@@ -291,12 +311,12 @@ cache reads or latency to these cost measurements.
 Provider cache reads for Jev were not measured; n/a does not mean zero. The observed agent
 warm-positive cache shares vary by catalog:
 
-| Source | `agent@20` | `agent-all` |
-|---|---:|---:|
-| `webtools_spotify` | 0.0% | 86.4% |
-| `webtools_tmdb` | 0.0% | 88.9% |
-| `tooleyes` | 0.0% | 91.8% |
-| `apibank` | 0.0% | 93.8% |
+| Source | `agent@20` | `agent-all` | `agent-luna@20` | `agent-luna-all` |
+|---|---:|---:|---:|---:|
+| `webtools_spotify` | 0.0% | 86.4% | 0.0% | 99.3% |
+| `webtools_tmdb` | 0.0% | 88.9% | 0.0% | 99.6% |
+| `tooleyes` | 0.0% | 91.8% | 0.0% | 99.5% |
+| `apibank` | 0.0% | 93.8% | 0.0% | 99.7% |
 
 The first scored positive of each catalog defines the report's cold phase. In the full run,
 all Jev and agent cold responses were replays, so **no new selector cold measurement exists**.
@@ -312,7 +332,10 @@ positive for each of the four common catalogs; “cold” does not establish an 
 | `agent-all` | 4 | $0.008329600 | $2.0824 |
 
 On this run, `agent-all` read many cached tokens and its observed warm billed cost was below
-list cost. It still cost more than `agent@20` per newly measured positive. This is a comparison
+list cost. It still cost more than `agent@20` per newly measured positive. With Luna the order
+reverses: nearly every input token of `agent-luna-all` was a cache read, and it cost less than
+`agent-luna@20` and than `jev-all`, at more than four times Jev's median latency. The Luna pilot's
+first positives were replayed in the full run, so the Luna arms have no new cold measurement either. This is a comparison
 of strategies, not an isolated causal estimate of caching's effect on latency: tool counts,
 content and routing also differ. These are single-turn requests on one provider; multi-turn
 agent loops remain future work.
@@ -342,8 +365,11 @@ Regenerate either report from local raw runs without provider calls:
 uv run toolhunch-bench direct-report bench/runs/20260929T221520Z-direct-pilot \
   --out bench/results/2026-09-toolret-direct/pilot/
 uv run toolhunch-bench direct-report bench/runs/20260930T050455Z-direct \
-  --out bench/results/2026-09-toolret-direct/
+  --add bench/runs/20260930T170103Z-direct-luna --out bench/results/2026-09-toolret-direct/
 ```
+
+The Luna arms run on their own with `uv run toolhunch-bench direct --luna` (`--pilot`, `--dry-run`
+as above); their full run recorded $0.170 of verified usage, the pilot $0.070.
 
 Raw runs and replay stores are git-ignored. A fresh paid reproduction requires credentials and
 the pinned dataset. Start with `uv run toolhunch-bench direct --dry-run`, then
@@ -510,6 +536,39 @@ A new run uses the F2a `decision` command with `--order-sensitivity`, held-out t
 The runner prints estimates, charges `P1: order sensitivity` in the ledger and enforces the
 cumulative P1 guard. The paid run stops on an error; it is not automatically relaunched.
 
+## GPT-6 Luna as a structured-output decider
+
+GPT-6 Luna (`gpt-6-luna`, reasoning off) returns at most 5 top logprobs, and only with
+`reasoning_effort="none"`: too few for the logprob decider, which reads 20 option letters. It
+answers the same letter prompt instead as one letter from a JSON-schema enum
+(`tool-choice-v1+letters-v1-json-v1`, 16 completion tokens at most). The answer has no
+probabilities: the chosen card gets 1 and the others 0, so there is no threshold reading, no
+averaging over orders, and a pick behind “none” is unknown. The
+[generated Luna summary](https://github.com/dfm88/toolhunch/blob/main/bench/results/2026-09-toolret-luna/summary.json)
+combines three runs on the F2a held-out tasks, catalog and `plain` queries at K=20, on 2026-09-30:
+
+| Run | Protocol | Used for |
+|---|---|---|
+| `20260930T171259Z` | forced pick (no “none” option), five orders, cache bypassed | first pick (order 0) and order |
+| `20260930T170022Z` | reserved “none” option, positives and gold-removed negatives | “none” reading |
+| `20260930T170024Z` | forced pick, retrieval order, three repeats, cache bypassed | same-order noise |
+
+| First pick (95% CI) | Δ vs hybrid (95% CI) | Decision $ / 1,000 | Latency p50 / p95 |
+|---:|---:|---:|---:|
+| 34.0% (27.0 to 40.5%) | +12.0 pp (6.5 to 17.5) | $0.12 | 1,058 / 1,982 ms |
+
+With “none” allowed, on 200 positives and 200 negatives, Luna gave 60 correct, 257 wrong and
+83 “none” answers (Jev 64/265/71, GPT-4.1 mini logprobs 61/272/67). It said “none” to 16% of
+positives and 25.5% of negatives.
+
+Across the five orders of 198 tasks, two orders agreed on the first tool 62.9% (58.4 to 67.4%) of
+the time, against 92.1% (88.9 to 95.1%) over three same-order repeats on 199 tasks. P@1 went from
+34.3% in retrieval order to 33.8%, 31.3%, 32.8% and 33.8% in the four shuffles (mean 33.0%, 27.1 to
+38.9%). One of the first three presented slots was picked 23.1% of the time; a uniform pick gives 15%.
+Luna returned no content, with an empty refusal and `finish_reason` `stop`, on 3 of 1,000 order asks
+(2 tasks) and 1 of 600 repeats; one of them reproduced on a direct retry. Those searches are
+counted as errors and their tasks left out of the order and noise comparisons.
+
 ## Compatible-server smoke tests
 
 Smoke-tested on 2026-09-30 with laya-serve 0.3.22 and rizzo-flow 0.1.0 on a two-tool example; not benchmarked.
@@ -551,6 +610,8 @@ the recorded private raw evidence and audit metadata.
 - Gold-removed negatives can leave unlabelled alternatives that would still be useful.
 - The dev sample is small, and configuration-specific probabilities can vary across repeats.
 - Jev and logprob card detail differs in F2a. The separate direct-choice comparison aligns full card text.
+- The GPT-6 Luna runs came after the others, on 2026-09-30, on the same tasks; a structured answer carries no
+  probabilities, so its readings are fewer.
 - Cost and latency are tied to the models, routing, caching state and date of these runs.
 - Searches that raised `DecisionError` are excluded from rates, latency and costs; the published dev and
   main held-out configurations reported no errors.
@@ -570,6 +631,10 @@ uv run toolhunch-bench decision-report \
 uv run toolhunch-bench decision-charts bench/results/2026-09-toolret-decision/summary.json --out docs/assets
 ```
 
+The Luna summary regenerates from its three runs with
+`uv run toolhunch-bench luna-report --orders bench/runs/20260930T171259Z --none bench/runs/20260930T170022Z --repeats bench/runs/20260930T170024Z`;
+the paid commands are in its README.
+
 Raw run directories are local and git-ignored. The published summary and SVGs are sufficient
 to inspect the measurements; regenerating from raw exchanges requires those run directories.
 
@@ -588,5 +653,3 @@ held-out decision calls across both query sources and candidate counts. This est
 corpus/query embeddings, query writing, dev ablations and repetition runs; it is not a total
 price for rebuilding every artifact. Each paid command prints its current estimate and ledger
 cap check before sending requests.
-
-Not affiliated with TypeSafe, OpenAI or Pydantic.
