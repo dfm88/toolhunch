@@ -7,7 +7,7 @@ from collections import defaultdict
 from dataclasses import asdict
 from typing import TYPE_CHECKING, Any
 
-from toolhunch_bench.direct import DIRECT_ARMS
+from toolhunch_bench.direct import DIRECT_ARMS, NOT_APPLICABLE
 from toolhunch_bench.metrics import Outcome, cluster_bootstrap_ci, percentile, selective_metrics
 
 if TYPE_CHECKING:
@@ -30,6 +30,7 @@ def _cost(records: Sequence[dict[str, Any]], *, phase: str, arm: str) -> dict[st
     calls = [call for r in own for call in r["provider_calls"]]
     input_tokens = sum(call["input_tokens"] or 0 for call in calls)
     cached = sum(call["cache_read_tokens"] or 0 for call in calls)
+    unpriced = sum(call["usd"] is None or call["list_usd"] is None for call in calls)
     billed = sum(call["usd"] or 0 for call in calls) + sum(r["search_usd"] for r in own)
     list_price = sum(call["list_usd"] or 0 for call in calls) + sum(r["search_usd"] for r in own)
     latencies = [r["search_seconds"] + (r["decision_seconds"] or 0) for r in own if r["error"] is None]
@@ -39,14 +40,18 @@ def _cost(records: Sequence[dict[str, Any]], *, phase: str, arm: str) -> dict[st
         "replays": sum(r["replayed"] for r in records if r["phase"] == phase),
         "input_tokens": input_tokens,
         "cache_read_tokens": cached,
-        "cache_share": cached / input_tokens if input_tokens else None,
-        "billed_usd": billed if own else None,
-        "list_usd": list_price if own else None,
-        "billed_usd_per_1000": billed * 1000 / len(own) if own else None,
-        "list_usd_per_1000": list_price * 1000 / len(own) if own else None,
+        "cache_share": cached / input_tokens
+        if input_tokens and all(call["provider"] != "typesafe" for call in calls)
+        else None,
+        "billed_usd": billed if own and not unpriced else None,
+        "list_usd": list_price if own and not unpriced else None,
+        "billed_usd_per_1000": billed * 1000 / len(own) if own and not unpriced else None,
+        "list_usd_per_1000": list_price * 1000 / len(own) if own and not unpriced else None,
         "latency_p50_ms": percentile(latencies, 50) * 1000 if latencies else None,
         "latency_p95_ms": percentile(latencies, 95) * 1000 if latencies else None,
-        "unpriced_attempts": sum(call["usd"] is None for call in calls),
+        "unpriced_attempts": unpriced,
+        "known_billed_subtotal_usd": billed,
+        "known_list_subtotal_usd": list_price,
     }
 
 
@@ -110,6 +115,8 @@ def _row(
     return {
         "arm": arm,
         "catalog": catalog,
+        "status": "applicable",
+        "catalogs": sorted({r["catalog"] for r in records}),
         "positives": len(positives),
         "relevant_pick_rate": _interval([(task_id(r), float(correct(r))) for r in positives]),
         "delta_vs_hybrid": _interval(
@@ -142,6 +149,14 @@ def build_direct_report(run_dir: Path, *, out_dir: Path) -> dict[str, Any]:
     manifest = json.loads((run_dir / "manifest.json").read_text())
     records = [json.loads(line) for line in (run_dir / "run.jsonl").read_text().splitlines() if line.strip()]
     calls = [json.loads(line) for line in (run_dir / "calls.jsonl").read_text().splitlines() if line.strip()]
+    not_applicable = dict(NOT_APPLICABLE)
+    for exclusion in manifest.get("not_applicable", []):
+        not_applicable[(exclusion["arm"], exclusion["catalog"])] = {
+            field: exclusion[field] for field in ("reason", "source", "date")
+        }
+    sources = [c["source"] for c in manifest["catalogs"]]
+    common = [source for source in sources if all((arm, source) not in not_applicable for arm in DIRECT_ARMS)]
+    applicable = [r for r in records if (r["arm"], r["catalog"]) not in not_applicable]
     baseline = {
         (r["catalog"], r["task"]): r["error"] is None and r["pick"] in r["relevant"]
         for r in records
@@ -150,20 +165,59 @@ def build_direct_report(run_dir: Path, *, out_dir: Path) -> dict[str, Any]:
     rows: list[dict[str, Any]] = []
     validation: dict[str, Any] = {}
     for arm in DIRECT_ARMS:
-        own = [r for r in records if r["arm"] == arm]
-        if not own:
-            continue
-        rows.append(_row(own, arm=arm, catalog="pooled", baseline=baseline))
+        raw = [r for r in records if r["arm"] == arm]
+        excluded = [r for r in raw if (arm, r["catalog"]) in not_applicable]
+        own = [r for r in applicable if r["arm"] == arm]
+        rows.append(_row([r for r in own if r["catalog"] in common], arm=arm, catalog="pooled", baseline=baseline))
+        if len(common) != len(sources) and all((arm, source) not in not_applicable for source in sources):
+            rows.append(_row(own, arm=arm, catalog="all_catalogs", baseline=baseline))
         for selected in manifest["catalogs"]:
+            pair = (arm, selected["source"])
+            if pair in not_applicable:
+                rejected = [r for r in excluded if r["catalog"] == selected["source"]]
+                rows.append(
+                    {
+                        "arm": arm,
+                        "catalog": selected["source"],
+                        "status": "not applicable",
+                        "reason": not_applicable[pair]["reason"],
+                        "evidence": not_applicable[pair],
+                        "excluded_requests": len(rejected),
+                        "excluded_rejected_attempts": sum(r["error"] is not None for r in rejected),
+                        "rejection_diagnostics": sorted({r["error"] for r in rejected if r["error"] is not None}),
+                        "positives": None,
+                        "relevant_pick_rate": None,
+                        "delta_vs_hybrid": None,
+                        "ranking_ignoring_abstention": None,
+                        "none_option": None,
+                        "positive_cost": None,
+                        "negative_cost": None,
+                        "excluded_attempt_cost": {
+                            phase: _cost(rejected, phase=phase, arm=arm) for phase in ("cold", "warm", "negative")
+                        },
+                    }
+                )
+                continue
             subset = [r for r in own if r["catalog"] == selected["source"]]
             if subset:
                 rows.append(_row(subset, arm=arm, catalog=selected["source"], baseline=baseline))
         successful = [r for r in own if r["error"] is None]
-        actual = [call for call in calls if call["arm"] == arm and call["model"] != "text-embedding-3-small"]
+        raw_calls = [call for call in calls if call["arm"] == arm and call["model"] != "text-embedding-3-small"]
+        actual = [call for call in raw_calls if (arm, call["catalog"]) not in not_applicable]
+        planned = sum(
+            c["positives"] + c["negatives"] for c in manifest["catalogs"] if (arm, c["source"]) not in not_applicable
+        )
+        errors = sum(r["error"] is not None for r in own)
         validation[arm] = {
+            "planned_requests": planned,
+            "raw_requests": len(raw),
+            "raw_errors": sum(r["error"] is not None for r in raw),
+            "raw_provider_calls": len(raw_calls),
+            "excluded_requests": len(excluded),
+            "excluded_rejected_attempts": sum(r["error"] is not None for r in excluded),
             "requests": len(own),
-            "errors": sum(r["error"] is not None for r in own),
-            "error_rate": sum(r["error"] is not None for r in own) / len(own),
+            "errors": errors,
+            "error_rate": errors / planned if planned else None,
             "classified_successful": sum(r["abstained"] is not None for r in successful),
             "successful_requests": len(successful),
             "classified_fraction": sum(r["abstained"] is not None for r in successful) / len(successful)
@@ -179,10 +233,26 @@ def build_direct_report(run_dir: Path, *, out_dir: Path) -> dict[str, Any]:
     actual_usd = sum(call["usd"] or 0 for call in calls)
     estimated = manifest["estimate"]["usd"]
     full_estimate = manifest.get("full_estimate", manifest["estimate"])["usd"]
-    remaining, projection_method = _remaining_projection(manifest, records, calls)
+    remaining, projection_method = _remaining_projection(manifest, applicable, calls, not_applicable=not_applicable)
     summary = {
         "schema_version": 1,
         "manifest": manifest,
+        "applicability": {
+            "common_catalogs": common,
+            "primary_pool": "pooled: common catalogs across all five arms",
+            "secondary_pool": "all_catalogs: all selected catalogs, only for arms applicable everywhere",
+            "not_applicable": [
+                {"arm": arm, "catalog": source, **evidence}
+                for (arm, source), evidence in not_applicable.items()
+                if source in sources
+            ],
+            "historical_run_status": {
+                "completed": manifest["completed"],
+                "stop_reason": manifest.get("stop_reason"),
+                "interpretation": "Original run status retained; applicability does not retroactively "
+                "complete a stopped run.",
+            },
+        },
         "rows": rows,
         "validation": validation,
         "run_cost": {
@@ -219,6 +289,8 @@ def _remaining_projection(
     manifest: dict[str, Any],
     records: Sequence[dict[str, Any]],
     calls: Sequence[dict[str, Any]],
+    *,
+    not_applicable: dict[tuple[str, str], Any],
 ) -> tuple[float | None, str]:
     if not manifest["pilot"]:
         return 0.0, "completed full run"
@@ -228,6 +300,8 @@ def _remaining_projection(
     full_estimate = manifest.get("full_estimate", manifest["estimate"])
     for catalog in manifest.get("full_catalogs", manifest["catalogs"]):
         for arm in DIRECT_ARMS[1:]:
+            if (arm, catalog["source"]) in not_applicable:
+                continue
             for variant, phase, field in (("positive", "warm", "positives"), ("negative", "negative", "negatives")):
                 own = [
                     r
@@ -255,13 +329,20 @@ def _markdown(summary: dict[str, Any]) -> str:
     def interval(value: dict[str, Any] | None) -> str:
         return f"{value['value']:.3f} ({value['ci95'][0]:.3f} to {value['ci95'][1]:.3f})" if value else "n/a"
 
-    def money(value: float | None) -> str:
-        return f"${value:.4f}" if value is not None else "n/a"
+    def money(value: float | None, *, unpriced: int = 0) -> str:
+        return "unknown" if unpriced else (f"${value:.4f}" if value is not None else "n/a")
 
     lines = [
         "# ToolRet direct choice",
         "",
         "Single-turn selection of a relevant tool from real source catalogs.",
+        "",
+        "Primary pooled comparison uses the same common catalogs in every arm: "
+        + ", ".join(summary["applicability"]["common_catalogs"])
+        + ".",
+        "Secondary all_catalogs rows include every selected catalog and are not a five-arm comparison.",
+        f"Original run completed: {summary['manifest']['completed']}; original stop reason: "
+        f"{summary['manifest'].get('stop_reason') or 'none'}. Applicability does not change this historical status.",
         "",
         "95% intervals resample tasks together, 2,000 resamples, seed 0. Abstentions and errors are misses in the "
         "positive-request headline. None-option metrics use parsed requests; errors are listed separately.",
@@ -271,11 +352,18 @@ def _markdown(summary: dict[str, Any]) -> str:
         "|---|---|---:|---:|---:|---:|---:|",
     ]
     for row in summary["rows"]:
+        if row["status"] == "not applicable":
+            lines.append(
+                f"| {row['arm']} | {row['catalog']} (not applicable) | n/a | n/a | n/a | n/a | "
+                f"{row['excluded_rejected_attempts']} rejected attempts, excluded |"
+            )
+            continue
         none = row["none_option"]
+        mix = f"{none['negative_share']:.1%}" if none["negative_share"] is not None else "n/a"
         lines.append(
             f"| {row['arm']} | {row['catalog']} | {interval(row['relevant_pick_rate'])} | "
             f"{interval(row['delta_vs_hybrid'])} | {none['correct']} / {none['wrong']} / {none['abstained']} | "
-            f"{none['negative_requests']}/{none['requests']} ({none['negative_share']:.1%}) | {none['errors']} |"
+            f"{none['negative_requests']}/{none['requests']} ({mix}) | {none['errors']} |"
         )
     lines += [
         "",
@@ -289,7 +377,11 @@ def _markdown(summary: dict[str, Any]) -> str:
         "|---|---|---:|---:|---:|---:|---:|---:|",
     ]
     for row in summary["rows"]:
+        if row["status"] == "not applicable":
+            lines.append(f"| {row['arm']} | {row['catalog']} (not applicable) | n/a | n/a | n/a | n/a | n/a | n/a |")
+            continue
         cold, warm = row["positive_cost"]["cold"], row["positive_cost"]["warm"]
+        negative = row["negative_cost"]
         cache = f"{warm['cache_share']:.1%}" if warm["cache_share"] is not None else "n/a"
         latency = (
             f"{warm['latency_p50_ms']:.1f} / {warm['latency_p95_ms']:.1f}"
@@ -297,10 +389,38 @@ def _markdown(summary: dict[str, Any]) -> str:
             else "n/a"
         )
         lines.append(
-            f"| {row['arm']} | {row['catalog']} | {money(cold['billed_usd'])} | "
-            f"{money(warm['billed_usd_per_1000'])} | {money(warm['list_usd_per_1000'])} | {cache} | {latency} | "
-            f"{money(row['negative_cost']['billed_usd_per_1000'])} |"
+            f"| {row['arm']} | {row['catalog']} | {money(cold['billed_usd'], unpriced=cold['unpriced_attempts'])} | "
+            f"{money(warm['billed_usd_per_1000'], unpriced=warm['unpriced_attempts'])} | "
+            f"{money(warm['list_usd_per_1000'], unpriced=warm['unpriced_attempts'])} | {cache} | {latency} | "
+            f"{money(negative['billed_usd_per_1000'], unpriced=negative['unpriced_attempts'])} |"
         )
+    exclusions = [row for row in summary["rows"] if row["status"] == "not applicable"]
+    if exclusions:
+        lines += ["", "## Non-applicable pairs and historical rejections", ""]
+        for row in exclusions:
+            lines.append(
+                f"- {row['arm']} / {row['catalog']}: {row['reason']}. "
+                f"Evidence: {row['evidence']['source']} ({row['evidence']['date']}); "
+                f"{row['excluded_requests']} historical requests excluded, "
+                f"{row['excluded_rejected_attempts']} rejected attempts."
+            )
+        lines += [
+            "",
+            "| Arm | Catalog | Historical phase | Rejected provider attempts | Billed | List | "
+            "Billed / 1,000 | List / 1,000 |",
+            "|---|---|---|---:|---:|---:|---:|---:|",
+        ]
+        for row in exclusions:
+            for phase, cost in row["excluded_attempt_cost"].items():
+                if cost["provider_calls"]:
+                    unknown = cost["unpriced_attempts"]
+                    lines.append(
+                        f"| {row['arm']} | {row['catalog']} | {phase} | {cost['provider_calls']} | "
+                        f"{money(cost['billed_usd'], unpriced=unknown)} | "
+                        f"{money(cost['list_usd'], unpriced=unknown)} | "
+                        f"{money(cost['billed_usd_per_1000'], unpriced=unknown)} | "
+                        f"{money(cost['list_usd_per_1000'], unpriced=unknown)} |"
+                    )
     lines += ["", "## Caveats", ""] + [f"- {caveat}" for caveat in summary["caveats"]]
     lines += [
         "",

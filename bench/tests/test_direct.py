@@ -19,7 +19,7 @@ from toolhunch.decision import JEV_LIMITS, ChoiceQuestion, DecisionRequest
 from toolhunch_bench import cli
 from toolhunch_bench.datasets.toolret import ToolRetData, ToolRetTask
 from toolhunch_bench.decision_cache import CachedDecisionModel
-from toolhunch_bench.direct import CATALOGS, DirectRunner, direct_catalogs, estimate_direct
+from toolhunch_bench.direct import CATALOGS, DIRECT_ARMS, DirectRunner, direct_catalogs, estimate_direct
 from toolhunch_bench.direct_agent import CachedAgent, function_cards, wire_request
 from toolhunch_bench.direct_cost import (
     AGENT_MODEL,
@@ -325,7 +325,166 @@ def test_dry_run_has_no_provider_or_ledger_side_effects(tmp_path: Path, monkeypa
     estimates = json.loads(output.read_text())
     assert estimates["full"]["requests_per_arm"] == 22
     assert estimates["full"]["usd"] > 0
-    agent_lines = {line["arm"]: line for line in estimates["full"]["lines"] if "arm" in line}
+    agent_lines = {line["arm"]: line for line in estimates["full"]["lines"] if line.get("arm", "").startswith("agent")}
     assert set(agent_lines) == {"agent@20", "agent-all"}
-    assert all(line["requests"] == estimates["full"]["requests_per_arm"] for line in agent_lines.values())
+    assert {arm: line["requests"] for arm, line in agent_lines.items()} == {"agent@20": 22, "agent-all": 18}
+    assert estimates["full"]["planned_requests_by_arm"]["agent-all"] == 18
     assert not (tmp_path / "ledger.jsonl").exists()
+
+
+@pytest.mark.parametrize("fail_applicable", [False, True])
+async def test_non_applicable_runner_and_estimator_contract(
+    tmp_path: Path, fake_decision_model: Any, fail_applicable: bool
+) -> None:
+    sources = {"metatool_which": "metatool", "webtools_spotify": "restgpt-spotify"}
+    original = data(sources=sources, count=10)
+    catalog = ToolCatalog(
+        [
+            *original.catalog,
+            *(
+                ToolCard(id=f"{source}_extra_{i}", name=f"extra_{i}", description="Unrelated utility.", source=source)
+                for source in sources
+                for i in range(18)
+            ),
+        ]
+    )
+    selected = direct_catalogs(
+        ToolRetData(catalog=catalog, tasks=original.tasks, raw_text={}, mapping_stats={}), sources=sources
+    )
+    exclusion = {
+        ("agent-all", "metatool_which"): {
+            "reason": "fixture rejection",
+            "source": "offline fixture",
+            "date": "2026-09-30",
+        }
+    }
+    fake = fake_decision_model(model_id="jev-fake@test", limits=JEV_LIMITS, favourite="weather tool")
+    estimate = await estimate_direct(selected, retriever=BM25Retriever(), jev_model=fake, not_applicable=exclusion)
+    unrestricted = await estimate_direct(selected, retriever=BM25Retriever(), jev_model=fake, not_applicable={})
+    assert estimate.planned_requests_by_arm == {arm: 15 if arm == "agent-all" else 30 for arm in DIRECT_ARMS}
+    assert unrestricted.planned_requests_by_arm["agent-all"] == 30
+    assert unrestricted.usd > estimate.usd
+    guard = SpendGuard()
+
+    def answer(messages: Sequence[ModelMessage], info: AgentInfo) -> ModelResponse:
+        assert (guard.context["arm"], guard.context["catalog"]) not in exclusion
+        if fail_applicable and guard.context["arm"] == "agent-all":
+            raise ModelHTTPError(400, AGENT_MODEL, {"code": "array_above_max_length", "param": "tools"})
+        return ModelResponse(parts=[TextPart("none")], usage=RequestUsage(input_tokens=100, output_tokens=1))
+
+    decision = CachedDecisionModel(GuardedDecisionModel(fake, guard=guard), path=tmp_path / "jev.sqlite")
+    agent = CachedAgent(FunctionModel(answer), path=tmp_path / "agent.sqlite", guard=guard)
+    try:
+        directory = await DirectRunner(
+            retriever=BM25Retriever(), jev_model=decision, agent=agent, guard=guard, not_applicable=exclusion
+        ).run(selected, out_dir=tmp_path, run_id="applicability", pilot=True, estimate=estimate)
+        manifest = json.loads((directory / "manifest.json").read_text())
+        records = [json.loads(line) for line in (directory / "run.jsonl").read_text().splitlines()]
+        assert manifest["not_applicable"] == [
+            {"arm": "agent-all", "catalog": "metatool_which", **exclusion[("agent-all", "metatool_which")]}
+        ]
+        assert manifest["planned_requests_by_arm"]["agent-all"] == 15
+        assert not any((r["arm"], r["catalog"]) in exclusion for r in records)
+        assert not any((c["arm"], c["catalog"]) in exclusion for c in guard.calls)
+        assert manifest["completed"] is not fail_applicable
+        if fail_applicable:
+            assert manifest["counts"]["agent-all"] == 1
+            assert manifest["stop_reason"] == "more than 5% errored requests in agent-all"
+        else:
+            assert manifest["counts"] == dict(estimate.planned_requests_by_arm)
+    finally:
+        decision.close()
+        agent.close()
+
+
+async def test_historical_rejections_common_pool_unknown_cost_and_jev_cache(
+    tmp_path: Path, fake_decision_model: Any
+) -> None:
+    sources = {"webtools_spotify": "restgpt-spotify", "metatool_which": "metatool"}
+    selected = direct_catalogs(data(sources=sources, count=2), sources=sources)
+    fake = fake_decision_model(model_id="jev-fake@test", limits=JEV_LIMITS, favourite="weather tool")
+    estimate = await estimate_direct(selected, retriever=BM25Retriever(), jev_model=fake)
+    guard = SpendGuard()
+
+    def answer(messages: Sequence[ModelMessage], info: AgentInfo) -> ModelResponse:
+        return ModelResponse(parts=[TextPart("none")], usage=RequestUsage(input_tokens=100, output_tokens=1))
+
+    decision = CachedDecisionModel(GuardedDecisionModel(fake, guard=guard), path=tmp_path / "jev.sqlite")
+    agent = CachedAgent(FunctionModel(answer), path=tmp_path / "agent.sqlite", guard=guard)
+    try:
+        directory = await DirectRunner(retriever=BM25Retriever(), jev_model=decision, agent=agent, guard=guard).run(
+            selected, out_dir=tmp_path, run_id="historical", pilot=True, estimate=estimate
+        )
+    finally:
+        decision.close()
+        agent.close()
+    manifest = json.loads((directory / "manifest.json").read_text())
+    manifest.pop("not_applicable")
+    manifest["completed"] = False
+    manifest["stop_reason"] = "more than 5% errored requests in agent-all"
+    (directory / "manifest.json").write_text(json.dumps(manifest))
+    records = [json.loads(line) for line in (directory / "run.jsonl").read_text().splitlines()]
+    calls = [json.loads(line) for line in (directory / "calls.jsonl").read_text().splitlines()]
+    reference = next(r for r in records if r["arm"] == "agent-all")
+    reference_call = next(c for c in calls if c["arm"] == "agent-all")
+    for i in range(4):
+        failed_call = {
+            **reference_call,
+            "catalog": "metatool_which",
+            "usd": None,
+            "list_usd": None,
+            "error": "ModelHTTPError 400 code=array_above_max_length param=tools",
+            "budget_charge_usd": 0.04,
+        }
+        calls.append(failed_call)
+        records.append(
+            {
+                **reference,
+                "catalog": "metatool_which",
+                "task": f"rejected_{i}",
+                "phase": "warm",
+                "error": failed_call["error"],
+                "abstained": None,
+                "pick": None,
+                "provider_calls": [failed_call],
+            }
+        )
+    (directory / "run.jsonl").write_text("\n".join(json.dumps(r) for r in records) + "\n")
+    (directory / "calls.jsonl").write_text("\n".join(json.dumps(c) for c in calls) + "\n")
+    original = (directory / "manifest.json").read_bytes()
+    output = tmp_path / "report"
+    summary = build_direct_report(directory, out_dir=output)
+    assert (directory / "manifest.json").read_bytes() == original
+    assert summary["manifest"]["completed"] is False
+    assert summary["manifest"]["stop_reason"] == manifest["stop_reason"]
+    assert summary["applicability"]["common_catalogs"] == ["webtools_spotify"]
+    pooled = [r for r in summary["rows"] if r["catalog"] == "pooled"]
+    assert len(pooled) == 5
+    assert all(r["positives"] == 2 and r["catalogs"] == ["webtools_spotify"] for r in pooled)
+    secondary = [r for r in summary["rows"] if r["catalog"] == "all_catalogs"]
+    assert len(secondary) == 4
+    assert all(r["positives"] == 4 for r in secondary)
+    excluded = next(r for r in summary["rows"] if r["status"] == "not applicable")
+    assert excluded["excluded_rejected_attempts"] == 4
+    assert excluded["relevant_pick_rate"] is None
+    assert excluded["none_option"] is None
+    unknown = excluded["excluded_attempt_cost"]["warm"]
+    assert unknown["unpriced_attempts"] == 4
+    assert all(
+        unknown[field] is None for field in ("billed_usd", "list_usd", "billed_usd_per_1000", "list_usd_per_1000")
+    )
+    validation = summary["validation"]["agent-all"]
+    assert validation["raw_errors"] == 4
+    assert validation["errors"] == 0
+    assert validation["raw_requests"] == 7
+    assert validation["requests"] == validation["planned_requests"] == 3
+    assert validation["classified_successful"] == 3
+    assert validation["classified_fraction"] == 1
+    assert summary["run_cost"]["projected_remaining_usd"] is None
+    jev = next(r for r in pooled if r["arm"] == "jev-all")
+    assert jev["positive_cost"]["cold"]["input_tokens"] > 0
+    assert jev["positive_cost"]["cold"]["cache_share"] is None
+    published = (output / "README.md").read_text()
+    assert "unknown | unknown | unknown | unknown" in published
+    assert "Original run completed: False" in published
+    assert "4 rejected attempts, excluded" in published

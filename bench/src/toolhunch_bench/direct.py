@@ -53,6 +53,14 @@ CATALOGS: Mapping[str, str] = {
     "metatool_which": "metatool",
 }
 DIRECT_ARMS = ("hybrid@20", "hybrid@20+jev", "jev-all", "agent@20", "agent-all")
+NOT_APPLICABLE: Mapping[tuple[str, str], Mapping[str, str]] = {
+    ("agent-all", "metatool_which"): {
+        "reason": "OpenAI Chat Completions rejected 200 function tools: HTTP 400 "
+        "array_above_max_length, param tools (4/4 attempts); exact maximum not established",
+        "source": "bench/runs/20260929T221520Z-direct-pilot/run.jsonl",
+        "date": "2026-09-30",
+    },
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -130,7 +138,7 @@ class CatalogOrderRetriever:
 
 @dataclass(frozen=True, slots=True)
 class DirectEstimate:
-    """Prepaid estimate, with per-provider lines and the number of scored requests in each arm."""
+    """Prepaid estimate; legacy request totals describe the workload before per-arm applicability exclusions."""
 
     usd: float
     requests_per_arm: int
@@ -138,6 +146,7 @@ class DirectEstimate:
     negatives_per_arm: int
     lines: tuple[Mapping[str, Any], ...]
     stand_in_searches: int
+    planned_requests_by_arm: Mapping[str, int]
 
 
 async def estimate_direct(
@@ -146,6 +155,7 @@ async def estimate_direct(
     retriever: Retriever,
     jev_model: DecisionModel,
     embeddings: CachedEmbedder | None = None,
+    not_applicable: Mapping[tuple[str, str], Mapping[str, str]] = NOT_APPLICABLE,
 ) -> DirectEstimate:
     """Estimate identical planned requests without contacting a decision model or a missing embedding.
 
@@ -159,12 +169,21 @@ async def estimate_direct(
     query_texts: list[str] = []
     document_texts: list[str] = []
     positives = negatives = 0
+    planned: dict[str, int] = dict.fromkeys(DIRECT_ARMS, 0)
     for selected in catalogs:
         positives += len(selected.positives)
         negatives += len(selected.negatives)
-        document_texts += [default_search_text(card) for card in selected.catalog]
+        searches = any(
+            (arm, selected.source) not in not_applicable for arm in ("hybrid@20", "hybrid@20+jev", "agent@20")
+        )
+        if searches:
+            document_texts += [default_search_text(card) for card in selected.catalog]
+        for arm in DIRECT_ARMS:
+            if (arm, selected.source) not in not_applicable:
+                planned[arm] += len(selected.positives) + len(selected.negatives)
         for task, _variant, catalog, _ in selected.requests():
-            query_texts.append(task.query)
+            if searches:
+                query_texts.append(task.query)
             data = ToolRetData(catalog=catalog, tasks=(task,), raw_text={}, mapping_stats={})
             models = [
                 DecisionArm(
@@ -178,6 +197,8 @@ async def estimate_direct(
                 for name in ("hybrid@20+jev", "jev-all")
             ]
             for arm in models:
+                if (arm.name, selected.source) in not_applicable:
+                    continue
                 lines = await estimate_decisions(
                     [arm],
                     data,
@@ -189,12 +210,13 @@ async def estimate_direct(
                     repeat=1,
                 )
                 for line in lines:
-                    key = "jev"
+                    key = arm.name
                     row = counts.setdefault(
                         key,
                         {
                             "provider": line.provider,
                             "model": line.model,
+                            "arm": arm.name,
                             "requests": 0,
                             "input_tokens": 0,
                             "output_tokens": 0,
@@ -204,9 +226,13 @@ async def estimate_direct(
                     row["requests"] += line.calls
                     row["input_tokens"] += line.input_tokens
                     row["usd"] += line.usd or 0.0
-            retrieved = await retriever.retrieve([task.query], catalog, k=20)
-            candidates = [match.card for match in retrieved.matches]
+            candidates = []
+            if ("agent@20", selected.source) not in not_applicable:
+                retrieved = await retriever.retrieve([task.query], catalog, k=20)
+                candidates = [match.card for match in retrieved.matches]
             for agent_arm, cards in (("agent@20", candidates), ("agent-all", list(catalog))):
+                if (agent_arm, selected.source) in not_applicable:
+                    continue
                 payload = wire_request(task.query, function_cards(cards))
                 tokens = len(encoding.encode(json.dumps(payload, ensure_ascii=False), disallowed_special=())) + 120
                 row = counts.setdefault(
@@ -255,6 +281,7 @@ async def estimate_direct(
         negatives_per_arm=negatives,
         lines=tuple(counts.values()),
         stand_in_searches=len(getattr(retriever, "stand_in_queries", ())),
+        planned_requests_by_arm=planned,
     )
 
 
@@ -268,9 +295,11 @@ class DirectRunner:
         jev_model: DecisionModel,
         agent: CachedAgent,
         guard: SpendGuard,
+        not_applicable: Mapping[tuple[str, str], Mapping[str, str]] = NOT_APPLICABLE,
     ) -> None:
         self.retriever = SharedRetrieval(retriever)
         self.jev_model, self.agent, self.guard = jev_model, agent, guard
+        self.not_applicable = not_applicable
         self._searches: dict[tuple[str, str], tuple[Retrieval, float, float]] = {}
 
     async def run(
@@ -286,6 +315,18 @@ class DirectRunner:
         run_dir = out_dir / run_id
         run_dir.mkdir(parents=True, exist_ok=False)
         manifest = _manifest(catalogs, run_id=run_id, pilot=pilot, estimate=estimate)
+        manifest["not_applicable"] = [
+            {"arm": arm, "catalog": source, **evidence}
+            for (arm, source), evidence in self.not_applicable.items()
+            if any(c.source == source for c in catalogs)
+        ]
+        planned = {
+            arm: sum(
+                len(c.positives) + len(c.negatives) for c in catalogs if (arm, c.source) not in self.not_applicable
+            )
+            for arm in DIRECT_ARMS
+        }
+        manifest["planned_requests_by_arm"] = planned
         manifest["jev"] = {
             "model": self.jev_model.model_id,
             "limits": self.jev_model.limits.model_dump(mode="json"),
@@ -302,6 +343,8 @@ class DirectRunner:
             with (run_dir / "run.jsonl").open("w") as output:
                 for selected in catalogs:
                     for arm in DIRECT_ARMS:
+                        if (arm, selected.source) in self.not_applicable:
+                            continue
                         for task, variant, catalog, phase in selected.requests():
                             self.guard.context = {
                                 "catalog": selected.source,
@@ -317,7 +360,7 @@ class DirectRunner:
                             output.flush()
                             counts[arm] += 1
                             errors[arm] += record["error"] is not None
-                            if errors[arm] / estimate.requests_per_arm > 0.05:
+                            if errors[arm] / planned[arm] > 0.05:
                                 raise ProviderFailure(f"more than 5% errored requests in {arm}")
                 completed = True
         except (ProviderFailure, SpendLimit) as error:
