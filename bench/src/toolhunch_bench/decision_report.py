@@ -696,6 +696,12 @@ def _published(text: str, hosts: Sequence[str]) -> str:
     return text
 
 
+def published_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
+    """Normalize a raw manifest using the exact F2a publication sanitizer, retaining every field."""
+    run = _Run(manifest=manifest, searches=[], arms={})
+    return json.loads(_published(json.dumps(manifest), _clm_hosts([run])))
+
+
 # Markdown
 
 

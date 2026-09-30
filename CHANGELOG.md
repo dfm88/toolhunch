@@ -8,6 +8,12 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `Exchange.option_card_ids`: the actual option-key-to-card-ID mapping for a decision question,
+  including multi-round decisions with duplicate tool names; defaults to an empty mapping for
+  manually constructed exchanges.
+- ToolRet candidate-order sensitivity results at K=20: five fresh orders, abstention and position
+  diagnostics, matched same-order run-noise comparison, and costed probability averaging
+  (`bench/results/2026-09-toolret-order/`).
 - Repository scaffold: uv workspace (library + benchmark), tooling and CI.
 - `ToolCard` and `ToolCatalog`: immutable tool cards with an `id` separate from the name, a canonical
   order and a SHA-256 fingerprint; rendering at three detail levels within a token budget.

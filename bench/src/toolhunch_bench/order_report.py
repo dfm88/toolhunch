@@ -10,6 +10,7 @@ import statistics
 from typing import TYPE_CHECKING, Any
 
 from toolhunch_bench import BENCH_DIR
+from toolhunch_bench.decision_report import published_manifest
 from toolhunch_bench.metrics import cluster_bootstrap_ci, percentile
 from toolhunch_bench.order import ORDER_SEEDS
 
@@ -248,8 +249,9 @@ def _drift(
     if published is None or reference_run is None or not (reference_run / "manifest.json").exists():
         return rejected
     old = json.loads((reference_run / "manifest.json").read_text())
+    normalized = published_manifest(old)
     recorded = [run for run in published["runs"] if run["role"] == "main" and run["split"] == "heldout"]
-    if len(recorded) != 1 or recorded[0]["manifest"] != old:
+    if len(recorded) != 1 or recorded[0]["manifest"] != normalized:
         return rejected | {"reason": "reference run is not the published main F2a run"}
     for section, fields in (
         ("dataset", ("revision", "corpus_sha256", "catalog_fingerprint")),
@@ -294,12 +296,117 @@ def _drift(
     }
 
 
+def _noise_baseline(
+    manifest: Mapping[str, Any],
+    groups: Mapping[tuple[str, str, str], Sequence[Mapping[str, Any]]],
+    *,
+    reference_run: Path | None,
+) -> dict[str, Any]:
+    unavailable = {"comparable": False, "reason": "matching same-order raw repeats are unavailable"}
+    if (
+        reference_run is None
+        or not (reference_run / "manifest.json").exists()
+        or not (reference_run / "run.jsonl").exists()
+    ):
+        return {"deciders": dict.fromkeys(("jev", "logprob"), unavailable)}
+    reference: dict[str, Any] = json.loads((reference_run / "manifest.json").read_text())
+    path = reference_run / "run.jsonl"
+    records = _records(path)
+    result: dict[str, Any] = {
+        "reference_run": reference_run.name,
+        "reference_git": reference["git"],
+        "reference_manifest_sha256": hashlib.sha256((reference_run / "manifest.json").read_bytes()).hexdigest(),
+        "reference_records_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "reference_dataset": reference["dataset"],
+        "reference_tasks": reference["tasks"],
+        "repeat_count": reference["repeat"],
+        "deciders": {},
+        "caveat": "Observed same-order run noise, not a causal order-effect experiment. "
+        "Compare pairwise agreement; all-three-same and all-five-same are different statistics.",
+    }
+    for name in ("jev", "logprob"):
+        arm = f"hybrid+{name}@20"
+        config = reference["arms"].get(arm, {})
+        own = {
+            task: rows for (decider, task, variant), rows in groups.items() if decider == name and variant == "positive"
+        }
+        before: dict[str, list[dict[str, Any]]] = {}
+        for row in records:
+            if (
+                row.get("record") == "search"
+                and row.get("arm") == arm
+                and row.get("source") == "plain"
+                and row["variant"] == "positive"
+            ):
+                before.setdefault(row["task"], []).append(row)
+        before = {task: sorted(rows, key=lambda row: row["repeat"]) for task, rows in before.items()}
+        identifiers_match = (
+            reference["split"] == manifest["split"] == "heldout"
+            and reference["sources"] == manifest["sources"] == ["plain"]
+            and reference["tasks"]["sha256"] == manifest["tasks"]["sha256"]
+            and all(
+                reference["dataset"][field] == manifest["dataset"][field]
+                for field in ("revision", "corpus_sha256", "catalog_fingerprint")
+            )
+            and all(
+                config.get(field) == manifest["arms"][arm][field]
+                for field in ("model_id", "limits", "prompt_version", "max_detail", "reserved_option", "k")
+            )
+            and "bypass=True" in config.get("model", "")
+        )
+        complete = (
+            reference["repeat"] == 3
+            and len(before) == reference["tasks"]["count"]
+            and set(own) == set(manifest["task_ids"])
+            and set(own) <= set(before)
+            and all(
+                [row["repeat"] for row in rows] == [0, 1, 2]
+                and all(row["error"] is None and row["ranked"] for row in rows)
+                for rows in before.values()
+            )
+        )
+        payload_match = complete and all(
+            all(
+                row[field] == own[task][0][field]
+                for row in before[task]
+                for field in ("queries", "context", "candidates", "relevant", "key", "shape", "state_cut")
+            )
+            for task in own
+        )
+        if not identifiers_match or not complete or not payload_match:
+            result["deciders"][name] = unavailable | {
+                "reason": "model/config, population, repeat completeness, or identity payload differs"
+            }
+            continue
+        matched = [before[task] for task in own]
+        vectors = [[_correct(row) for row in rows] for rows in matched]
+        result["deciders"][name] = {
+            "comparable": True,
+            "matched_positive_tasks": len(matched),
+            "reference_positive_tasks": len(before),
+            "reference_config": {
+                field: config[field]
+                for field in ("model_id", "limits", "prompt_version", "max_detail", "reserved_option", "k")
+            },
+            "p_at_1_by_repeat": {str(index): _metric([[vector[index]] for vector in vectors]) for index in range(3)},
+            "repeat_p_at_1_bounds": _shuffle_bounds(vectors),
+            "pairwise_agreement": _metric(
+                [
+                    [float(left["ranked"][0] == right["ranked"][0]) for left, right in itertools.combinations(rows, 2)]
+                    for rows in matched
+                ]
+            ),
+        }
+    return result
+
+
 def build_order_report(
     run_dir: Path,
     *,
     out_dir: Path,
     published_summary: Path | None = BENCH_DIR / "results/2026-09-toolret-decision/summary.json",
     reference_run: Path | None = None,
+    noise_reference_run: Path | None = None,
 ) -> dict[str, Any]:
     """Write an auditable summary and a public table of task-clustered order diagnostics."""
     manifest = json.loads((run_dir / "manifest.json").read_text())
@@ -325,6 +432,7 @@ def build_order_report(
         "gates": pilot_gates(run_dir),
         "excluded_incomplete_or_error_groups": len(groups) - len(complete),
         "deciders": {},
+        "same_order_noise_baseline": _noise_baseline(manifest, complete, reference_run=noise_reference_run),
     }
     for decider in ("jev", "logprob"):
         own = {(task, variant): rows for (name, task, variant), rows in complete.items() if name == decider}
@@ -419,6 +527,50 @@ def _readme(summary: Mapping[str, Any]) -> str:
         "",
         "The minimum and maximum are the smallest/largest population P@1 across the four shuffles; "
         "their intervals resample tasks before taking that extremum.",
+        "Selecting the maximum of noisy estimates biases it upward, and selecting the minimum biases it downward. "
+        "Read these extrema alongside the same-order noise baseline, not as guaranteed gains or losses.",
+        "",
+    ]
+    noise = summary["same_order_noise_baseline"]
+    lines += ["## Same-order noise baseline", ""]
+    if "reference_run" in noise:
+        lines += [
+            f"Three same-order repeats from `{noise['reference_run']}`; reference git "
+            f"`{noise['reference_git']['commit']}`, dirty={noise['reference_git']['dirty']}. "
+            "Raw manifest and records SHA256 values, dataset/task identities and per-decider configurations "
+            "are retained in summary.json. The reference dirty state is disclosed, not reconstructed.",
+            "",
+            noise["caveat"],
+            "",
+        ]
+    lines += [
+        "| Decider | Matched positive tasks | Same-order pairwise agreement | Five-order pairwise agreement | "
+        "Same-order P@1 min | Same-order P@1 max |",
+        "|---|---:|---:|---:|---:|---:|",
+    ]
+    repeat_lines: list[str] = []
+    for name, baseline in noise["deciders"].items():
+        if not baseline["comparable"]:
+            lines += [f"| {name} | unavailable: {baseline['reason']} | n/a | n/a | n/a | n/a |"]
+            continue
+        bounds = baseline["repeat_p_at_1_bounds"]
+        lines += [
+            f"| {name} | {baseline['matched_positive_tasks']}/{baseline['reference_positive_tasks']} | "
+            f"{fmt(baseline['pairwise_agreement'])} | {fmt(summary['deciders'][name]['pairwise_agreement'])} | "
+            f"{fmt(bounds['min'])} | {fmt(bounds['max'])} |",
+        ]
+        repeat_lines += [
+            f"{name} same-order P@1 by repeat: "
+            + ", ".join(f"{index}: {fmt(metric)}" for index, metric in baseline["p_at_1_by_repeat"].items())
+            + ".",
+            "",
+        ]
+    lines += ["", *repeat_lines]
+    lines += [
+        "Intervals resample whole matched task clusters, including all three repeats; extrema are recomputed "
+        "after resampling. Comparisons are observational across runs, not a causal order-effect test or a "
+        "significance test of the difference. Pairwise agreement is the comparable metric; do not compare "
+        "all-three-same directly with all-five-same.",
         "",
     ]
     for name, row in summary["deciders"].items():
@@ -462,6 +614,9 @@ def _readme(summary: Mapping[str, Any]) -> str:
             f"{average['physical_attempts_per_search']} physical asks per search for the five decisions.",
             "",
             average["probabilities"],
+            "Logprob finalists can differ across permutations: this averages different final questions, "
+            "not jointly comparable logits over all twenty candidates. It is a heuristic with a measured "
+            "five-decision cost, not a free correction or a guaranteed improvement.",
             "",
             f"Identity drift: {json.dumps(row['identity_drift'])}",
             "",

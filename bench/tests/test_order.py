@@ -1,3 +1,4 @@
+import copy
 import hashlib
 import json
 from collections.abc import Sequence
@@ -390,6 +391,9 @@ async def test_identity_drift_requires_matching_published_raw_population_and_pay
 ) -> None:
     run_dir, _ = await recorded_run(tmp_path, order_data, fake_decision_model)
     manifest = json.loads((run_dir / "manifest.json").read_text())
+    manifest["arms"]["historical-local"] = {"decider": "clm", "model_id": "local@private.example"}
+    public_manifest = copy.deepcopy(manifest)
+    public_manifest["arms"]["historical-local"]["model_id"] = "local@modal"
     rows = [json.loads(line) for line in (run_dir / "run.jsonl").read_text().splitlines()]
     identities = [
         row for row in rows if row.get("record") == "search" and row.get("decider") and row["order_seed"] == 0
@@ -402,7 +406,7 @@ async def test_identity_drift_requires_matching_published_raw_population_and_pay
     published.write_text(
         json.dumps(
             {
-                "runs": [{"role": "main", "split": "heldout", "manifest": manifest}],
+                "runs": [{"role": "main", "split": "heldout", "manifest": public_manifest}],
                 "heldout": {
                     "run_id": "reference",
                     "rows": [
@@ -416,6 +420,15 @@ async def test_identity_drift_requires_matching_published_raw_population_and_pay
         run_dir, out_dir=tmp_path / "matched", published_summary=published, reference_run=reference
     )
     assert summary["deciders"]["jev"]["identity_drift"]["comparable"] is True
+    published_data = json.loads(published.read_text())
+    published_data["runs"][0]["manifest"]["versions"]["python"] = "genuinely different"
+    published.write_text(json.dumps(published_data))
+    summary = build_order_report(
+        run_dir, out_dir=tmp_path / "manifest-changed", published_summary=published, reference_run=reference
+    )
+    assert summary["deciders"]["jev"]["identity_drift"]["comparable"] is False
+    published_data["runs"][0]["manifest"] = public_manifest
+    published.write_text(json.dumps(published_data))
     identities[0]["context"] = "Changed query context"
     (reference / "run.jsonl").write_text("\n".join(json.dumps(row) for row in identities) + "\n")
     summary = build_order_report(
@@ -489,3 +502,92 @@ async def test_order_call_prices_reported_cache_reads_but_keeps_list_price(fake_
     assert call["usd"] == openai_usd(model=LOGPROB_MODEL, input_tokens=10, output_tokens=1, cache_read_tokens=8)
     assert call["list_usd"] == openai_usd(model=LOGPROB_MODEL, input_tokens=10, output_tokens=1)
     assert call["list_usd"] > call["usd"]
+
+
+@pytest.fixture
+def noise_data(order_data: ToolRetData) -> ToolRetData:
+    cards = [
+        ToolCard(id=f"zz_{card.id}", name=card.name, description=card.description)
+        if card.id.startswith("padding_")
+        else card
+        for card in order_data.catalog
+    ]
+    return replace(order_data, catalog=ToolCatalog(cards))
+
+
+def noise_reference(run_dir: Path, target: Path) -> Path:
+    manifest: dict[str, Any] = json.loads((run_dir / "manifest.json").read_text())
+    manifest |= {"run_id": target.name, "repeat": 3, "git": {"commit": "prior", "dirty": True}}
+    for name in ("jev", "logprob"):
+        manifest["arms"][f"hybrid+{name}@20"]["model"] = "CachedDecisionModel(..., bypass=True)"
+    rows: list[dict[str, Any]] = [json.loads(line) for line in (run_dir / "run.jsonl").read_text().splitlines()]
+    repeats: list[dict[str, Any]] = []
+    for row in rows:
+        if row.get("record") != "search" or not row.get("decider") or row["variant"] != "positive" or row["order_seed"]:
+            continue
+        correct = next(card for card in row["candidates"] if card in row["relevant"])
+        wrong = next(card for card in row["candidates"] if card not in row["relevant"])
+        for index in range(3):
+            replica = copy.deepcopy(row)
+            chosen = wrong if row["task"] == manifest["task_ids"][0] and index == 2 else correct
+            replica["repeat"] = index
+            replica["ranked"] = [chosen, *[card for card in row["candidates"] if card != chosen]]
+            repeats.append(replica)
+    target.mkdir()
+    (target / "manifest.json").write_text(json.dumps(manifest))
+    (target / "run.jsonl").write_text("\n".join(json.dumps(row) for row in repeats) + "\n")
+    return target
+
+
+@pytest.mark.anyio
+async def test_report_generates_matched_same_order_noise_with_task_cluster_intervals(
+    tmp_path: Path, noise_data: ToolRetData, fake_decision_model: Any
+) -> None:
+    run_dir, _ = await recorded_run(tmp_path, noise_data, fake_decision_model)
+    reference = noise_reference(run_dir, tmp_path / "noise")
+    summary = build_order_report(
+        run_dir, out_dir=tmp_path / "noise-report", published_summary=None, noise_reference_run=reference
+    )
+    noise = summary["same_order_noise_baseline"]
+    assert noise["reference_git"] == {"commit": "prior", "dirty": True}
+    assert noise["reference_records_sha256"] == hashlib.sha256((reference / "run.jsonl").read_bytes()).hexdigest()
+    assert noise["repeat_count"] == 3
+    for name in ("jev", "logprob"):
+        row = noise["deciders"][name]
+        assert row["comparable"] is True
+        assert row["matched_positive_tasks"] == 2
+        assert row["pairwise_agreement"]["value"] == pytest.approx(2 / 3)
+        assert row["pairwise_agreement"]["ci95"] == pytest.approx([1 / 3, 1])
+        assert [value["value"] for value in row["p_at_1_by_repeat"].values()] == [1, 1, 0.5]
+        assert row["repeat_p_at_1_bounds"]["min"]["value"] == 0.5
+        assert row["repeat_p_at_1_bounds"]["max"]["value"] == 1
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("defect", ["model", "candidate_order", "missing_repeat", "error", "query"])
+async def test_noise_baseline_refuses_non_matching_or_incomplete_repeats(
+    tmp_path: Path, noise_data: ToolRetData, fake_decision_model: Any, defect: str
+) -> None:
+    run_dir, _ = await recorded_run(tmp_path, noise_data, fake_decision_model)
+    reference = noise_reference(run_dir, tmp_path / "noise")
+    if defect == "model":
+        path = reference / "manifest.json"
+        manifest = json.loads(path.read_text())
+        manifest["arms"]["hybrid+jev@20"]["model_id"] = "another-model"
+        path.write_text(json.dumps(manifest))
+    else:
+        path = reference / "run.jsonl"
+        rows = [json.loads(line) for line in path.read_text().splitlines()]
+        if defect == "candidate_order":
+            rows[0]["candidates"].reverse()
+        elif defect == "missing_repeat":
+            rows.pop(0)
+        elif defect == "error":
+            rows[0]["error"] = "provider failed"
+        else:
+            rows[0]["queries"] = ["different"]
+        path.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
+    summary = build_order_report(
+        run_dir, out_dir=tmp_path / "noise-report", published_summary=None, noise_reference_run=reference
+    )
+    assert summary["same_order_noise_baseline"]["deciders"]["jev"]["comparable"] is False

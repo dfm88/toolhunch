@@ -487,11 +487,14 @@ def order_report(
     run_dir: Annotated[Path, typer.Argument(help="Recorded five-order decision run.", exists=True, file_okay=False)],
     out: Annotated[Path, typer.Option(help="Directory for generated summary and table.")] = BENCH_DIR
     / "results/2026-09-toolret-order",
+    noise_reference_run: Annotated[
+        Path, typer.Option(help="Recorded same-order F2a repeats for matched-task noise diagnostics.")
+    ] = RUNS_DIR / "20260929T162701Z",
 ) -> None:
     """Generate order diagnostics and pilot gates from recorded evidence, without provider calls."""
     from toolhunch_bench.order_report import build_order_report
 
-    build_order_report(run_dir, out_dir=out)
+    build_order_report(run_dir, out_dir=out, noise_reference_run=noise_reference_run)
     typer.echo(f"report written to {out}")
 
 
