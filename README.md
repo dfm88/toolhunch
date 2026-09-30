@@ -128,7 +128,73 @@ model, prompt version and payload shape; the benchmark's thresholds are not port
 `OpenAILogprobModel` supports OpenAI-compatible Chat Completions endpoints returning `top_logprobs`.
 Declare the option cap supported by your endpoint; the planner can split a choice into rounds.
 The measurements above tested `jev-1.13.0` on TypeSafe and
-`gpt-4.1-mini-2025-04-14` on OpenAI. Other endpoints are compatibility paths, not measured claims.
+`gpt-4.1-mini-2025-04-14` on OpenAI.
+
+Smoke-tested on 2026-09-30 with laya-serve 0.3.22 and rizzo-flow 0.1.0 on a two-tool example; not benchmarked.
+The [generated smoke summary](bench/results/2026-09-jev-compatible-smoke/summary.json) records the model revisions,
+declared limits, sources and outcomes. With a local Laya English server running at `127.0.0.1:8000`, this
+[executable example](examples/jev_compatible_server.py) ranks cards without executing either tool:
+
+```python
+"""Rank two demo tools with a local Jev-compatible server, without executing them."""
+
+from __future__ import annotations
+
+from datetime import date
+from typing import TYPE_CHECKING
+
+import anyio
+import httpx2
+
+from toolhunch import Abstention, ChoiceDecider, JevWireModel, ModelLimits, ScoredCard, ToolCard
+
+if TYPE_CHECKING:
+    from toolhunch import Decision, DecisionModel
+
+LAYA_LIMITS = ModelLimits(
+    max_options_per_choice=100,
+    max_state_plus_question_tokens=512,
+    max_questions_per_request=64,
+    source=(
+        "https://huggingface.co/convaiinnovations/laya/resolve/"
+        "55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851/rl_agent_config.json; "
+        "https://github.com/NandhaKishorM/laya/blob/6d942c92081fbc139e736bbd9ac0023223c29b7f/laya/serve.py"
+    ),
+    checked=date(2026, 9, 30),
+)
+
+
+async def rank_demo_tools(model: DecisionModel) -> Decision:
+    """Rank weather and e-mail cards, with a reserved 'none' option."""
+    cards = (
+        ToolCard(name="get_weather", description="Get the current weather in a city."),
+        ToolCard(name="send_email", description="Send an e-mail message to a recipient."),
+    )
+    return await ChoiceDecider(model, abstention=Abstention()).decide(
+        "What's the weather in Milan?", tuple(ScoredCard(card, 0.0) for card in cards)
+    )
+
+
+async def main() -> None:
+    """Ask a local Laya English server and print the selected card's name."""
+    async with httpx2.AsyncClient(trust_env=False) as client:
+        model = JevWireModel(
+            "english", base_url="http://127.0.0.1:8000/v1", api_key_env=None, limits=LAYA_LIMITS, http_client=client
+        )
+        decision = await rank_demo_tools(model)
+        print("none" if decision.abstained else decision.ranked[0].card.name)
+
+
+if __name__ == "__main__":
+    anyio.run(main)
+```
+
+For rizzo-flow, use `model="rizzo-latest"`, your local API root and its declared limits from the summary:
+26 options including “none”, and `max_state_plus_question_tokens=8192` for the tested `--ctx 8192` setting.
+Laya English uses a 512-token window. Toolhunch estimates tokens while planning; server templates and tokenizers
+determine the actual fit. These smoke tests do not establish accuracy or large-catalog support.
+The local live test opts in through `TOOLHUNCH_LOCAL_BASE_URL`; set `TOOLHUNCH_LOCAL_SERVER=rizzo-flow` for that
+server's recorded configuration. It skips without a URL and is excluded from the default offline suite.
 
 ## Status and roadmap
 

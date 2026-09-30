@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "checked": "2026-09-30",
+  "query": "What's the weather in Milan?",
+  "tools": [
+    "get_weather",
+    "send_email"
+  ],
+  "reserved_option": true,
+  "scope": "HTTP acceptance, response parsing and weather first on this two-tool example; not benchmarked.",
+  "token_limit_note": "toolhunch estimates payload tokens; each server adds its own template and tokenizer.",
+  "servers": [
+    {
+      "package": "laya",
+      "version": "0.3.22",
+      "source_sha": "6d942c92081fbc139e736bbd9ac0023223c29b7f",
+      "requested_model": "english",
+      "model": {
+        "id": "convaiinnovations/laya",
+        "revision": "55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851",
+        "checkpoint": "english",
+        "quantization": "none requested",
+        "backend": "PyTorch/mps"
+      },
+      "limits": {
+        "max_options_per_choice": 100,
+        "max_state_plus_question_tokens": 512,
+        "max_questions_per_request": 64,
+        "source": "https://huggingface.co/convaiinnovations/laya/resolve/55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851/rl_agent_config.json; https://github.com/NandhaKishorM/laya/blob/6d942c92081fbc139e736bbd9ac0023223c29b7f/laya/serve.py",
+        "checked": "2026-09-30"
+      },
+      "outcome": {
+        "accepted": true,
+        "parsed": true,
+        "first_tool": "get_weather",
+        "abstained": false,
+        "authorization_header_sent": false,
+        "remaining_owned_processes": 0
+      }
+    },
+    {
+      "package": "rizzo-flow",
+      "version": "0.1.0",
+      "source_sha": "b9ba007ee4d2928bbab5b1d8bfe9009c3696b6de",
+      "requested_model": "rizzo-latest",
+      "model": {
+        "id": "rizzoaiacademy/rizzo-flow",
+        "revision": "55633c8cbd2b826bd3eefdeb05310450996649df",
+        "quantization": "q4_k_m",
+        "backend": "llama.cpp/mtl",
+        "source_files": {
+          "spark-x2.5-4b-rizzo-flow-lora-q4_k_m.gguf": "79de5cb8dbfd1a1f5cb3037252251594352841fe5e3dc1ae8cead053010fcd54"
+        },
+        "runtime_release": "b11081",
+        "runtime_commit": "161755f29e415e2c33efe906e91843c068efd664",
+        "prompt_version": "spark-decisions-v3"
+      },
+      "limits": {
+        "max_options_per_choice": 26,
+        "max_state_plus_question_tokens": 8192,
+        "max_questions_per_request": 64,
+        "source": "https://github.com/Rizzo-AI-Academy/rizzo-flow/tree/b9ba007ee4d2928bbab5b1d8bfe9009c3696b6de/src/rizzo_flow; cli.py --ctx=8192, schema.py MAX_SLOTS=26, compat.py MAX_OPTIONS=MAX_SLOTS",
+        "checked": "2026-09-30"
+      },
+      "outcome": {
+        "accepted": true,
+        "parsed": true,
+        "first_tool": "get_weather",
+        "abstained": false,
+        "authorization_header_sent": false,
+        "remaining_owned_processes": 0
+      }
+    }
+  ]
+}
