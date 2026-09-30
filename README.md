@@ -48,6 +48,8 @@ The [technical page](docs/experiments/toolret.md) explains the protocol, interva
 thresholds and limitations. All figures come from the generated
 [summary](bench/results/2026-09-toolret-decision/summary.json).
 
+In a separate [direct-choice test](docs/experiments/toolret.md#direct-choice-on-small-catalogs), Jev selected a relevant tool from the whole catalog on **74.1%** of 290 positive requests across four catalogs of 40–101 tools, versus **54.5%** for hybrid retrieval; abstentions count as misses.
+
 ## Pydantic AI example
 
 Install the checkout with `uv sync --all-packages`, set `OPENAI_API_KEY` and `TYPESAFE_API_KEY`
@@ -131,8 +133,8 @@ The measurements above tested `jev-1.13.0` on TypeSafe and
 ## Status and roadmap
 
 Pre-alpha: the retrieval pipeline, decision adapters and Pydantic AI reveal integration are implemented.
-Next is a direct-choice comparison that measures provider prompt-cache reads and billed cost;
-multi-turn agent evaluation follows. The OpenAI Decisions API is a future integration when available.
+The direct-choice comparison now measures single-turn provider prompt-cache reads and billed cost.
+Multi-turn agent evaluation follows. The OpenAI Decisions API is a future integration when available.
 
 ## Reproduce
 

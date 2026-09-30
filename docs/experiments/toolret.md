@@ -7,7 +7,8 @@ thresholds sacrifice many useful picks as well as preventing wrong ones.
 
 This page reads the generated
 [F2a summary](https://github.com/dfm88/toolhunch/blob/main/bench/results/2026-09-toolret-decision/summary.json)
-and the benchmark implementation. It describes configuration performance, not end-to-end task success.
+and the [direct-choice summary](https://github.com/dfm88/toolhunch/blob/main/bench/results/2026-09-toolret-direct/summary.json),
+alongside the benchmark implementation. It describes configuration performance, not end-to-end task success.
 
 ## Data and protocol
 
@@ -137,15 +138,216 @@ The F2a local SQLite decision cache is a replay store. Replayed answers retain t
 usage and timing in this report, so per-search figures describe the original decisions;
 they are not the actual spend or elapsed time of report regeneration. Retrieval timings were
 measured with an embedding cache that could already contain query vectors. F2a does not measure
-provider prompt-cache savings. Single-turn provider cache accounting is the next experiment;
-multi-turn agent loops remain subsequent work.
+provider prompt-cache savings. The separate direct-choice experiment below measures single-turn
+provider cache reads; multi-turn agent loops remain subsequent work.
+
+## Direct choice on small catalogs
+
+Should a selector search first, or read the whole catalog? This separate experiment compares
+five strategies on identical requests within small catalogs from individual ToolRet sources.
+Its [generated summary](https://github.com/dfm88/toolhunch/blob/main/bench/results/2026-09-toolret-direct/summary.json)
+records run `20260930T050455Z-direct`, started on 2026-09-30 at commit `8f9cf16` with a clean
+checkout and Pydantic AI 2.50.0. The dataset revision is the same as F2a; catalog fingerprints,
+task identities, model limits and payload shapes are pinned in the manifest.
+
+### Protocol and applicability
+
+The primary comparison uses four common catalogs in every strategy:
+
+| Source | Tools | Positive requests | Negative requests |
+|---|---:|---:|---:|
+| `webtools_spotify` | 40 | 40 | 20 |
+| `webtools_tmdb` | 54 | 54 | 27 |
+| `tooleyes` | 95 | 95 | 48 |
+| `apibank` | 101 | 101 | 50 |
+
+There are **290 positives and 145 negatives: a 2:1 mix, 33.3% negatives** per strategy.
+Positives contain all their labelled relevant tools in the catalog; no tasks were dropped.
+Negatives are sampled with seed 0 and remove that request's labelled tools from its catalog.
+Unlabelled alternatives might still be useful, so these are approximate negatives.
+
+| Strategy | Selection mechanism | Tools available |
+|---|---|---|
+| `hybrid@20` | First hybrid retrieval result | Source catalog |
+| `hybrid@20+jev` | Jev choice question, including “none” | Hybrid's 20 candidates |
+| `jev-all` | Jev choice question, including “none” | Whole source catalog |
+| `agent@20` | One GPT-4.1 mini function-tool request | Hybrid's 20 candidates |
+| `agent-all` | One GPT-4.1 mini function-tool request | Whole source catalog |
+
+Hybrid uses the same BM25/embedding fusion as F2a. Jev is `jev-1.13.0@api.typesafe.ai`,
+prompt `tool-choice-v1`; the agent is `gpt-4.1-mini-2025-04-14` through OpenAI Chat Completions,
+prompt `direct-choice-v1`. Every selector receives the original name, complete description and
+parameter names. All recorded selector requests used FULL detail; the planner needed no
+reduction. Function definitions encode parameter names as string properties, and sanitised
+function names map back to card IDs.
+
+The agent makes one `pydantic_ai.direct.model_request`: text output is allowed,
+`parallel_tool_calls=False`, temperature 0, a 256-token output cap and at most one retry.
+The first function call is scored, without executing the tool. A response with no function call
+counts as an abstention, including text other than literal `none`; all observed requests had no extra calls.
+Jev uses the reserved “none” option without a fitted probability threshold. A picked relevant
+tool is a success on a positive; abstentions and errors count as misses for every strategy.
+Intervals and paired deltas use task-level bootstrap: 2,000 resamples, seed 0.
+
+MetaTool (`metatool_which`, 200 tools) is separate. In the
+[original pilot summary](https://github.com/dfm88/toolhunch/blob/main/bench/results/2026-09-toolret-direct/pilot/summary.json),
+`agent-all` received HTTP 400 `array_above_max_length`, parameter `tools`, on **4/4 attempts**
+with 200 function definitions. The exact provider maximum was not determined. That pair is
+**not applicable**, rather than a selection failure; the four other strategies retain MetaTool.
+The pilot's original `completed: false` and stop reason remain historical facts. Under the
+recorded applicability restriction, the full run completed all 3,375 planned strategy requests
+with zero errors; rejected pilot attempts remain in provenance and budget accounting.
+
+### Primary results: the same four catalogs
+
+These rates score **a relevant tool on 290 positive requests**. Several tools can be relevant;
+the measurement does not establish task completion.
+
+| Strategy | Relevant picks / positives (95% CI) | Paired delta vs hybrid (95% CI) |
+|---|---:|---:|
+| `hybrid@20` | 54.5% (48.6 to 60.0%) | — |
+| `hybrid@20+jev` | 71.4% (65.9 to 76.6%) | +16.9 pp (10.7 to 23.1) |
+| `jev-all` | 74.1% (69.0 to 79.0%) | +19.7 pp (13.8 to 25.9) |
+| `agent@20` | 61.7% (55.9 to 66.9%) | +7.2 pp (0.0 to 14.5) |
+| `agent-all` | 60.7% (55.2 to 66.2%) | +6.2 pp (−1.4 to 13.5) |
+
+Jev improved relevant picks relative to retrieval in this configuration. Reading the whole
+catalog had the highest observed rate, but the delta intervals above compare each strategy
+only with hybrid; they do not establish a difference between the two Jev strategies.
+
+The following “none” outcomes use **435 requests per row: 290 positives and 145 negatives
+(33.3% negatives)**. Correct and wrong count tool picks; abstentions count no pick.
+
+| Strategy, 33.3% negatives | Correct | Wrong | Abstained | Coverage | Accuracy of picks | Wrong / requests (95% CI) |
+|---|---:|---:|---:|---:|---:|---:|
+| `hybrid@20` | 158 | 277 | 0 | 100.0% | 36.3% | 63.7% (59.7 to 67.7%) |
+| `hybrid@20+jev` | 207 | 122 | 106 | 75.6% | 62.9% | 28.0% (23.9 to 32.7%) |
+| `jev-all` | 215 | 121 | 99 | 77.2% | 64.0% | 27.8% (23.9 to 32.4%) |
+| `agent@20` | 179 | 145 | 111 | 74.5% | 55.2% | 33.3% (29.1 to 37.5%) |
+| `agent-all` | 176 | 120 | 139 | 68.0% | 59.5% | 27.6% (23.4 to 31.6%) |
+
+No direct-choice abstention threshold was tuned. The summary also includes Jev's ranking with
+“none” ignored as a diagnostic; that is separate from the symmetric headline above. Coverage,
+accuracy of picks and abstention metrics depend on this artificial negative mix.
+
+### MetaTool and secondary results
+
+MetaTool alone has **200 positives and 100 negatives (33.3% negatives)** per applicable strategy:
+
+| Strategy, MetaTool only, 33.3% negatives | Relevant picks / positives (95% CI) | Correct | Wrong | Abstained |
+|---|---:|---:|---:|---:|
+| `hybrid@20` | 49.5% (43.0 to 56.0%) | 99 | 201 | 0 |
+| `hybrid@20+jev` | 65.5% (59.0 to 72.0%) | 131 | 103 | 66 |
+| `jev-all` | 72.0% (65.5 to 78.0%) | 144 | 149 | 7 |
+| `agent@20` | 60.0% (53.0 to 66.5%) | 120 | 113 | 67 |
+| `agent-all` | n/a | n/a | n/a | n/a |
+
+The secondary `all_catalogs` pool combines all five sources for the four applicable strategies:
+**490 positives and 245 negatives (33.3% negatives)**. It is not a five-strategy comparison.
+
+| Strategy, secondary all-catalog pool, 33.3% negatives | Relevant picks / positives (95% CI) | Correct | Wrong | Abstained |
+|---|---:|---:|---:|---:|
+| `hybrid@20` | 52.4% (48.0 to 56.7%) | 257 | 478 | 0 |
+| `hybrid@20+jev` | 69.0% (64.5 to 72.9%) | 338 | 225 | 172 |
+| `jev-all` | 73.3% (69.2 to 77.1%) | 359 | 270 | 106 |
+| `agent@20` | 61.0% (56.7 to 65.3%) | 299 | 258 | 178 |
+
+Per-source selection intervals and all cost rows are in the generated summary.
+These rates cannot be compared with F2a's headline as an effect of the model or catalog size:
+F2a searched 44,453 tools on a different 200-task held-out sample and used BRIEF Jev cards.
+The direct test uses source-specific catalogs, a different request population and aligned FULL text.
+
+### Single-turn cache reads, cost and latency
+
+The run processes catalogs sequentially, then each strategy's positives before its negatives,
+with concurrency 1. Agent requests use the catalog source as `openai_prompt_cache_key`;
+this affects routing and does not guarantee a cache hit. Positives keep the full catalog fixed
+for `agent-all`, while `agent@20` changes its retrieved tools with the request. Negatives remove
+different tools and are priced separately.
+
+The following costs use **newly observed calls in the full run**, excluding local SQLite
+replays. Warm means positive requests after the first scored positive of each catalog, not a
+guaranteed cache hit. Cache share is cached input tokens divided by input tokens, not the
+fraction of requests with a hit. Billed cost uses reported cache reads at the recorded cached
+rate; list cost prices the same observed tokens without a cache discount. These are calculated
+usage costs, not invoice verification.
+
+| Strategy, four common catalogs | Observed warm positives | Warm billed / 1,000 | Warm list / 1,000 | Warm cache share | Warm latency p50 / p95 | Negative billed / 1,000 |
+|---|---:|---:|---:|---:|---:|---:|
+| `hybrid@20` | 286 | $0.000250 | $0.000250 | n/a | 160 / 253 ms | $0.0000 |
+| `hybrid@20+jev` | 250 | $0.0828 | $0.0828 | n/a (unmeasured) | 449 / 631 ms | $0.0833 |
+| `jev-all` | 250 | $0.2807 | $0.2807 | n/a (unmeasured) | 323 / 439 ms | $0.2752 |
+| `agent@20` | 250 | $0.6804 | $0.6804 | 0.0% | 936 / 2,000 ms | $0.6934 |
+| `agent-all` | 250 | $0.7856 | $2.4286 | 92.1% | 861 / 1,932 ms | $1.6857 |
+
+The observed negative denominators are 145, 117, 125, 118 and 125 respectively;
+replays account for the remaining requests. Search cost and latency are included for strategies
+that search first, with physical searches shared and paid once. Retrieval used an existing
+embedding cache: the near-zero incremental embedding cost is not a fresh-index price, and
+corpus preparation, previously cached embeddings and downstream tool execution are excluded.
+Replays still contribute their selections to the outcome tables, but no historical tokens,
+cache reads or latency to these cost measurements.
+
+Provider cache reads for Jev were not measured; n/a does not mean zero. The observed agent
+warm-positive cache shares vary by catalog:
+
+| Source | `agent@20` | `agent-all` |
+|---|---:|---:|
+| `webtools_spotify` | 0.0% | 86.4% |
+| `webtools_tmdb` | 0.0% | 88.9% |
+| `tooleyes` | 0.0% | 91.8% |
+| `apibank` | 0.0% | 93.8% |
+
+The first scored positive of each catalog defines the report's cold phase. In the full run,
+all Jev and agent cold responses were replays, so **no new selector cold measurement exists**.
+For reference, the following cold costs come exclusively from the original pilot, one first
+positive for each of the four common catalogs; “cold” does not establish an empty provider cache.
+
+| Strategy | Pilot cold observations | Pilot cold billed total | Pilot cold billed / 1,000 |
+|---|---:|---:|---:|
+| `hybrid@20` | 4 | $0.000000820 | $0.000205 |
+| `hybrid@20+jev` | 4 | $0.000310654 | $0.0777 |
+| `jev-all` | 4 | $0.000966420 | $0.2416 |
+| `agent@20` | 4 | $0.002499220 | $0.6248 |
+| `agent-all` | 4 | $0.008329600 | $2.0824 |
+
+On this run, `agent-all` read many cached tokens and its observed warm billed cost was below
+list cost. It still cost more than `agent@20` per newly measured positive. This is a comparison
+of strategies, not an isolated causal estimate of caching's effect on latency: tool counts,
+content and routing also differ. These are single-turn requests on one provider; multi-turn
+agent loops remain future work.
+
+### Run spending and reproduction
+
+The full run records **$1.009410520** in verified reported provider usage; the pilot records
+**$0.136456578**, giving **$1.145867098** cumulatively. Four rejected pilot attempts have unknown
+billed usage, with a **$0.170782800** conservative budget reserve, not a measured charge.
+Including that reserve, the recorded P1 budget total is **$1.316649898**, below the $7 cap
+(a dollar counted as a euro for the guard). These physical provider totals differ from per-strategy
+costs, which attribute shared search work to each strategy and exclude replay usage.
+The pilot's remaining-spend projection stays unknown because failed-attempt billing is unknown.
+
+Regenerate either report from local raw runs without provider calls:
+
+```shell
+uv run toolhunch-bench direct-report bench/runs/20260929T221520Z-direct-pilot \
+  --out bench/results/2026-09-toolret-direct/pilot/
+uv run toolhunch-bench direct-report bench/runs/20260930T050455Z-direct \
+  --out bench/results/2026-09-toolret-direct/
+```
+
+Raw runs and replay stores are git-ignored. A fresh paid reproduction requires credentials and
+the pinned dataset. Start with `uv run toolhunch-bench direct --dry-run`, then
+`uv run toolhunch-bench direct --pilot`; inspect validity, cache fields and spending before
+running `uv run toolhunch-bench direct`. The recorded non-applicable pair is skipped.
+Every paid run prints an estimate first, appends to the cost ledger and applies the P1 spend guard.
 
 ## Limits of the experiment
 
 - Task labels establish relevant tools, not successful tool execution or complete agent tasks.
 - Gold-removed negatives can leave unlabelled alternatives that would still be useful.
 - The dev sample is small, and configuration-specific probabilities can vary across repeats.
-- Jev and logprob card detail differs in this run. The next direct-choice comparison aligns full card text.
+- Jev and logprob card detail differs in F2a. The separate direct-choice comparison aligns full card text.
 - Cost and latency are tied to the models, routing, caching state and date of these runs.
 - Searches that raised `DecisionError` are excluded from rates, latency and costs; the published dev and
   main held-out configurations reported no errors.

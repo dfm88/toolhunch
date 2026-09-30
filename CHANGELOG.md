@@ -35,3 +35,7 @@ All notable changes to this project are documented here. The format follows
 - ToolRet decision results: abstention thresholds chosen on dev only, then held-out numbers on 200 tasks
   (precision@1, abstention, latency, cost per 1,000 searches, run-to-run variation)
   (`bench/results/2026-09-toolret-decision/`).
+- ToolRet direct-choice results and public write-up: five strategies on four common source catalogs,
+  separate MetaTool results, single-turn provider prompt-cache reads, and billed/list cost accounting
+  that separates new calls, local replays and historical pilot cold measurements
+  (`bench/results/2026-09-toolret-direct/`).
