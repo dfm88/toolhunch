@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Development status: alpha, from pre-alpha.
+
 ## [0.1.0] - 2026-09-30
 
 First release on PyPI. Pre-alpha: the API may change.

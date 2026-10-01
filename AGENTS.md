@@ -10,7 +10,7 @@ recall, then an optional System-1 decision model (TypeSafe's Jev or a compatible
 reranker or an LLM for precision, with abstention. It plugs into Pydantic AI and ships a benchmark
 that measures prompt caching, not just tokens.
 
-Status: pre-alpha.
+Status: alpha.
 
 ## Commands
 

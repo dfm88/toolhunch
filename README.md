@@ -10,7 +10,7 @@ toolhunch searches them, lets a fast decision model pick, and can say “none”
 
 <p align="center">
   <a href="https://pypi.org/project/toolhunch/"><img src="https://img.shields.io/pypi/v/toolhunch" alt="PyPI"></a>
-  <img src="https://img.shields.io/badge/status-pre--alpha-orange" alt="pre-alpha">
+  <img src="https://img.shields.io/badge/status-alpha-orange" alt="alpha">
   <img src="https://img.shields.io/badge/python-3.12%2B-3776AB" alt="Python 3.12+">
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license">
   <img src="https://img.shields.io/badge/Pydantic%20AI-integration-E92063" alt="Pydantic AI integration">
@@ -251,7 +251,7 @@ a small token window can make the planner lower card detail or split a choice.
 
 ## Status and roadmap
 
-Pre-alpha: search, deciders and the Pydantic AI integration work; the API may change.
+Alpha: search, deciders and the Pydantic AI integration work; the API may change.
 
 - **Multi-turn agents:** measure whole agent loops, where prompt caching and tool reveal interact.
 - **OpenAI Decisions API:** announced at [DevDay 2026](https://openai.com/index/devday-2026-recap/) in
