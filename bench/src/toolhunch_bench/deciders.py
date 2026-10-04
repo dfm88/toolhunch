@@ -80,6 +80,10 @@ _STRANDS_URL = ("STRANDS_BASE_URL", "http://127.0.0.1:8000")
 _CLM_LOCAL_URL = ("CLM_LOCAL_BASE_URL", "http://127.0.0.1:8700")
 _CLM_ENCODER_HEALTH = "http://127.0.0.1:8090/health"
 _CLOUDFLARE_ENV = ("CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_KEY")
+# The P2 probe (20261004T170651Z): 265 billed tokens for 180 heuristic ones at 5 options, 6,638 for 1,829 at 255,
+# so about 19 more per option and none per request. Estimates only; the guard prices what each reply reports.
+_CLEF_OPTION_OVERHEAD = 19
+_CLEF_API_VERSION = "2026-10-01.epoch"
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -97,7 +101,8 @@ class DeciderSpec:
         provenance: Where it runs, with pinned versions; no secret, no account ID and no deployment URL.
         serial: Ask it one request at a time, for a server whose behaviour under concurrent requests is unverified.
         local_url: The variable naming a local server's root, and its default; `None` for a hosted model.
-        request_overhead_tokens: Tokens it bills beyond a request's text, for estimates only.
+        request_overhead_tokens: Tokens it bills beyond a request's text, per request, for estimates only.
+        option_overhead_tokens: Tokens it bills beyond a request's text, per choice option, for estimates only.
         estimate_output_tokens: Output tokens per ask, for estimates only.
     """
 
@@ -112,6 +117,7 @@ class DeciderSpec:
     serial: bool = False
     local_url: tuple[str, str] | None = None
     request_overhead_tokens: int = 0
+    option_overhead_tokens: int = 0
     estimate_output_tokens: int = 0
 
 
@@ -209,7 +215,12 @@ DECIDERS: Mapping[DeciderName, DeciderSpec] = {
             billing="tokens",
             make=lambda retries: clef("clef", max_retries=retries),
             required_env=_CLOUDFLARE_ENV,
-            provenance={"endpoint": "api.cloudflare.com Workers AI @cf/cloudflare/clef", "version_pinned": False},
+            provenance={
+                "endpoint": "api.cloudflare.com Workers AI @cf/cloudflare/clef",
+                "version_pinned": False,
+                "api_version_at_probe": _CLEF_API_VERSION,
+            },
+            option_overhead_tokens=_CLEF_OPTION_OVERHEAD,
         ),
         DeciderSpec(
             name=DeciderName.CLEF_FLASH,
@@ -219,7 +230,12 @@ DECIDERS: Mapping[DeciderName, DeciderSpec] = {
             billing="tokens",
             make=lambda retries: clef("clef-flash", max_retries=retries),
             required_env=_CLOUDFLARE_ENV,
-            provenance={"endpoint": "api.cloudflare.com Workers AI @cf/cloudflare/clef-flash", "version_pinned": False},
+            provenance={
+                "endpoint": "api.cloudflare.com Workers AI @cf/cloudflare/clef-flash",
+                "version_pinned": False,
+                "api_version_at_probe": _CLEF_API_VERSION,
+            },
+            option_overhead_tokens=_CLEF_OPTION_OVERHEAD,
         ),
     )
 }

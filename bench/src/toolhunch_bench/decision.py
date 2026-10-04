@@ -419,6 +419,7 @@ class _StandIn:
         self._tokenizer = HeuristicTokenizer()
         self.calls = 0
         self.input_tokens = 0
+        self.options = 0
 
     @property
     def model_id(self) -> str:
@@ -446,6 +447,7 @@ class _StandIn:
                 raise ValueError(f"the stand-in answers choice questions, not {question.kind} questions")
             tokens += count(question.instructions)
             tokens += sum(count(option) + count(text) for option, text in question.options.items())
+            self.options += len(question.options)
             answers[key] = ChoiceAnswer(probabilities=dict.fromkeys(question.options, 1 / len(question.options)))
         self.calls += 1
         self.input_tokens += tokens
@@ -521,6 +523,7 @@ async def estimate_decisions(
             name,
             calls=repeat * sum(stand_in.calls for stand_in in stand_ins),
             tokens=repeat * sum(stand_in.input_tokens for stand_in in stand_ins),
+            options=repeat * sum(stand_in.options for stand_in in stand_ins),
             limits=stand_ins[0].limits,
         )
         for name, stand_ins in counted.items()
@@ -536,10 +539,10 @@ async def estimate_decisions(
     return lines
 
 
-def _decider_line(name: str, *, calls: int, tokens: int, limits: ModelLimits) -> EstimateLine:
+def _decider_line(name: str, *, calls: int, tokens: int, options: int, limits: ModelLimits) -> EstimateLine:
     spec = REGISTRY[DeciderName(name)]
     overhead = spec.request_overhead_tokens
-    priced = tokens + overhead * calls
+    priced = tokens + overhead * calls + spec.option_overhead_tokens * options
     if spec.billing == "local":
         note = f"{calls:,} asks, {tokens:,} input tokens by the heuristic count, on this machine: no charge"
         return EstimateLine("local", spec.model, calls, tokens, 0.0, note)
@@ -561,9 +564,10 @@ def _decider_line(name: str, *, calls: int, tokens: int, limits: ModelLimits) ->
         )
         return EstimateLine("openai", spec.model, calls, priced, float(price.total_price), note)
     usd = priced * _declared_input_price(limits) / 1_000_000
+    per_option = f" and {spec.option_overhead_tokens} per option" if spec.option_overhead_tokens else ""
     note = (
-        f"{calls:,} asks, {priced:,} input tokens: the heuristic count plus {overhead} per ask, at the declared "
-        f"${_declared_input_price(limits)}/M"
+        f"{calls:,} asks, {priced:,} input tokens: the heuristic count plus {overhead} per ask{per_option}, at the "
+        f"declared ${_declared_input_price(limits)}/M"
     )
     return EstimateLine(spec.provider, spec.model, calls, priced, usd, note)
 
