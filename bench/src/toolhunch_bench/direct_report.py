@@ -37,6 +37,8 @@ def _cost(records: Sequence[dict[str, Any]], *, phase: str, arm: str) -> dict[st
     billed = sum(call["usd"] or 0 for call in calls) + sum(r["search_usd"] for r in own)
     list_price = sum(call["list_usd"] or 0 for call in calls) + sum(r["search_usd"] for r in own)
     latencies = [r["search_seconds"] + (r["decision_seconds"] or 0) for r in own if r["error"] is None]
+    # The decision alone: a run that found its query embeddings cached searches faster than one that embedded them.
+    decisions = [r["decision_seconds"] for r in own if r["error"] is None and r["decision_seconds"] is not None]
     local = bool(calls) and all(call["provider"] == "local" for call in calls)
     return {
         "observed_searches": len(own),
@@ -53,6 +55,7 @@ def _cost(records: Sequence[dict[str, Any]], *, phase: str, arm: str) -> dict[st
         "list_usd_per_1000": list_price * 1000 / len(own) if own and not unpriced else None,
         "latency_p50_ms": percentile(latencies, 50) * 1000 if latencies else None,
         "latency_p95_ms": percentile(latencies, 95) * 1000 if latencies else None,
+        "decision_latency_p50_ms": percentile(decisions, 50) * 1000 if decisions else None,
         "unpriced_attempts": unpriced,
         "known_billed_subtotal_usd": billed,
         "known_list_subtotal_usd": list_price,

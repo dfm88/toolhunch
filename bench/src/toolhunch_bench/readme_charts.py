@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import math
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
@@ -10,12 +12,20 @@ import matplotlib
 from matplotlib.figure import Figure
 from matplotlib.patches import Rectangle
 
+from toolhunch_bench.deciders import DECIDERS, DeciderName
+from toolhunch_bench.direct import arm_decider
+
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from pathlib import Path
 
-__all__ = ["build_readme_charts"]
+__all__ = ["build_cost_latency", "build_readme_charts"]
 
 _SEARCH, _JEV, _GPT, _LUNA = "#8C939B", "#2F6DB5", "#C0652B", "#7A4FB5"
+_STRANDS, _CLEF, _CLEF_FLASH = "#16877A", "#B5306B", "#D98BB2"
+_COLORS = {"jev": _JEV, "logprob": _GPT, "luna": _LUNA, "strands": _STRANDS, "clef": _CLEF, "clef-flash": _CLEF_FLASH}
+_UNPUBLISHED = frozenset({"clm", "clm-local"})
+"""Deciders left out of figures: CLM's figures wait for its authors to confirm our deployments match theirs."""
 _GOOD, _BAD, _NEUTRAL = "#2E8B57", "#C8483B", "#C9CED4"
 _INK, _MUTED, _GRID = "#1F2328", "#5B636B", "#E6E8EB"
 _STYLE = {
@@ -445,3 +455,278 @@ def build_readme_charts(
     paths = (direct_summary, decision_summary, order_summary, luna_summary)
     direct, decision, order, luna = [json.loads(path.read_text(encoding="utf-8")) for path in paths]
     return _ReadmeCharts(direct=direct, decision=decision, order=order, luna=luna, out_dir=out_dir, fmt=fmt).write()
+
+
+@dataclass(frozen=True, slots=True)
+class _Point:
+    key: str
+    name: str
+    detail: str
+    color: str
+    value: float
+    interval: list[float]
+    milliseconds: float
+    cost: str
+    local: bool
+
+
+# Label offsets in points from the point, per arm of the P2 cost-latency figure; a far label gets a connector.
+_P2_OFFSETS: dict[str, tuple[float, float]] = {
+    "strands-all": (-10, 42),
+    "hybrid@20+strands": (14, -46),
+    "hybrid@20+jev": (16, -40),
+    "jev-all": (-14, 36),
+    "hybrid@20+clef-flash": (-12, 62),
+    "hybrid@20+clef": (6, -72),
+    "clef-flash-all": (6, 84),
+    "clef-all": (10, 46),
+    "agent-luna-all": (16, 0),
+    "agent-luna@20": (16, -38),
+    "agent@20": (16, 26),
+    "agent-all": (16, -26),
+    "hybrid+strands@20": (12, 0),
+    "hybrid+clef@20": (12, -16),
+    "hybrid+clef-flash@20": (12, -4),
+}
+
+
+def _usd(usd: float | None, *, local: bool) -> str:
+    if local:
+        return "local"
+    if usd is None:
+        return "n/a"
+    return "≈ $0" if usd < 0.01 else f"${usd:.2f}"
+
+
+def _named(arm: str, decider: str) -> tuple[str, str, float, float]:
+    """An arm's name, detail and label offset: the P1 figure's when it has the arm, else from the registry."""
+    if arm in _TRADEOFF_LABELS:
+        return _TRADEOFF_LABELS[arm]
+    label = DECIDERS[DeciderName(decider)].label
+    detail = (
+        ""
+        if "@20" in arm and not arm.startswith("hybrid@20+")
+        else ("all tools" if arm.endswith("-all") else "20 tools")
+    )
+    return (label, detail, *_P2_OFFSETS.get(arm, (12, 0)))
+
+
+def _slug(arm: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", arm.lower()).strip("-")
+
+
+def _direct_points(direct: dict[str, Any]) -> list[_Point]:
+    colors = {row.key: row.color for row in _DIRECT}
+    points: list[_Point] = []
+    for row in direct["rows"]:
+        arm = row["arm"]
+        costs: dict[str, Any] = row.get("positive_cost") or {}
+        warm: dict[str, Any] = costs.get("warm") or {}
+        decider = arm_decider(arm)
+        agent = arm.startswith("agent")
+        if row["catalog"] != "pooled" or warm.get("decision_latency_p50_ms") is None:
+            continue
+        if not agent and (decider is None or decider in _UNPUBLISHED):
+            continue
+        name, detail, _, _ = _named(arm, decider or "luna")
+        local = bool(warm.get("local"))
+        points.append(
+            _Point(
+                key=arm,
+                name=name,
+                detail=detail,
+                color=colors.get(arm) or _COLORS[decider or "luna"],
+                value=row["relevant_pick_rate"]["value"],
+                interval=row["relevant_pick_rate"]["ci95"],
+                milliseconds=warm["decision_latency_p50_ms"],
+                cost=_usd(warm.get("billed_usd_per_1000"), local=local),
+                local=local,
+            )
+        )
+    return points
+
+
+def _rerank_points(decisions: Sequence[dict[str, Any]], luna: dict[str, Any] | None) -> list[_Point]:
+    points: dict[str, _Point] = {}
+    for summary in decisions:
+        for row in summary["heldout"]["rows"]:
+            decider = row["decider"]
+            if decider is None or decider in _UNPUBLISHED or (row["k"], row["source"]) != (20, "plain"):
+                continue
+            if row["arm"] in points or row["latency_ms"]["decision"] is None:
+                continue
+            name, _, _, _ = _named(row["arm"], decider)
+            local = "local" in row["cost"]
+            points[row["arm"]] = _Point(
+                key=row["arm"],
+                name=name,
+                detail="",
+                color=_COLORS[decider],
+                value=row["p_at_1"],
+                interval=row["p_at_1_ci95"],
+                milliseconds=row["latency_ms"]["decision"]["p50"],
+                cost=_usd(row["cost"]["usd_per_1000_searches"], local=local),
+                local=local,
+            )
+    if luna is not None:
+        first = luna["first_pick"]
+        points["hybrid+luna@20"] = _Point(
+            key="hybrid+luna@20",
+            name=_TRADEOFF_LABELS["hybrid+luna@20"][0],
+            detail="",
+            color=_LUNA,
+            value=first["p_at_1"]["value"],
+            interval=first["p_at_1"]["ci95"],
+            milliseconds=first["cost"]["latency_ms"]["p50"],
+            cost=_usd(first["cost"]["usd_per_1000_searches"], local=False),
+            local=False,
+        )
+    return list(points.values())
+
+
+def _hardware(direct: dict[str, Any]) -> str | None:
+    for run in direct.get("added_runs", []):
+        deciders: dict[str, dict[str, Any]] = run["manifest"].get("deciders") or {}
+        for entry in deciders.values():
+            provenance: dict[str, Any] = entry.get("provenance") or {}
+            if hardware := provenance.get("hardware"):
+                return f"{hardware['chip']}, {hardware['memory_gb']} GB, {hardware['os']}"
+    return None
+
+
+def _panel(axes: Any, points: Sequence[_Point], *, head: str, search: float) -> None:
+    for point in points:
+        x = point.milliseconds / 1000
+        low, high = point.interval
+        axes.errorbar(
+            x, point.value, yerr=[[point.value - low], [high - point.value]], color=point.color, alpha=0.35, lw=2
+        )
+        axes.scatter(
+            x,
+            point.value,
+            s=170,
+            zorder=3,
+            color="white" if point.local else point.color,
+            edgecolors=point.color if point.local else "white",
+            linewidths=2.5 if point.local else 1.5,
+            gid=f"point-{_slug(point.key)}" + ("-local" if point.local else ""),
+        )
+        dx, dy = _P2_OFFSETS.get(point.key) or _TRADEOFF_LABELS[point.key][2:]
+        align = "left" if dx > 0 else "right"
+        if abs(dy) > 20:
+            axes.annotate(
+                "",
+                (x, point.value),
+                xytext=(dx, dy),
+                textcoords="offset points",
+                arrowprops={"arrowstyle": "-", "color": _MUTED, "lw": 0.8, "shrinkA": 0, "shrinkB": 8},
+            )
+        for text, shift, va, style in (
+            (point.name, 1, "bottom", {"weight": "bold", "color": _INK}),
+            (f"{point.detail} · {point.cost}" if point.detail else point.cost, -1, "top", {"color": _MUTED}),
+        ):
+            axes.annotate(
+                text,
+                (x, point.value),
+                xytext=(dx, dy + shift),
+                textcoords="offset points",
+                ha=align,
+                va=va,
+                fontsize=13,
+                **style,
+            )
+    axes.axhline(search, color=_SEARCH, ls="--", lw=1.4)
+    axes.text(0.052, search + 0.006, f"search only {search:.0%}", color=_MUTED)
+    values = [point.interval[0] for point in points] + [point.interval[1] for point in points] + [search]
+    low, high = math.floor(min(values) * 10) / 10, math.ceil(max(values) * 10) / 10
+    axes.set_xscale("log")
+    axes.set_xlim(0.05, 3)
+    ticks = [0.05, 0.1, 0.2, 0.5, 1, 2]
+    axes.set_xticks(ticks, [f"{tick:g} s" for tick in ticks])
+    axes.minorticks_off()
+    axes.set_ylim(low, high)
+    steps = [low + step * 0.1 for step in range(round((high - low) / 0.1) + 1)]
+    axes.set_yticks(steps, [f"{step:.0%}" for step in steps])
+    axes.grid(color=_GRID)
+    axes.set_axisbelow(True)
+    for side in ("top", "right"):
+        axes.spines[side].set_visible(False)
+    axes.set_title(head, loc="left", fontsize=17, weight="bold", pad=14)
+
+
+def build_cost_latency(
+    *,
+    direct_summary: Path,
+    decision_summaries: Sequence[Path],
+    luna_summary: Path | None = None,
+    out_dir: Path,
+    fmt: str = "svg",
+) -> Path:
+    """Draw precision against the decision's latency, labelled with cost, for every published decider.
+
+    The direct-choice panel reads `direct_summary`; the 44,453-tool panel reads the held-out K20 plain rows of each
+    decision summary (the first holding an arm wins) and GPT-6 Luna's first pick. A local decider is drawn hollow,
+    its machine in the caption. Latency is the decision's alone: later runs searched with query embeddings an
+    earlier run had cached, so totals that include the search would not compare. CLM is left out.
+    """
+    if fmt not in ("svg", "png"):
+        raise ValueError("fmt must be 'svg' or 'png'")
+    direct = json.loads(direct_summary.read_text(encoding="utf-8"))
+    decisions = [json.loads(path.read_text(encoding="utf-8")) for path in decision_summaries]
+    luna = None if luna_summary is None else json.loads(luna_summary.read_text(encoding="utf-8"))
+    direct_points, rerank_points = _direct_points(direct), _rerank_points(decisions, luna)
+    [direct_search] = [row for row in direct["rows"] if row["arm"] == "hybrid@20" and row["catalog"] == "pooled"]
+    rerank_search = next(
+        row["p_at_1"]
+        for summary in decisions
+        for row in summary["heldout"]["rows"]
+        if row["arm"] == "hybrid@20" and row["source"] == "plain"
+    )
+    started = [direct["manifest"]["started"], *(run["manifest"]["started"] for run in direct.get("added_runs", []))]
+    started += [run["manifest"]["started"] for summary in decisions for run in summary["runs"]]
+    dates = sorted({day[:10] for day in started})
+    hardware = _hardware(direct)
+    notes = [
+        "Median latency of the decision alone, warm requests: later runs searched with cached query embeddings, so "
+        "search is left out. Whiskers: 95% interval."
+    ]
+    points = [*direct_points, *rerank_points]
+    unpinned = any(point.key.startswith(("clef", "hybrid@20+clef", "hybrid+clef")) for point in points)
+    if any(point.local for point in points) and hardware:
+        notes.append(
+            f"Hollow: ran on one machine ({hardware}), no money cost; its latency is that machine's."
+            + (" Clef and Clef-flash have no pinned version." if unpinned else "")
+        )
+    elif unpinned:
+        notes.append("Clef and Clef-flash have no pinned version.")
+    footer = "\n".join([*notes, f"toolhunch · ToolRet · runs of {', '.join(dates)}"])
+    out_dir.mkdir(parents=True, exist_ok=True)
+    with cast("Any", matplotlib).rc_context(_STYLE):
+        figure: Any = Figure(figsize=(16, 9), dpi=100)
+        figure.text(0.04, 0.94, "Precision, latency and cost", fontsize=28, weight="bold", va="top")
+        figure.text(
+            0.04,
+            0.879,
+            "Higher and further left is better. Labels: cost per 1,000 requests.",
+            fontsize=16,
+            color=_MUTED,
+            va="top",
+        )
+        figure.text(0.04, 0.02, footer, fontsize=11, color=_MUTED, linespacing=1.5)
+        _panel(
+            figure.add_axes((0.08, 0.19, 0.40, 0.57)),
+            direct_points,
+            head="Catalogs of 40–101 tools (290 requests)",  # noqa: RUF001
+            search=direct_search["relevant_pick_rate"]["value"],
+        )
+        _panel(
+            figure.add_axes((0.57, 0.19, 0.40, 0.57)),
+            rerank_points,
+            head="44,453 tools, 20 candidates (200 requests)",
+            search=rerank_search,
+        )
+        path = out_dir / f"cost-latency.{fmt}"
+        metadata = {"Date": None, "Description": footer} if fmt == "svg" else {"Software": None}
+        figure.savefig(path, format=fmt, metadata=metadata)
+        figure.clear()
+    return path

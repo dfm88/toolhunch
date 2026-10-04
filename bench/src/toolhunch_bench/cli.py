@@ -560,6 +560,27 @@ def readme_charts(
         typer.echo(f"chart written to {path}")
 
 
+@app.command("cost-latency-chart")
+def cost_latency_chart(
+    direct: Annotated[Path, typer.Option(help="Generated direct-choice summary.", exists=True, dir_okay=False)],
+    decision: Annotated[
+        list[Path],
+        typer.Option(help="A generated decision summary; repeat, earliest first.", exists=True, dir_okay=False),
+    ],
+    luna: Annotated[Path | None, typer.Option(help="Generated Luna summary.", exists=True, dir_okay=False)] = None,
+    out: Annotated[Path, typer.Option(help="Directory for the figure.")] = BENCH_DIR
+    / "results/2026-10-toolret-decision-p2/figures",
+    fmt: Annotated[Literal["svg", "png"], typer.Option("--format", help="svg or png.")] = "svg",
+) -> None:
+    """Draw precision against decision latency, with cost, for every published decider; no provider is contacted."""
+    from toolhunch_bench.readme_charts import build_cost_latency
+
+    path = build_cost_latency(
+        direct_summary=direct, decision_summaries=decision, luna_summary=luna, out_dir=out, fmt=fmt
+    )
+    typer.echo(f"chart written to {path}")
+
+
 @app.command("order-report")
 def order_report(
     run_dir: Annotated[Path, typer.Argument(help="Recorded five-order decision run.", exists=True, file_okay=False)],

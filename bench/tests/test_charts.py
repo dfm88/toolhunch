@@ -59,3 +59,85 @@ def test_decision_charts_use_only_plain_jev_and_logprob_rows(tmp_path: Path) -> 
         assert "ratel" not in text
     text = (tmp_path / "figures" / "decision-coverage-accuracy.svg").read_text()
     assert all(label in text for label in ("Correct", "Wrong", "Abstained", "Negatives", "50%", "dev τ=0.50"))
+
+
+def test_cost_latency_marks_local_deciders(tmp_path: Path) -> None:
+    # P2's figure puts the new deciders next to the earlier ones. A local decider is drawn hollow with the machine in
+    # the caption; latency is the decision's alone, since later runs searched with cached query embeddings; CLM stays
+    # out until its authors confirm parity.
+    hardware = {"chip": "Apple M5 Max", "memory_gb": 128, "os": "macOS 26.1"}
+
+    def pick(arm: str, rate: float, ms: float | None, usd: float | None, *, local: bool = False) -> dict[str, Any]:
+        warm = {"decision_latency_p50_ms": ms, "billed_usd_per_1000": usd} | ({"local": True} if local else {})
+        interval = [rate - 0.05, rate + 0.05]
+        return {
+            "arm": arm,
+            "catalog": "pooled",
+            "relevant_pick_rate": {"value": rate, "ci95": interval},
+            "positive_cost": {"warm": warm},
+        }
+
+    def ranked(arm: str, decider: str | None, p: float, ms: float | None, usd: float | None) -> dict[str, Any]:
+        cost = {"usd_per_1000_searches": usd} | ({"local": hardware} if usd is None and decider else {})
+        return {
+            "arm": arm,
+            "decider": decider,
+            "k": 20,
+            "source": "plain",
+            "p_at_1": p,
+            "p_at_1_ci95": [p - 0.05, p + 0.05],
+            "cost": cost,
+            "latency_ms": {"decision": None if ms is None else {"p50": ms}},
+        }
+
+    added = {"started": "2026-10-04T19:00:00+00:00", "deciders": {"strands": {"provenance": {"hardware": hardware}}}}
+    direct = {
+        "manifest": {"started": "2026-09-30T05:00:00+00:00"},
+        "added_runs": [{"manifest": added}],
+        "rows": [
+            pick("hybrid@20", 0.55, None, 0.0),
+            pick("jev-all", 0.74, 320, 0.28),
+            pick("hybrid@20+jev", 0.71, 280, 0.08),
+            pick("strands-all", 0.62, 116, None, local=True),
+            pick("hybrid@20+strands", 0.61, 157, None, local=True),
+            pick("clef-all", 0.80, 1430, 1.63),
+            pick("hybrid@20+clef", 0.77, 612, 0.44),
+            pick("hybrid@20+clm-local", 0.15, 55, None, local=True),
+        ],
+    }
+    f2a = {
+        "runs": [{"manifest": {"started": "2026-09-29T15:00:00+00:00"}}],
+        "heldout": {
+            "rows": [ranked("hybrid@20", None, 0.22, None, 0.0), ranked("hybrid+jev@20", "jev", 0.33, 300, 0.05)]
+        },
+    }
+    p2 = {
+        "runs": [{"manifest": {"started": "2026-10-04T19:00:00+00:00"}}],
+        "heldout": {
+            "rows": [
+                ranked("hybrid@20", None, 0.22, None, 0.0),
+                ranked("hybrid+strands@20", "strands", 0.285, 80, None),
+                ranked("hybrid+clef@20", "clef", 0.31, 517, 0.27),
+                ranked("hybrid+clm-local@20", "clm-local", 0.13, 339, None),
+            ]
+        },
+    }
+    paths: dict[str, Path] = {}
+    for name, summary in (("direct", direct), ("f2a", f2a), ("p2", p2)):
+        paths[name] = tmp_path / f"{name}.json"
+        paths[name].write_text(json.dumps(summary))
+    arguments = ["cost-latency-chart", "--direct", str(paths["direct"]), "--out", str(tmp_path / "figures")]
+    arguments += ["--decision", str(paths["f2a"]), "--decision", str(paths["p2"])]
+
+    result = CliRunner().invoke(app, arguments)
+
+    assert result.exit_code == 0, result.output
+    text = (tmp_path / "figures" / "cost-latency.svg").read_text()
+    for point in ("jev-all", "hybrid-20-jev", "clef-all", "hybrid-20-clef", "hybrid-jev-20", "hybrid-clef-20"):
+        assert f'id="point-{point}"' in text
+    for point in ("strands-all", "hybrid-20-strands", "hybrid-strands-20"):
+        assert f'id="point-{point}-local"' in text
+    assert "clm" not in text
+    assert "CLM" not in text
+    # Text is drawn as paths; the caption is also the SVG's description, which states the machine.
+    assert "Apple M5 Max, 128 GB, macOS 26.1" in text

@@ -895,3 +895,8 @@ async def test_direct_report_discloses_added_deciders_and_search_time(tmp_path: 
     assert "- **Clef.** Workers AI serves the current Clef" in readme
     assert "- **Local deciders.** Strands Decider 2B ran on one machine (Apple M5 Max, 128 GB, macOS 26.1)" in readme
     assert "- **Search time differs between runs.** Median search of the searching arms: `strands` 150 ms" in readme
+    # The decision's own latency, without the search, is what compares across such runs.
+    summary = json.loads((tmp_path / "report" / "summary.json").read_text())
+    [row] = [r for r in summary["rows"] if r["arm"] == "hybrid@20+strands" and r["catalog"] == "pooled"]
+    warm = row["positive_cost"]["warm"]
+    assert 0 < warm["decision_latency_p50_ms"] < warm["latency_p50_ms"]
