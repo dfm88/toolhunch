@@ -1,0 +1,49 @@
+{
+  "reference": "20260929T140534Z",
+  "candidate": "20261004T163119Z",
+  "reference_decider": "clm",
+  "candidate_decider": "clm-local",
+  "matched": 400,
+  "unmatched_reference": 0,
+  "unmatched_candidate": 0,
+  "errored": 0,
+  "compared": 400,
+  "options_mismatched": 0,
+  "top1_agreement": 0.9275,
+  "median_abs_dp": 0.021915081730172287,
+  "max_abs_dp": 0.09672311826458124,
+  "max_abs_dp_search": {
+    "task": "apigen_query_184",
+    "variant": "positive",
+    "source": "plain",
+    "k": 20,
+    "repeat": 0,
+    "order_seed": null
+  },
+  "abstain_agreement": 1.0,
+  "p_at_1_by_cell": {
+    "K20 model": {
+      "reference": 0.1,
+      "candidate": 0.1
+    },
+    "K20 plain": {
+      "reference": 0.1,
+      "candidate": 0.1
+    },
+    "K50 model": {
+      "reference": 0.1,
+      "candidate": 0.1
+    },
+    "K50 plain": {
+      "reference": 0.1,
+      "candidate": 0.1
+    }
+  },
+  "gate": {
+    "min_top1": null,
+    "max_median_dp": null,
+    "min_abstain_agreement": 0.98,
+    "same_p_at_1": true,
+    "passed": true
+  }
+}
