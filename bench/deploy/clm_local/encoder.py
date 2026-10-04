@@ -13,7 +13,8 @@
 The authors serve the encoder with vLLM (`vllm serve Qwen/Qwen3-8B --runner pooling`), which needs Linux and an
 NVIDIA GPU. This replaces only that process and keeps vLLM's choices, because CLM's head was trained on them:
 
-- bf16 weights, the final hidden state after the model's last norm, at the last token of each text;
+- bf16 weights (`--dtype float32` for a precision check), the final hidden state after the model's last norm,
+  at the last token of each text;
 - the tokenizer's own defaults (Qwen3 adds no special token);
 - `truncate_prompt_tokens` keeps the **first** tokens: vLLM 0.30.0 truncates from the right for the pooling
   runner (`vllm/tokenizers/registry.py`, lines 140-144; from the left only for generation);
@@ -54,10 +55,10 @@ class EmbeddingRequest(BaseModel):
     truncate_prompt_tokens: int | None = None
 
 
-def build(device: str) -> FastAPI:
-    """Load the encoder on `device` and return the app that serves it."""
+def build(device: str, *, dtype: str = "bfloat16") -> FastAPI:
+    """Load the encoder on `device` in `dtype` and return the app that serves it."""
     tokenizer = AutoTokenizer.from_pretrained(ENCODER, revision=REVISION)
-    model = AutoModel.from_pretrained(ENCODER, revision=REVISION, dtype=torch.bfloat16).to(device).eval()
+    model = AutoModel.from_pretrained(ENCODER, revision=REVISION, dtype=getattr(torch, dtype)).to(device).eval()
     lock = threading.Lock()  # one forward at a time on the GPU
     app = FastAPI()
 
@@ -67,7 +68,7 @@ def build(device: str) -> FastAPI:
             "encoder": ENCODER,
             "revision": REVISION,
             "device": device,
-            "dtype": "bfloat16",
+            "dtype": dtype,
             "torch": torch.__version__,
             "transformers": transformers.__version__,
         }
@@ -116,8 +117,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--port", type=int, default=8090)
     parser.add_argument("--device", default="mps")
+    parser.add_argument("--dtype", default="bfloat16", choices=["bfloat16", "float32"])
     args = parser.parse_args()
-    uvicorn.run(build(args.device), host="127.0.0.1", port=args.port, log_level="warning")
+    uvicorn.run(build(args.device, dtype=args.dtype), host="127.0.0.1", port=args.port, log_level="warning")
 
 
 if __name__ == "__main__":

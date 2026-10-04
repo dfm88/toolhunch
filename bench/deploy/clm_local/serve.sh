@@ -2,8 +2,12 @@
 # CLM (Contrastive-LM/CLM-v0.1-8B) on a Mac, for the benchmark's `clm-local` arms: the authors' `clm-serve`
 # unchanged, with encoder.py in place of the vLLM pooling server that needs Linux and NVIDIA.
 #
-#     bench/deploy/clm_local/serve.sh            # CLM on http://127.0.0.1:8700, no auth
+#     bench/deploy/clm_local/serve.sh                              # CLM on http://127.0.0.1:8700, no auth
+#     bench/deploy/clm_local/serve.sh --dtype float32 --port 8701  # the encoder in fp32, on its own port
 #     Ctrl-C (or kill the process) to stop both servers
+#
+# The port is part of the model id (clm-latest@127.0.0.1:<port>), hence of the decision cache key: give each
+# encoder precision its own port, so that a run never replays another precision's answers.
 #
 # Pinned: contrastive-lm 0.1.0 (installed without its vllm dependency), the reference head CLM_v0.1-8B.pt,
 # Qwen/Qwen3-8B @ b968826 (in encoder.py). Everything lands in bench/models/ (git-ignored): the Hub cache, the
@@ -17,6 +21,15 @@ export HF_HUB_CACHE="$MODELS/hf"
 export CLM_CKPT_DIR="$MODELS/clm"
 export CLM_DEVICE="mps"
 unset CLM_API_KEY  # local and loopback only: no auth
+DTYPE="bfloat16"
+PORT=8700
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --dtype) DTYPE="$2"; shift 2 ;;
+        --port) PORT="$2"; shift 2 ;;
+        *) echo "unknown option: $1" >&2; exit 2 ;;
+    esac
+done
 
 if [[ ! -x "$VENV/bin/clm-serve" ]]; then
     uv venv --python 3.12 "$VENV"
@@ -25,7 +38,7 @@ if [[ ! -x "$VENV/bin/clm-serve" ]]; then
 fi
 "$VENV/bin/clm-download" --dest "$CLM_CKPT_DIR"
 
-uv run --script "$REPO/bench/deploy/clm_local/encoder.py" --port 8090 &
+uv run --script "$REPO/bench/deploy/clm_local/encoder.py" --port 8090 --dtype "$DTYPE" &
 ENCODER_PID=$!
 CLM_PID=""
 # A signal interrupts `wait` (not a foreground process), so the trap stops both servers at once.
@@ -36,6 +49,6 @@ until "$VENV/bin/python" -c "$ready" 2>/dev/null; do
     kill -0 "$ENCODER_PID" 2>/dev/null || { echo "the encoder exited" >&2; exit 1; }
     sleep 2
 done
-"$VENV/bin/clm-serve" --host 127.0.0.1 --port 8700 --emb-url http://127.0.0.1:8090/v1/embeddings --no-download &
+"$VENV/bin/clm-serve" --host 127.0.0.1 --port "$PORT" --emb-url http://127.0.0.1:8090/v1/embeddings --no-download &
 CLM_PID=$!
 wait "$CLM_PID"
