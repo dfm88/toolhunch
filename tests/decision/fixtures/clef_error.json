@@ -1,0 +1,30 @@
+{
+  "source": "api.cloudflare.com Workers AI, @cf/cloudflare/clef-flash, recorded 2026-10-04",
+  "request": {
+    "state": "Request: Book me a table for two at an Italian place tonight at 8.",
+    "model": "clef-flash",
+    "questions": {
+      "tool": {
+        "type": "choice",
+        "instructions": "Which tool should the assistant call next to fulfil the request?"
+      }
+    }
+  },
+  "status": 400,
+  "headers": {
+    "content-type": "application/json",
+    "api-version": "2026-10-01.epoch",
+    "cf-ai-req-id": "a23af38d-4fc9-470c-9ae3-58b3ded06aaf"
+  },
+  "response": {
+    "errors": [
+      {
+        "message": "AiError: Bad input: Error: required properties at '/' are 'model,state,questions' (a23af38d-4fc9-470c-9ae3-58b3ded06aaf)",
+        "code": 5006
+      }
+    ],
+    "success": false,
+    "result": {},
+    "messages": []
+  }
+}
