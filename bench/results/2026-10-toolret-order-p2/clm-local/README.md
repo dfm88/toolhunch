@@ -49,7 +49,7 @@ Shuffled chosen slots (50/50 mix; outer candidate slot, reserved option ignored)
 
 Slot 1: 0.044 (0.033 to 0.056) vs 5%; slots 1-3: 0.133 (0.115 to 0.152) vs 15%; descriptive chi-square 27.8 (19 degrees of freedom, no p-value).
 
-Permutation averaging: P@1 0.130 (0.085 to 0.175); correct/wrong/abstained 24/351/25, 200/400 negatives (50%). Production requires five decisions per search; measured decision cost per 1,000 searches $0.0000; 5.0 physical asks per search for the five decisions.
+Permutation averaging: P@1 0.130 (0.085 to 0.175); correct/wrong/abstained 24/351/25, 200/400 negatives (50%). Production requires five decisions per search; measured decision cost per 1,000 searches local; 5.0 physical asks per search for the five decisions.
 
 Average final distributions mapped to card ids; cards dropped in a logprob round get zero; identity breaks ties.
 It is a heuristic with a measured five-decision cost, not a free correction or a guaranteed improvement.
@@ -58,6 +58,6 @@ Identity drift: {"comparable": false, "reason": "model, prompt, limits, or confi
 
 Only this date, K=20, plain queries and this configuration are covered. The chosen-slot statistic is descriptive: repeated searches are correlated and uniform-position causality is not established. Actual per-round slot/card mappings are retained in the raw exchanges. Gold-removed negatives may still admit an unlabeled relevant tool.
 
-Verified run cost $0.000000; guarded charge $0.000000. Model, prompt, payload, catalog, task, seed, order, git and scheduling provenance are pinned in summary.json and the raw manifest.
+Verified run cost local. Model, prompt, payload, catalog, task, seed, order, git and scheduling provenance are pinned in summary.json and the raw manifest.
 
 Calls are serialized and never locally replayed. Provider cache reads use their returned discount; unreported cache usage is charged at list price.

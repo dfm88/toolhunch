@@ -103,6 +103,8 @@ P@1 measures a relevant tool first on positive requests, ignoring abstention; it
 | hybrid+clef-flash@50 | model | 200 | 0.290 (0.23 to 0.35) | 0.215 | +0.075 (0.01 to 0.14) | 0.720 |
 | hybrid+clef-flash@50 | model (searched) | 119 | 0.277 (0.20 to 0.36) | 0.202 | +0.076 (-0.01 to 0.17) | 0.748 |
 
+**Lower detail.** hybrid+strands@50 plain: 161 of 400 searches (asks FULL 239, BRIEF 157, NAME 4); hybrid+strands@50 model: 136 of 400 searches (asks FULL 264, BRIEF 128, NAME 8); hybrid+strands@50 model (searched): 64 of 238 searches (asks FULL 174, BRIEF 56, NAME 8). To fit the model's window the planner sent these searches' cards below the detail allowed, so these rows mix detail levels; their threshold keys record the detail allowed, not the detail sent.
+
 ### Abstention
 
 Positive and negative requests are pooled below; the negative share is shown beside every row.

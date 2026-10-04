@@ -7940,6 +7940,8 @@
         "delta_p_at_1": null,
         "delta_p_at_1_ci95": null,
         "ceiling": 0.59,
+        "detail_mix": null,
+        "lower_detail_searches": null,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -8024,6 +8026,8 @@
         "delta_p_at_1": null,
         "delta_p_at_1_ci95": null,
         "ceiling": 0.6,
+        "detail_mix": null,
+        "lower_detail_searches": null,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -8108,6 +8112,8 @@
         "delta_p_at_1": null,
         "delta_p_at_1_ci95": null,
         "ceiling": 0.6470588235294118,
+        "detail_mix": null,
+        "lower_detail_searches": null,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -8195,6 +8201,10 @@
           0.125
         ],
         "ceiling": 0.59,
+        "detail_mix": {
+          "FULL": 400
+        },
+        "lower_detail_searches": 0,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -8538,6 +8548,10 @@
           0.15
         ],
         "ceiling": 0.6,
+        "detail_mix": {
+          "FULL": 400
+        },
+        "lower_detail_searches": 0,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -8881,6 +8895,10 @@
           0.15966386554621848
         ],
         "ceiling": 0.6470588235294118,
+        "detail_mix": {
+          "FULL": 238
+        },
+        "lower_detail_searches": 0,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -9221,6 +9239,8 @@
         "delta_p_at_1": null,
         "delta_p_at_1_ci95": null,
         "ceiling": 0.715,
+        "detail_mix": null,
+        "lower_detail_searches": null,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -9305,6 +9325,8 @@
         "delta_p_at_1": null,
         "delta_p_at_1_ci95": null,
         "ceiling": 0.72,
+        "detail_mix": null,
+        "lower_detail_searches": null,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -9389,6 +9411,8 @@
         "delta_p_at_1": null,
         "delta_p_at_1_ci95": null,
         "ceiling": 0.7478991596638656,
+        "detail_mix": null,
+        "lower_detail_searches": null,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -9476,6 +9500,12 @@
           0.115
         ],
         "ceiling": 0.715,
+        "detail_mix": {
+          "FULL": 239,
+          "BRIEF": 157,
+          "NAME": 4
+        },
+        "lower_detail_searches": 161,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -9819,6 +9849,12 @@
           0.12
         ],
         "ceiling": 0.72,
+        "detail_mix": {
+          "FULL": 264,
+          "BRIEF": 128,
+          "NAME": 8
+        },
+        "lower_detail_searches": 136,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -10162,6 +10198,12 @@
           0.10084033613445378
         ],
         "ceiling": 0.7478991596638656,
+        "detail_mix": {
+          "FULL": 174,
+          "BRIEF": 56,
+          "NAME": 8
+        },
+        "lower_detail_searches": 64,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -10505,6 +10547,10 @@
           -0.025
         ],
         "ceiling": 0.59,
+        "detail_mix": {
+          "BRIEF": 400
+        },
+        "lower_detail_searches": 0,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -10851,6 +10897,10 @@
           -0.03
         ],
         "ceiling": 0.6,
+        "detail_mix": {
+          "BRIEF": 400
+        },
+        "lower_detail_searches": 0,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -11197,6 +11247,10 @@
           -0.01680672268907563
         ],
         "ceiling": 0.6470588235294118,
+        "detail_mix": {
+          "BRIEF": 238
+        },
+        "lower_detail_searches": 0,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -11543,6 +11597,10 @@
           -0.05
         ],
         "ceiling": 0.715,
+        "detail_mix": {
+          "BRIEF": 400
+        },
+        "lower_detail_searches": 0,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -11889,6 +11947,10 @@
           -0.06
         ],
         "ceiling": 0.72,
+        "detail_mix": {
+          "BRIEF": 400
+        },
+        "lower_detail_searches": 0,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -12235,6 +12297,10 @@
           -0.03361344537815126
         ],
         "ceiling": 0.7478991596638656,
+        "detail_mix": {
+          "BRIEF": 238
+        },
+        "lower_detail_searches": 0,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -12581,6 +12647,10 @@
           0.145
         ],
         "ceiling": 0.59,
+        "detail_mix": {
+          "BRIEF": 400
+        },
+        "lower_detail_searches": 0,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -12919,6 +12989,10 @@
           0.18
         ],
         "ceiling": 0.6,
+        "detail_mix": {
+          "BRIEF": 400
+        },
+        "lower_detail_searches": 0,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -13257,6 +13331,10 @@
           0.20168067226890757
         ],
         "ceiling": 0.6470588235294118,
+        "detail_mix": {
+          "BRIEF": 238
+        },
+        "lower_detail_searches": 0,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -13595,6 +13673,10 @@
           0.21
         ],
         "ceiling": 0.715,
+        "detail_mix": {
+          "BRIEF": 400
+        },
+        "lower_detail_searches": 0,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -13933,6 +14015,10 @@
           0.245
         ],
         "ceiling": 0.72,
+        "detail_mix": {
+          "BRIEF": 400
+        },
+        "lower_detail_searches": 0,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -14271,6 +14357,10 @@
           0.2689075630252101
         ],
         "ceiling": 0.7478991596638656,
+        "detail_mix": {
+          "BRIEF": 238
+        },
+        "lower_detail_searches": 0,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -14609,6 +14699,10 @@
           0.075
         ],
         "ceiling": 0.59,
+        "detail_mix": {
+          "BRIEF": 400
+        },
+        "lower_detail_searches": 0,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -14947,6 +15041,10 @@
           0.08
         ],
         "ceiling": 0.6,
+        "detail_mix": {
+          "BRIEF": 400
+        },
+        "lower_detail_searches": 0,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -15285,6 +15383,10 @@
           0.10084033613445378
         ],
         "ceiling": 0.6470588235294118,
+        "detail_mix": {
+          "BRIEF": 238
+        },
+        "lower_detail_searches": 0,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -15623,6 +15725,10 @@
           0.125
         ],
         "ceiling": 0.715,
+        "detail_mix": {
+          "BRIEF": 400
+        },
+        "lower_detail_searches": 0,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -15961,6 +16067,10 @@
           0.14
         ],
         "ceiling": 0.72,
+        "detail_mix": {
+          "BRIEF": 400
+        },
+        "lower_detail_searches": 0,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
@@ -16299,6 +16409,10 @@
           0.16806722689075632
         ],
         "ceiling": 0.7478991596638656,
+        "detail_mix": {
+          "BRIEF": 238
+        },
+        "lower_detail_searches": 0,
         "rules": {
           "answer_always": {
             "coverage": 1.0,
