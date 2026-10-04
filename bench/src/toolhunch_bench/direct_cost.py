@@ -124,9 +124,10 @@ class GuardedDecisionModel:
             ValueError: `inner` declares no input price, or a price without a request token cap to reserve from.
         """
         limits = inner.limits
-        if limits.price_input_per_mtok is None:
+        self._local = provider == "local"  # a model on this machine: recorded, timed, never priced
+        if limits.price_input_per_mtok is None and not self._local:
             raise ValueError(f"{inner.model_id} declares no input price to guard")
-        if limits.max_request_tokens is None and limits.price_input_per_mtok > 0:
+        if limits.max_request_tokens is None and (limits.price_input_per_mtok or 0) > 0 and not self._local:
             raise ValueError(f"{inner.model_id} declares no request token cap to reserve from")
         self._inner, self._guard, self._provider, self._retries = inner, guard, provider, retries
 
@@ -154,11 +155,11 @@ class GuardedDecisionModel:
         return repr(self._inner)
 
     def _usd(self, usage: DecisionUsage) -> float:
-        return self.limits.estimate_usd(usage) or 0.0
+        return 0.0 if self._local else self.limits.estimate_usd(usage) or 0.0
 
     async def ask(self, request: DecisionRequest, /, **options: Any) -> DecisionResponse:
         """Ask with a separately guarded reservation for each attempt."""
-        priced = (self.limits.price_input_per_mtok or 0.0) > 0
+        priced = not self._local and (self.limits.price_input_per_mtok or 0.0) > 0
         upper = self._usd(DecisionUsage(1, self.limits.max_request_tokens or 0, 0))
         for attempt in range(self._retries + 1):
             self._guard.before(upper)

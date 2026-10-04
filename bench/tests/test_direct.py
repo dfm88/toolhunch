@@ -825,9 +825,11 @@ async def test_direct_runs_a_registered_decider_in_rounds(tmp_path: Path, fake_d
     ]
     estimate = await estimate_direct(selected, retriever=BM25Retriever(), models={"strands": model}, arms=arms)
     guard = SpendGuard()
+    # As the direct command wraps a local model: through the guard at no charge, so every ask is recorded and timed.
+    local = GuardedDecisionModel(model, guard=guard, provider="local")
 
     directory = await DirectRunner(
-        retriever=BM25Retriever(), models={"strands": model}, agent=None, guard=guard, arms=arms
+        retriever=BM25Retriever(), models={"strands": local}, agent=None, guard=guard, arms=arms
     ).run(selected, out_dir=tmp_path / "runs", run_id="strands", pilot=False, estimate=estimate)
 
     records = [json.loads(line) for line in (directory / "run.jsonl").read_text().splitlines()]
@@ -841,4 +843,11 @@ async def test_direct_runs_a_registered_decider_in_rounds(tmp_path: Path, fake_d
     positives = sum(r["variant"] == "positive" for r in everything)
     assert row["rounds"] == {"one_question": len(everything) - positives, "two_rounds": positives}
     assert row["physical_requests"] == 2 * positives + (len(everything) - positives)
-    assert "| strands-all, in rounds | pooled |" in (tmp_path / "report" / "README.md").read_text()
+    readme = (tmp_path / "report" / "README.md").read_text()
+    assert "| strands-all, in rounds | pooled |" in readme
+    # A local model's asks are timed, never mistaken for cache replays, and cost "local", not a price.
+    assert all(r["provider_calls"] and r["decision_seconds"] is not None for r in everything)
+    assert not any(r["replayed"] for r in everything)
+    assert {call["usd"] for call in guard.calls} == {0.0}
+    assert row["positive_cost"]["warm"]["local"] is True
+    assert "| strands-all, in rounds | pooled | local | local | local |" in readme

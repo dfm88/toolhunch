@@ -755,8 +755,10 @@ def direct(
         agent = CachedAgent(model, path=BENCH_DIR / "runs" / "cache" / "agent.sqlite", guard=guard)
         direct_cache = BENCH_DIR / "runs" / "cache" / "direct-decisions.sqlite"
         for name, model in raw.items():
-            provider = REGISTRY[DeciderName(name)].provider
-            guarded = GuardedDecisionModel(model, guard=guard, provider=provider) if _guarded(name) else model
+            spec = REGISTRY[DeciderName(name)]
+            # A local model goes through the guard too, at no charge: every ask is then recorded and timed.
+            recorded = _guarded(name) or spec.billing == "local"
+            guarded = GuardedDecisionModel(model, guard=guard, provider=spec.provider) if recorded else model
             models[name] = CachedDecisionModel(guarded, path=direct_cache)
         provenance = {str(name): asyncio.run(local_provenance(name)) for name in names}
         runner = DirectRunner(
@@ -809,6 +811,8 @@ def direct(
         for call in guard.calls:
             grouped.setdefault((call["provider"], call["model"]), []).append(call)
         for (provider, billed_model), calls in grouped.items():
+            if provider == "local":
+                continue  # a model on this machine is not paid for; its calls stay in calls.jsonl
             verified = sum(call["usd"] or 0 for call in calls)
             charged = sum(call["budget_charge_usd"] for call in calls)
             append_ledger(

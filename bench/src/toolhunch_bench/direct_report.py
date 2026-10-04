@@ -34,6 +34,7 @@ def _cost(records: Sequence[dict[str, Any]], *, phase: str, arm: str) -> dict[st
     billed = sum(call["usd"] or 0 for call in calls) + sum(r["search_usd"] for r in own)
     list_price = sum(call["list_usd"] or 0 for call in calls) + sum(r["search_usd"] for r in own)
     latencies = [r["search_seconds"] + (r["decision_seconds"] or 0) for r in own if r["error"] is None]
+    local = bool(calls) and all(call["provider"] == "local" for call in calls)
     return {
         "observed_searches": len(own),
         "provider_calls": len(calls),
@@ -41,7 +42,7 @@ def _cost(records: Sequence[dict[str, Any]], *, phase: str, arm: str) -> dict[st
         "input_tokens": input_tokens,
         "cache_read_tokens": cached,
         "cache_share": cached / input_tokens
-        if input_tokens and all(call["provider"] != "typesafe" for call in calls)
+        if input_tokens and all(call["provider"] not in ("typesafe", "local") for call in calls)
         else None,
         "billed_usd": billed if own and not unpriced else None,
         "list_usd": list_price if own and not unpriced else None,
@@ -52,6 +53,7 @@ def _cost(records: Sequence[dict[str, Any]], *, phase: str, arm: str) -> dict[st
         "unpriced_attempts": unpriced,
         "known_billed_subtotal_usd": billed,
         "known_list_subtotal_usd": list_price,
+        **({"local": True} if local else {}),
     }
 
 
@@ -454,7 +456,9 @@ def _markdown(summary: dict[str, Any]) -> str:
     def interval(value: dict[str, Any] | None) -> str:
         return f"{value['value']:.3f} ({value['ci95'][0]:.3f} to {value['ci95'][1]:.3f})" if value else "n/a"
 
-    def money(value: float | None, *, unpriced: int = 0) -> str:
+    def money(value: float | None, *, unpriced: int = 0, local: bool = False) -> str:
+        if local:
+            return "local"  # a model on this machine: no charge, so no price to compare
         return "unknown" if unpriced else (f"${value:.4f}" if value is not None else "n/a")
 
     lines = [
@@ -507,6 +511,7 @@ def _markdown(summary: dict[str, Any]) -> str:
             lines.append(f"| {row['arm']} | {row['catalog']} (not applicable) | n/a | n/a | n/a | n/a | n/a | n/a |")
             continue
         cold, warm = row["positive_cost"]["cold"], row["positive_cost"]["warm"]
+        local = "local" in warm or "local" in cold
         negative = row["negative_cost"]
         cache = f"{warm['cache_share']:.1%}" if warm["cache_share"] is not None else "n/a"
         latency = (
@@ -515,10 +520,12 @@ def _markdown(summary: dict[str, Any]) -> str:
             else "n/a"
         )
         lines.append(
-            f"| {_label(row)} | {row['catalog']} | {money(cold['billed_usd'], unpriced=cold['unpriced_attempts'])} | "
-            f"{money(warm['billed_usd_per_1000'], unpriced=warm['unpriced_attempts'])} | "
-            f"{money(warm['list_usd_per_1000'], unpriced=warm['unpriced_attempts'])} | {cache} | {latency} | "
-            f"{money(negative['billed_usd_per_1000'], unpriced=negative['unpriced_attempts'])} |"
+            f"| {_label(row)} | {row['catalog']} | "
+            f"{money(cold['billed_usd'], unpriced=cold['unpriced_attempts'], local=local)} | "
+            f"{money(warm['billed_usd_per_1000'], unpriced=warm['unpriced_attempts'], local=local)} | "
+            f"{money(warm['list_usd_per_1000'], unpriced=warm['unpriced_attempts'], local=local)} | {cache} | "
+            f"{latency} | "
+            f"{money(negative['billed_usd_per_1000'], unpriced=negative['unpriced_attempts'], local=local)} |"
         )
     exclusions = [row for row in summary["rows"] if row["status"] == "not applicable"]
     if exclusions:
