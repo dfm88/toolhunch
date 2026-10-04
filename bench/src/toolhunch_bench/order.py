@@ -250,6 +250,9 @@ async def order_experiment(
 
     guard = SpendGuard(prior_usd=prior, cap_usd=budget.cap_usd, sink=persist)
     names = list(deciders)
+    if any(REGISTRY[DeciderName(name)].billing != "local" and name not in ORDER_DETAILS for name in names):
+        # Building a hosted decider beyond P1's pair can read its account from .env (Clef); keys stay at call time.
+        load_dotenv(BENCH_DIR.parent / ".env", override=False)
     adapters = {name: decision_model(DeciderName(name), max_retries=0) for name in names}
     inner = OpenAIEmbedder("text-embedding-3-small", max_input_bytes=None, batch_size=512)
     cache = CachedEmbedder(
