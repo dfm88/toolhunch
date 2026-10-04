@@ -13,11 +13,34 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
     from pathlib import Path
 
-__all__ = ["F2A_CAP_EUR", "LEDGER_PATH", "F2aSpend", "LedgerEntry", "append_ledger", "f2a_spend", "read_ledger"]
+__all__ = [
+    "BUDGET",
+    "F2A_CAP_EUR",
+    "LEDGER_PATH",
+    "Budget",
+    "F2aSpend",
+    "LedgerEntry",
+    "append_ledger",
+    "f2a_spend",
+    "read_ledger",
+]
 
 LEDGER_PATH = BENCH_DIR / "results" / "cost-ledger.jsonl"
 F2A_CAP_EUR = 7.0
 """The most the F2a total may reach; a paid F2a run whose estimate would pass it stops. A dollar counts as a euro."""
+
+
+@dataclass(frozen=True, slots=True)
+class Budget:
+    """A phase's spending limits, over the ledger lines whose purpose starts with `prefix`."""
+
+    prefix: str
+    target_usd: float
+    cap_usd: float
+
+
+BUDGET = Budget("P2:", 6.0, 8.0)
+"""The current phase: P2, new decision models (spec 2026-10-04 §6.5). Paid runs stop before the cap."""
 
 
 class LedgerEntry(BaseModel):

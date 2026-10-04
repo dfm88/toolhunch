@@ -20,7 +20,7 @@ from pydantic_ai.models.openai import OpenAIChatModel, OpenAIChatModelSettings
 from pydantic_ai.usage import RunUsage
 
 from toolhunch import BM25Retriever, DetailLevel, Embedder, OpenAIEmbedder, default_search_text
-from toolhunch.decision import JevWireModel, OpenAILogprobModel, clm, jev
+from toolhunch.decision import DecisionModel, jev
 from toolhunch_bench import BENCH_DIR
 from toolhunch_bench.charts import build_decision_charts
 from toolhunch_bench.checks import check_bm25, check_tokens
@@ -45,12 +45,12 @@ from toolhunch_bench.datasets.toolret import (
     sample_tasks,
     write_task_file,
 )
+from toolhunch_bench.deciders import DECIDERS as REGISTRY
+from toolhunch_bench.deciders import DeciderName, decision_model, local_provenance, missing_env
 from toolhunch_bench.decision import (
     CLM_DEPLOYMENT,
-    CLM_MODEL,
     DECIDERS,
     JEV_MODEL,
-    LOGPROB_MODEL,
     LUNA_MODEL,
     QUERY_SOURCES,
     CacheOnlyRetrieval,
@@ -61,7 +61,6 @@ from toolhunch_bench.decision import (
     build_decision_arms,
     clm_usd,
     estimate_decisions,
-    jev_usd,
     run_decisions,
     warm_up_clm,
 )
@@ -75,6 +74,7 @@ from toolhunch_bench.direct_cost import (
     GuardedDecisionModel,
     GuardedEmbedder,
     SpendGuard,
+    SpendLimit,
 )
 from toolhunch_bench.direct_report import build_direct_report
 from toolhunch_bench.embedding_cache import (
@@ -83,7 +83,15 @@ from toolhunch_bench.embedding_cache import (
     TruncatingEmbedder,
     estimate_embedding_cost,
 )
-from toolhunch_bench.ledger import F2A_CAP_EUR, LEDGER_PATH, LedgerEntry, append_ledger, f2a_spend, read_ledger
+from toolhunch_bench.ledger import (
+    BUDGET,
+    F2A_CAP_EUR,
+    LEDGER_PATH,
+    LedgerEntry,
+    append_ledger,
+    f2a_spend,
+    read_ledger,
+)
 from toolhunch_bench.report import build_report
 from toolhunch_bench.retrieval import (
     ARM_NAMES,
@@ -96,7 +104,6 @@ from toolhunch_bench.retrieval import (
     query_text,
     run_arms,
 )
-from toolhunch_bench.structured import StructuredChoiceModel
 
 if TYPE_CHECKING:
     from toolhunch.retrieval import EmbeddingKind
@@ -352,14 +359,14 @@ def decision(
     selected = read_task_file(tasks, data)[:limit]
     queries_file = model_queries_path(tasks) if "model" in source_list else None
     written = None if queries_file is None else load_model_queries(queries_file, selected)
-    load_dotenv(BENCH_DIR.parent / ".env", override=False)  # CLM_BASE_URL now, the keys at call time, never printed
-    clm_base_url = os.environ.get("CLM_BASE_URL", "")
-    if "clm" in names and not clm_base_url:
-        typer.echo(
-            "The clm decider needs CLM_BASE_URL, the root of the server bench/deploy/clm_modal.py runs.", err=True
-        )
+    load_dotenv(BENCH_DIR.parent / ".env", override=False)  # base URLs now, the keys at call time, never printed
+    deciders_named = [DeciderName(name) for name in names]
+    if missing := missing_env(deciders_named):
+        typer.echo(f"The deciders {', '.join(names)} need these variables set: {', '.join(missing)}.", err=True)
         raise typer.Exit(code=1)
-    adapters = _decision_models(names, clm_base_url=clm_base_url)  # nothing is contacted before the first ask
+    clm_base_url = os.environ.get("CLM_BASE_URL", "")
+    guard = SpendGuard(prior_usd=f2a_spend(read_ledger(LEDGER_PATH), purpose_prefix=BUDGET.prefix).usd)
+    raw, adapters = _decision_models(deciders_named, guard=guard)  # nothing is contacted before the first ask
     inner = OpenAIEmbedder(DECISION_EMBEDDING_MODEL, max_input_bytes=None)  # TruncatingEmbedder cuts exactly, by tokens
     encoding = tiktoken.get_encoding("cl100k_base")
     cache = CachedEmbedder(
@@ -408,7 +415,8 @@ def decision(
         settings += ["five orders"] if orders else []
         settings += ["cache bypassed"] if bypass_cache else []
         settings += [f"first {limit} tasks"] if limit is not None else []
-        purpose = f"F2a: decision {split} ({'; '.join(settings)}) on {tasks.name}"
+        purpose = f"{BUDGET.prefix} decision {split} ({'; '.join(settings)}) on {tasks.name}"
+        provenance = {name: asyncio.run(local_provenance(name)) for name in deciders_named}
         run = functools.partial(
             run_decisions,
             arms,
@@ -427,9 +435,15 @@ def decision(
             before_arm=_clm_warmer(adapters.get("clm"), base_url=clm_base_url),
             order_seeds=order_seeds,
             stop_on_error=False,
+            manifest_extra={"deciders": provenance},
         )
         try:
-            asyncio.run(_decide(run, adapters=adapters, inner=inner))
+            asyncio.run(_decide(run, adapters=raw, inner=inner))
+        except SpendLimit as error:
+            typer.echo(f"Run stopped by the spend guard: {error}", err=True)
+            stopped = True
+        else:
+            stopped = False
         finally:
             records = _run_records(RUNS_DIR / run_id)  # a failed run still paid for what it asked
             for entry in _decision_ledger_entries(
@@ -452,8 +466,12 @@ def decision(
                 f"  {record['arm']}: {record['searches']:,} searches, {record['errors']:,} errors, "
                 f"{record['wall_seconds']:,.0f} s"
             )
-    spend = f2a_spend(read_ledger(LEDGER_PATH))
-    typer.echo(f"F2a total now: ${spend.usd:.4f} (Modal credits, apart: ${spend.modal_usd:.4f})")
+    spend = f2a_spend(read_ledger(LEDGER_PATH), purpose_prefix=BUDGET.prefix)
+    typer.echo(
+        f"{BUDGET.prefix.rstrip(':')} total now: ${spend.usd:.4f} (Modal credits, apart: ${spend.modal_usd:.4f})"
+    )
+    if stopped:
+        raise typer.Exit(code=2)
 
 
 @app.command()
@@ -474,13 +492,16 @@ def decision_report(
     ],
     out: Annotated[Path, typer.Option(help="Directory for summary.json and README.md.")],
     heldout: Annotated[
-        Path | None, typer.Option("--heldout", help="The held-out run directory.", exists=True, file_okay=False)
+        list[Path] | None,
+        typer.Option(
+            "--heldout", help="A held-out run directory; repeat for one run per decider.", exists=True, file_okay=False
+        ),
     ] = None,
     heldout_repeats: Annotated[
-        Path | None,
+        list[Path] | None,
         typer.Option(
             "--heldout-repeats",
-            help="A held-out run that repeats its searches, for run-to-run variation.",
+            help="A held-out run that repeats its searches, for run-to-run variation; repeatable.",
             exists=True,
             file_okay=False,
         ),
@@ -541,6 +562,22 @@ def order_report(
 
     build_order_report(run_dir, out_dir=out, noise_reference_run=noise_reference_run)
     typer.echo(f"report written to {out}")
+
+
+@app.command("clef-probe")
+def clef_probe_command() -> None:
+    """P2 Stop 0: probe Clef and Clef-flash on Workers AI (paid, under $0.01) and save scrubbed fixtures."""
+    from toolhunch_bench.clef_probe import UsageMissing, clef_probe
+
+    try:
+        run_dir = asyncio.run(clef_probe(runs_dir=RUNS_DIR, fixtures_dir=BENCH_DIR.parent / "tests/decision/fixtures"))
+    except UsageMissing as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=2) from None
+    except ValueError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=1) from None
+    typer.echo(f"probe written to {run_dir / 'probe.json'}")
 
 
 @app.command("luna-report")
@@ -869,19 +906,22 @@ def _max_detail(text: str) -> dict[str, DetailLevel]:
     return details
 
 
-def _decision_models(names: Sequence[str], *, clm_base_url: str) -> dict[str, JevWireModel | OpenAILogprobModel]:
-    """The model behind each decider. Nothing is contacted here: each creates its client on its first ask."""
-    models: dict[str, JevWireModel | OpenAILogprobModel] = {}
+def _decision_models(
+    names: Sequence[DeciderName], *, guard: SpendGuard
+) -> tuple[dict[str, DecisionModel], dict[str, DecisionModel]]:
+    """The model behind each decider, and what the run asks: the same, guarded when it bills per declared token.
+
+    Nothing is contacted here: each model creates its client on its first ask. A guarded model has no retries of its
+    own, so every attempt goes through the guard.
+    """
+    raw: dict[str, DecisionModel] = {}
+    asked: dict[str, DecisionModel] = {}
     for name in names:
-        if name == "jev":
-            models[name] = jev(JEV_MODEL)
-        elif name == "clm":
-            models[name] = clm(clm_base_url, model=CLM_MODEL)
-        elif name == "luna":
-            models[name] = StructuredChoiceModel(LUNA_MODEL)
-        else:
-            models[name] = OpenAILogprobModel(LOGPROB_MODEL)
-    return models
+        spec = REGISTRY[name]
+        guarded = spec.billing == "tokens" and spec.provider != "openai"
+        raw[name] = decision_model(name, max_retries=0 if guarded else 3)
+        asked[name] = GuardedDecisionModel(raw[name], guard=guard, provider=spec.provider) if guarded else raw[name]
+    return raw, asked
 
 
 def _print_decision_estimate(lines: Sequence[EstimateLine], *, searches: int, retrieval: CacheOnlyRetrieval) -> None:
@@ -899,20 +939,21 @@ def _print_decision_estimate(lines: Sequence[EstimateLine], *, searches: int, re
 
 
 def _check_the_cap(estimate: float) -> None:
-    """Print the F2a total and the cap check; exit with code 2, having spent nothing, when the estimate passes it."""
-    spend = f2a_spend(read_ledger(LEDGER_PATH))
+    """Print the phase total and the cap check; exit with code 2, having spent nothing, when the estimate passes it."""
+    spend = f2a_spend(read_ledger(LEDGER_PATH), purpose_prefix=BUDGET.prefix)
     total = spend.usd + estimate
+    phase = BUDGET.prefix.rstrip(":")
     typer.echo(f"Estimate counted in the cap (Modal credits apart): ${estimate:.4f}")
-    typer.echo(f"F2a total so far: ${spend.usd:.4f} (Modal credits, apart: ${spend.modal_usd:.4f})")
-    typer.echo(f"Cap check: ${spend.usd:.4f} + ${estimate:.4f} = ${total:.4f} against the ${F2A_CAP_EUR:.2f} cap")
-    if total > F2A_CAP_EUR:
-        typer.echo(f"Over the cap: nothing was spent. F2a total ${spend.usd:.4f}, estimate ${estimate:.4f}.", err=True)
+    typer.echo(f"{phase} total so far: ${spend.usd:.4f} (Modal credits, apart: ${spend.modal_usd:.4f})")
+    typer.echo(f"Cap check: ${spend.usd:.4f} + ${estimate:.4f} = ${total:.4f} against the ${BUDGET.cap_usd:.2f} cap")
+    if total > BUDGET.cap_usd:
+        typer.echo(
+            f"Over the cap: nothing was spent. {phase} total ${spend.usd:.4f}, estimate ${estimate:.4f}.", err=True
+        )
         raise typer.Exit(code=2)
 
 
-def _clm_warmer(
-    model: JevWireModel | OpenAILogprobModel | None, *, base_url: str
-) -> Callable[[DecisionArm], Awaitable[None]] | None:
+def _clm_warmer(model: DecisionModel | None, *, base_url: str) -> Callable[[DecisionArm], Awaitable[None]] | None:
     """A `before_arm` hook that wakes CLM before each CLM arm: the server may have scaled to zero during the others.
 
     It warms `model` itself, not a cache in front of it: an answer replayed from the cache would wake nothing. `None`
@@ -932,7 +973,7 @@ def _clm_warmer(
 async def _decide(
     run: Callable[[], Awaitable[Path]],
     *,
-    adapters: Mapping[str, JevWireModel | OpenAILogprobModel],
+    adapters: Mapping[str, DecisionModel],
     inner: OpenAIEmbedder,
 ) -> Path:
     """Await `run`; the models' and the embedder's clients are closed either way."""
@@ -940,7 +981,8 @@ async def _decide(
         return await run()
     finally:
         for adapter in adapters.values():
-            await adapter.aclose()
+            if (close := getattr(adapter, "aclose", None)) is not None:
+                await close()
         await inner.aclose()
 
 
@@ -980,23 +1022,26 @@ def _decision_ledger_entries(
             f"asks: {model.misses:,} answered by the model, {model.hits:,} by the cache, {model.failures:,} failed, "
             "which the provider may have billed"
         )
-        if name == "clm":
+        spec = REGISTRY[DeciderName(name)]
+        if spec.billing == "local":
+            continue
+        if spec.billing == "gpu-time":
             if name not in wall and not model.misses and not model.failures:
                 continue
             seconds = wall.get(name, 0.0)
-            provider, billed_model, usd = "modal", CLM_MODEL, clm_usd(seconds)
+            provider, billed_model, usd = spec.provider, spec.model, clm_usd(seconds)
             price = float(CLM_DEPLOYMENT["usd_per_gpu_hour"])
             asks = f"Modal credits: {seconds:,.0f} s of the CLM arms' wall time at ${price:.2f}/h; {asks}"
         elif not model.misses and not model.failures:
             continue
-        elif name == "jev":
-            provider, billed_model, usd = "typesafe", JEV_MODEL, jev_usd(billed.input_tokens)
-        else:
-            billed_model = LUNA_MODEL if name == "luna" else LOGPROB_MODEL
+        elif spec.provider == "openai":
+            billed_model = spec.model
             # Priced on the sum: a tier meant for one long request (gpt-6-luna above 272K) overstates, never under.
             usage = Usage(input_tokens=billed.input_tokens, output_tokens=billed.output_tokens)
             price = calc_price(usage, model_ref=billed_model, provider_id="openai")
             provider, usd = "openai", float(price.total_price)
+        else:
+            provider, billed_model, usd = spec.provider, spec.model, model.limits.estimate_usd(billed) or 0.0
         entries.append(
             LedgerEntry(
                 timestamp=timestamp,

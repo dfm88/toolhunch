@@ -25,6 +25,7 @@ from toolhunch_bench.datasets.model_queries import (
     save_model_queries,
 )
 from toolhunch_bench.datasets.toolret import ToolRetData, ToolRetTask, write_task_file
+from toolhunch_bench.deciders import DeciderName, decision_model
 from toolhunch_bench.ledger import LedgerEntry, append_ledger, f2a_spend, read_ledger
 
 TOOLS = {"web_tool_0": ("get_weather", "Weather forecast."), "web_tool_1": ("send_email", "Send an email.")}
@@ -130,6 +131,18 @@ def f2a_entry(usd: float) -> LedgerEntry:
         input_tokens=1_000,
         usd=usd,
         purpose="F2a: an earlier paid run",
+    )
+
+
+def p2_entry(usd: float) -> LedgerEntry:
+    return LedgerEntry(
+        timestamp=datetime(2026, 9, 29, 9, 0, tzinfo=UTC),
+        run_id="20260929T090000Z",
+        provider="openai",
+        model="gpt-4.1-mini",
+        input_tokens=1_000,
+        usd=usd,
+        purpose="P2: an earlier paid run",
     )
 
 
@@ -293,12 +306,6 @@ def decision_setup(
     }
     embedders: list[Any] = []
 
-    def model(name: str) -> Callable[..., Any]:
-        def build(*args: object, **kwargs: object) -> Any:
-            return models[name]
-
-        return build
-
     def embedder(model_name: str, **settings: object) -> Any:
         embedders.append(axis_embedder(model_id=model_name))
         return embedders[-1]
@@ -325,12 +332,17 @@ def decision_setup(
     monkeypatch.setattr(cli, "DECISION_CACHE_PATH", setup.decision_cache)
     monkeypatch.setattr(cli, "load_dotenv", no_dotenv)
     monkeypatch.setattr(tiktoken, "get_encoding", word_encoding)
-    monkeypatch.setattr(cli, "jev", model("jev"))
-    monkeypatch.setattr(cli, "clm", model("clm"))
-    monkeypatch.setattr(cli, "OpenAILogprobModel", model("logprob"))
+
+    def model(name: DeciderName, *, max_retries: int = 3) -> Any:
+        # Deciders without a fake are built for real: building one contacts nothing.
+        return models[name] if name in models else decision_model(name, max_retries=max_retries)
+
+    monkeypatch.setattr(cli, "decision_model", model)
     monkeypatch.setattr(cli, "OpenAIEmbedder", embedder)
     monkeypatch.setattr(cli, "warm_up_clm", warm_up_clm)
     monkeypatch.setenv("CLM_BASE_URL", "http://clm.test")
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")  # checked by name before a run; the fakes never send it
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     return setup
 
 
@@ -346,7 +358,7 @@ def spent_nothing(setup: DecisionSetup) -> bool:
 
 
 def test_decision_dry_run_prints_an_estimate_and_spends_nothing(decision_setup: DecisionSetup) -> None:
-    append_ledger(f2a_entry(1.5), path=decision_setup.ledger)
+    append_ledger(p2_entry(1.5), path=decision_setup.ledger)
     before = decision_setup.ledger.read_text()
 
     result = decide(decision_setup, "--dry-run")
@@ -357,20 +369,45 @@ def test_decision_dry_run_prints_an_estimate_and_spends_nothing(decision_setup: 
         assert line in result.output
     assert "GPU seconds" in result.output  # CLM is counted in time, not in dollars
     assert "BM25 alone" in result.output  # the cache holds no query embedding yet
-    assert "$1.5000" in result.output  # the F2a total the cap is checked against
-    assert "$7.00 cap" in result.output
+    assert "$1.5000" in result.output  # the P2 total the cap is checked against
+    assert "$8.00 cap" in result.output
     assert decision_setup.ledger.read_text() == before
     assert spent_nothing(decision_setup)
 
 
+def test_decision_dry_run_estimates_new_deciders_from_the_registry(
+    decision_setup: DecisionSetup, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "acct-test")
+    monkeypatch.setenv("CLOUDFLARE_API_KEY", "cf-test-token")
+    arguments = [
+        "decision",
+        "--tasks",
+        str(decision_setup.task_file),
+        "--split",
+        "dev",
+        "--deciders",
+        "clef-flash,strands",
+    ]
+
+    result = CliRunner().invoke(cli.app, [*arguments, "--k", "3", "--sources", "plain", "--dry-run"])
+
+    assert result.exit_code == 0, result.output
+    assert "  cloudflare clef-flash: $" in result.output  # priced at the declared $0.09/M
+    assert "at the declared $0.09/M" in result.output
+    assert "  local strands-decider-2B-hobson-v19: $0.0000; " in result.output  # a local model costs nothing
+    assert "acct-test" not in result.output
+    assert spent_nothing(decision_setup)
+
+
 def test_decision_stops_before_spending_when_the_ledger_is_over_the_cap(decision_setup: DecisionSetup) -> None:
-    append_ledger(f2a_entry(7.5), path=decision_setup.ledger)
+    append_ledger(p2_entry(8.5), path=decision_setup.ledger)
     before = decision_setup.ledger.read_text()
 
     result = decide(decision_setup)  # a paid run, not a dry run
 
     assert result.exit_code == 2
-    assert "Over the cap: nothing was spent. F2a total $7.5000, estimate $" in result.output
+    assert "Over the cap: nothing was spent. P2 total $8.5000, estimate $" in result.output
     assert decision_setup.ledger.read_text() == before
     assert spent_nothing(decision_setup)
 
@@ -378,7 +415,7 @@ def test_decision_stops_before_spending_when_the_ledger_is_over_the_cap(decision
 def test_a_decision_run_warms_clm_up_and_records_what_it_billed(
     decision_setup: DecisionSetup, fake_decision_model: Any
 ) -> None:
-    append_ledger(f2a_entry(1.5), path=decision_setup.ledger)
+    append_ledger(p2_entry(1.5), path=decision_setup.ledger)
     # Neither Jev nor the logprob model answers anything usable for "mail my boss": 2 arms x 2 sources x 2 variants
     # of that task end in an error. The logprob model takes 4 options, so at K = 5 it asks two questions in round
     # one, and both fail: its 8 failed searches are 12 failed asks.
@@ -402,9 +439,9 @@ def test_a_decision_run_warms_clm_up_and_records_what_it_billed(
     [run_dir] = decision_setup.runs.iterdir()
     records = [json.loads(line) for line in (run_dir / "run.jsonl").read_text().splitlines()]
     earlier, *entries = read_ledger(decision_setup.ledger)
-    assert earlier == f2a_entry(1.5)
+    assert earlier == p2_entry(1.5)
     assert {entry.purpose for entry in entries} == {
-        "F2a: decision dev (jev, clm, logprob; k 3/5; plain/model) on tasks.json"
+        "P2: decision dev (jev, clm, logprob; k 3/5; plain/model) on tasks.json"
     }
     by_model = {(entry.provider, entry.model): entry for entry in entries}
     assert sorted(by_model) == [
@@ -414,7 +451,9 @@ def test_a_decision_run_warms_clm_up_and_records_what_it_billed(
         ("typesafe", "jev-1.13.0"),
     ]
     jev = by_model["typesafe", "jev-1.13.0"]
-    assert jev.input_tokens == 10 * (len(jev_model.asks) - 8)  # 10 input tokens for every ask it answered
+    # Jev bills per declared token, so its asks go through the spend guard, which retries a failed attempt once:
+    # its 8 failed searches are 16 failed attempts.
+    assert jev.input_tokens == 10 * (len(jev_model.asks) - 16)  # 10 input tokens for every ask it answered
     assert jev.usd == pytest.approx(jev.input_tokens * 0.042 / 1_000_000)
     assert ", 8 failed," in jev.note  # the provider may have billed them, but they are not in the usage
     logprob = by_model["openai", "gpt-4.1-mini-2025-04-14"]
@@ -427,11 +466,13 @@ def test_a_decision_run_warms_clm_up_and_records_what_it_billed(
     clm_seconds = sum(r["wall_seconds"] for r in records if r["record"] == "arm" and "+clm@" in r["arm"])
     assert modal.usd == pytest.approx(clm_seconds * 0.80 / 3600)
     assert modal.note.startswith("Modal credits: ")
-    assert f2a_spend(read_ledger(decision_setup.ledger)).modal_usd == pytest.approx(modal.usd)  # apart from the cap
+    assert f2a_spend(read_ledger(decision_setup.ledger), purpose_prefix="P2:").modal_usd == pytest.approx(
+        modal.usd
+    )  # apart from the cap
     assert by_model["openai", "text-embedding-3-small"].input_tokens > 0  # the texts the fresh cache lacked
     assert all(model.closed for model in models.values())
     assert all(embedder.closed for embedder in decision_setup.embedders)
-    assert "F2a total now: $" in result.output
+    assert "P2 total now: $" in result.output
 
 
 def test_a_failing_decision_run_still_records_what_it_billed(

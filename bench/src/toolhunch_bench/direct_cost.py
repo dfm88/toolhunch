@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING, Any
 
 from genai_prices import Usage, calc_price
 
-from toolhunch.decision import DecisionError
-from toolhunch_bench.decision import jev_usd
+from toolhunch.decision import DecisionError, DecisionUsage
+from toolhunch_bench.ledger import BUDGET
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
@@ -39,8 +39,11 @@ class SpendLimit(Exception):
     """The next provider attempt cannot fit inside the remaining budget."""
 
 
-class ProviderFailure(Exception):
-    """A provider request failed; the public message contains only an exception class."""
+class ProviderFailure(DecisionError):
+    """A provider request failed; the public message contains only an exception class or a fixed reason.
+
+    It is a `DecisionError`, so a decision run records it as a failed search and goes on.
+    """
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -74,7 +77,7 @@ class SpendGuard:
         self,
         *,
         prior_usd: float = 0.0,
-        cap_usd: float = P1_CAP_USD,
+        cap_usd: float = BUDGET.cap_usd,
         sink: Callable[[dict[str, Any]], None] | None = None,
     ) -> None:
         self.prior_usd = prior_usd
@@ -91,7 +94,7 @@ class SpendGuard:
     def before(self, upper_usd: float) -> None:
         """Refuse an attempt whose upper bound would cross the cap."""
         if upper_usd < 0 or self.prior_usd + self.run_usd + upper_usd > self.cap_usd:
-            raise SpendLimit("next provider attempt would exceed the P1 budget")
+            raise SpendLimit(f"next provider attempt would exceed the ${self.cap_usd:.2f} cap")
 
     def record(self, call: ProviderCall) -> None:
         """Retain one attempt and publish it with its request context."""
@@ -106,12 +109,26 @@ class SpendGuard:
 class GuardedDecisionModel:
     """A decision model with each real attempt guarded, priced and recorded.
 
-    The wrapped adapter must have internal retries disabled. The optional retry here obtains its own reservation.
-    Jev's declared request cap bounds the tokens it can bill for one attempt, including its own prompt.
+    The price comes from the wrapped model's declared limits, and each attempt reserves what its largest declared
+    request would cost. The wrapped adapter must have internal retries disabled; the optional retry here obtains its
+    own reservation. A priced reply that reports no input tokens is a failure: it could not be priced, so the guard
+    cannot account for it.
     """
 
-    def __init__(self, inner: DecisionModel, *, guard: SpendGuard, retries: int = 1) -> None:
-        self._inner, self._guard, self._retries = inner, guard, retries
+    def __init__(
+        self, inner: DecisionModel, *, guard: SpendGuard, provider: str = "typesafe", retries: int = 1
+    ) -> None:
+        """Wrap `inner`, billed by `provider`.
+
+        Raises:
+            ValueError: `inner` declares no input price, or a price without a request token cap to reserve from.
+        """
+        limits = inner.limits
+        if limits.price_input_per_mtok is None:
+            raise ValueError(f"{inner.model_id} declares no input price to guard")
+        if limits.max_request_tokens is None and limits.price_input_per_mtok > 0:
+            raise ValueError(f"{inner.model_id} declares no request token cap to reserve from")
+        self._inner, self._guard, self._provider, self._retries = inner, guard, provider, retries
 
     @property
     def model_id(self) -> str:
@@ -133,50 +150,63 @@ class GuardedDecisionModel:
         """The wrapped model's prompt version."""
         return self._inner.prompt_version
 
+    def __repr__(self) -> str:
+        return repr(self._inner)
+
+    def _usd(self, usage: DecisionUsage) -> float:
+        return self.limits.estimate_usd(usage) or 0.0
+
     async def ask(self, request: DecisionRequest, /, **options: Any) -> DecisionResponse:
         """Ask with a separately guarded reservation for each attempt."""
-        if self.limits.max_request_tokens is None:
-            raise ValueError("direct runs require a declared Jev request token cap")
-        upper = jev_usd(self.limits.max_request_tokens)
+        priced = (self.limits.price_input_per_mtok or 0.0) > 0
+        upper = self._usd(DecisionUsage(1, self.limits.max_request_tokens or 0, 0))
         for attempt in range(self._retries + 1):
             self._guard.before(upper)
             started = time.perf_counter()
             try:
                 response = await self._inner.ask(request, **options)
             except DecisionError as error:
-                self._guard.record(
-                    ProviderCall(
-                        provider="typesafe",
-                        model=self.model_id,
-                        input_tokens=None,
-                        output_tokens=None,
-                        cache_read_tokens=None,
-                        seconds=time.perf_counter() - started,
-                        usd=None,
-                        list_usd=None,
-                        budget_charge_usd=upper,
-                        error=type(error).__name__,
-                    )
-                )
-                if attempt == self._retries:
-                    raise ProviderFailure(type(error).__name__) from None
+                failure = type(error).__name__
             else:
-                usd = jev_usd(response.usage.input_tokens)
-                self._guard.record(
-                    ProviderCall(
-                        provider="typesafe",
-                        model=self.model_id,
-                        input_tokens=response.usage.input_tokens,
-                        output_tokens=response.usage.output_tokens,
-                        cache_read_tokens=0,
-                        seconds=time.perf_counter() - started,
-                        usd=usd,
-                        list_usd=usd,
-                        budget_charge_usd=usd,
+                if not (priced and response.usage.input_tokens <= 0):
+                    usd = self._usd(response.usage)
+                    self._guard.record(
+                        ProviderCall(
+                            provider=self._provider,
+                            model=self.model_id,
+                            input_tokens=response.usage.input_tokens,
+                            output_tokens=response.usage.output_tokens,
+                            cache_read_tokens=0,
+                            seconds=time.perf_counter() - started,
+                            usd=usd,
+                            list_usd=usd,
+                            budget_charge_usd=usd,
+                        )
                     )
+                    return response
+                failure = "priced reply without input tokens"
+            self._guard.record(
+                ProviderCall(
+                    provider=self._provider,
+                    model=self.model_id,
+                    input_tokens=None,
+                    output_tokens=None,
+                    cache_read_tokens=None,
+                    seconds=time.perf_counter() - started,
+                    usd=None,
+                    list_usd=None,
+                    budget_charge_usd=upper,
+                    error=failure,
                 )
-                return response
+            )
+            if attempt == self._retries:
+                raise ProviderFailure(failure)
         raise AssertionError("unreachable")
+
+    async def aclose(self) -> None:
+        """Close the wrapped model's client, if it has one."""
+        if (close := getattr(self._inner, "aclose", None)) is not None:
+            await close()
 
 
 class GuardedEmbedder:

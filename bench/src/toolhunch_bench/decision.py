@@ -40,6 +40,15 @@ from toolhunch.decision import (
 from toolhunch.decision.planner import PROMPT_VERSION
 from toolhunch.retrieval import Retrieval
 from toolhunch.retrieval.base import FUSION_DEPTH, check_k, clean_queries
+from toolhunch_bench.deciders import (
+    CLM_DEPLOYMENT,
+    CLM_MODEL,
+    JEV_MODEL,
+    LOGPROB_MODEL,
+    LUNA_MODEL,
+    DeciderName,
+)
+from toolhunch_bench.deciders import DECIDERS as REGISTRY
 from toolhunch_bench.decision_cache import CachedDecisionModel
 from toolhunch_bench.embedding_cache import estimate_embedding_cost
 from toolhunch_bench.ledger import F2A_CAP_EUR
@@ -86,32 +95,13 @@ type QuerySource = Literal["plain", "model"]
 type Split = Literal["dev", "heldout"]
 """The task split of a run: settings and thresholds are chosen on dev, and results are reported on held-out."""
 
-DECIDERS = ("jev", "clm", "logprob", "luna")
-"""The deciders a run can compare, each asking its own model."""
+DECIDERS: tuple[str, ...] = tuple(DeciderName)
+"""The deciders a run can compare, each asking its own model: every `DeciderName`."""
 QUERY_SOURCES: tuple[QuerySource, ...] = ("plain", "model")
 """Every query source."""
-JEV_MODEL = "jev-1.13.0"
-"""The pinned Jev version: `jev-latest` would move under a run."""
-LOGPROB_MODEL = "gpt-4.1-mini-2025-04-14"
-"""The logprob baseline's model: an OpenAI snapshot that returns 20 top logprobs."""
-LUNA_MODEL = "gpt-6-luna"
-"""GPT-6 Luna, reasoning off: the `luna` decider asks it for a structured letter, the direct agent arms for a call."""
-CLM_MODEL = "clm-latest"
-"""The model `clm-serve` answers with."""
-CLM_DEPLOYMENT: dict[str, Any] = {
-    "script": "bench/deploy/clm_modal.py",
-    "vllm": "0.30.0",
-    "contrastive_lm": "0.1.0",
-    "gpu": "L4",
-    "usd_per_gpu_hour": 0.80,
-    "price_checked": "2026-09-28",
-}
-"""Where the CLM model runs, and the list price of its GPU, which Modal credits pay."""
 JEV_REQUEST_OVERHEAD_TOKENS = 300
 """What Jev bills beyond the text of a request, for its own prompt: a round figure, for estimates only."""
 
-_LOGPROB_REQUEST_OVERHEAD_TOKENS = 120  # the fixed system prompt and the template around the question, estimates only
-_LUNA_OUTPUT_TOKENS = 16  # the structured letter's completion cap, estimates only
 _CLM_GPU_SECONDS_PER_CALL = 0.3  # estimates only: CLM is billed by GPU time, never by tokens
 _HEALTH_TIMEOUT_SECONDS = 30.0
 _WARM_UP_REQUEST = DecisionRequest(
@@ -481,10 +471,10 @@ async def estimate_decisions(
     has the model's limits, so the questions are planned as they will be, but it answers uniformly and asks nothing.
     The asks and their heuristic token counts, times `repeat`, are priced per decider, in one line each:
 
-    - Jev: the tokens plus `JEV_REQUEST_OVERHEAD_TOKENS` per ask, at the input price `JEV_LIMITS` declares;
-    - logprob: the tokens plus 120 per ask for the prompt around the question, and one output token per ask, priced
-      by genai-prices; luna the same, with its 16-token completion cap per ask;
-    - CLM: no dollars in the cap, 0.3 GPU seconds per ask in the note.
+    - a token-billed decider: the tokens plus its entry's `request_overhead_tokens` per ask, at the input price its
+      limits declare (Jev, Clef), or priced by genai-prices with its entry's output tokens per ask (logprob, luna);
+    - CLM on Modal: no dollars in the cap, 0.3 GPU seconds per ask in the note;
+    - a local decider: no charge.
 
     Every ask is counted, including those the decision cache would answer, so the estimate leans high. With
     `embeddings`, one more line prices the query and card texts that cache lacks.
@@ -531,6 +521,7 @@ async def estimate_decisions(
             name,
             calls=repeat * sum(stand_in.calls for stand_in in stand_ins),
             tokens=repeat * sum(stand_in.input_tokens for stand_in in stand_ins),
+            limits=stand_ins[0].limits,
         )
         for name, stand_ins in counted.items()
     ]
@@ -545,33 +536,36 @@ async def estimate_decisions(
     return lines
 
 
-def _decider_line(name: str, *, calls: int, tokens: int) -> EstimateLine:
-    match name:
-        case "jev":
-            priced = tokens + JEV_REQUEST_OVERHEAD_TOKENS * calls
-            note = (
-                f"{calls:,} asks, {priced:,} input tokens: the heuristic count plus {JEV_REQUEST_OVERHEAD_TOKENS} per "
-                f"ask, at the declared ${_declared_input_price(JEV_LIMITS)}/M"
-            )
-            return EstimateLine("typesafe", JEV_MODEL, calls, priced, jev_usd(priced), note)
-        case "logprob" | "luna":
-            model, output = (LOGPROB_MODEL, 1) if name == "logprob" else (LUNA_MODEL, _LUNA_OUTPUT_TOKENS)
-            priced = tokens + _LOGPROB_REQUEST_OVERHEAD_TOKENS * calls
-            price = calc_price(
-                Usage(input_tokens=priced, output_tokens=output * calls), model_ref=model, provider_id="openai"
-            )
-            note = (
-                f"{calls:,} asks, {priced:,} input tokens (the heuristic count plus {_LOGPROB_REQUEST_OVERHEAD_TOKENS} "
-                f"per ask) and {output} output tokens per ask, priced by genai-prices"
-            )
-            return EstimateLine("openai", model, calls, priced, float(price.total_price), note)
-        case _:
-            seconds = calls * _CLM_GPU_SECONDS_PER_CALL
-            note = (
-                f"{calls:,} asks, {tokens:,} input tokens by the heuristic count; {seconds:,.0f} GPU seconds at "
-                f"{_CLM_GPU_SECONDS_PER_CALL} s per ask, about ${clm_usd(seconds):.4f} of Modal credits"
-            )
-            return EstimateLine("modal", CLM_MODEL, calls, tokens, None, note)
+def _decider_line(name: str, *, calls: int, tokens: int, limits: ModelLimits) -> EstimateLine:
+    spec = REGISTRY[DeciderName(name)]
+    overhead = spec.request_overhead_tokens
+    priced = tokens + overhead * calls
+    if spec.billing == "local":
+        note = f"{calls:,} asks, {tokens:,} input tokens by the heuristic count, on this machine: no charge"
+        return EstimateLine("local", spec.model, calls, tokens, 0.0, note)
+    if spec.billing == "gpu-time":
+        seconds = calls * _CLM_GPU_SECONDS_PER_CALL
+        note = (
+            f"{calls:,} asks, {tokens:,} input tokens by the heuristic count; {seconds:,.0f} GPU seconds at "
+            f"{_CLM_GPU_SECONDS_PER_CALL} s per ask, about ${clm_usd(seconds):.4f} of Modal credits"
+        )
+        return EstimateLine("modal", spec.model, calls, tokens, None, note)
+    if spec.provider == "openai":
+        output = spec.estimate_output_tokens
+        price = calc_price(
+            Usage(input_tokens=priced, output_tokens=output * calls), model_ref=spec.model, provider_id="openai"
+        )
+        note = (
+            f"{calls:,} asks, {priced:,} input tokens (the heuristic count plus {overhead} per ask) and {output} "
+            "output tokens per ask, priced by genai-prices"
+        )
+        return EstimateLine("openai", spec.model, calls, priced, float(price.total_price), note)
+    usd = priced * _declared_input_price(limits) / 1_000_000
+    note = (
+        f"{calls:,} asks, {priced:,} input tokens: the heuristic count plus {overhead} per ask, at the declared "
+        f"${_declared_input_price(limits)}/M"
+    )
+    return EstimateLine(spec.provider, spec.model, calls, priced, usd, note)
 
 
 def _embedding_line(embeddings: CachedEmbedder, *, queries: Sequence[str], catalog: ToolCatalog) -> EstimateLine:

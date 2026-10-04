@@ -17,10 +17,13 @@ import json
 import math
 import statistics
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from genai_prices import Usage, calc_price
 
+from toolhunch_bench.deciders import DECIDERS as REGISTRY
+from toolhunch_bench.deciders import DeciderName
 from toolhunch_bench.metrics import (
     THRESHOLD_GRID,
     Outcome,
@@ -34,7 +37,6 @@ from toolhunch_bench.metrics import (
 
 if TYPE_CHECKING:
     from collections.abc import Hashable, Iterable, Iterator, Sequence
-    from pathlib import Path
 
 __all__ = ["build_decision_report"]
 
@@ -64,7 +66,11 @@ class _Run:
 
 
 def build_decision_report(
-    dev_runs: Sequence[Path], heldout_run: Path | None, *, out_dir: Path, heldout_repeats: Path | None = None
+    dev_runs: Sequence[Path],
+    heldout_run: Path | Sequence[Path] | None,
+    *,
+    out_dir: Path,
+    heldout_repeats: Path | Sequence[Path] | None = None,
 ) -> None:
     """Choose the abstention thresholds on `dev_runs`, apply them to `heldout_run`, and write the report to `out_dir`.
 
@@ -79,28 +85,34 @@ def build_decision_report(
 
     Args:
         dev_runs: Run directories of the dev split: the main run, its ablations, reruns and the determinism run.
-        heldout_run: The run directory of the held-out split; without one, the report covers dev alone.
+        heldout_run: The run directory of the held-out split, or several, one per decider, on the same tasks, dataset,
+            sources and repeat count: they are read as one run. Without one, the report covers dev alone.
         out_dir: Where `summary.json` and `README.md` go; created when missing.
-        heldout_repeats: A held-out run that repeats its searches, on the tasks and the dataset of `heldout_run`.
+        heldout_repeats: A held-out run that repeats its searches, on the tasks and the dataset of `heldout_run`; or
+            several, read as one like the held-out runs.
 
     Raises:
         ValueError: A run's manifest names another split than the one it is given as. `heldout_repeats` comes without
             `heldout_run`, repeats fewer than twice, runs other tasks or another dataset than `heldout_run`, or has a
             decider arm that did not bypass the decision cache.
     """
-    if heldout_repeats is not None and heldout_run is None:
-        raise ValueError(f"{heldout_repeats} is a repeats run, given without a held-out run to compare it with")
+    heldout_paths = _paths(heldout_run)
+    repeats_paths = _paths(heldout_repeats)
+    if repeats_paths and not heldout_paths:
+        raise ValueError(f"{repeats_paths[0]} is a repeats run, given without a held-out run to compare it with")
     dev = [_read_run(path, split="dev") for path in dev_runs]
-    heldout = None if heldout_run is None else _read_run(heldout_run, split="heldout")
-    repeats = None if heldout_repeats is None or heldout is None else _read_repeats(heldout_repeats, main=heldout)
+    heldout_parts = [_read_run(path, split="heldout") for path in heldout_paths]
+    heldout = _merged(heldout_parts) if heldout_parts else None
+    repeats_parts = [] if heldout is None else [_read_repeats(path, main=heldout) for path in repeats_paths]
+    repeats = _merged(repeats_parts) if repeats_parts else None
     thresholds = _thresholds(dev)
     fallbacks_in_tau = any(record["fallback"] is True for _, record in _tau_searches(dev))
     taus = {entry["key"]: entry["tau"] for entry in thresholds}
-    runs = [*dev, *([] if heldout is None else [heldout]), *([] if repeats is None else [repeats])]
+    runs = [*dev, *heldout_parts, *repeats_parts]
     summary: dict[str, Any] = {
         "bootstrap": {"resamples": BOOTSTRAP_RESAMPLES, "seed": BOOTSTRAP_SEED, "level": 0.95, "unit": "task"},
         "threshold_grid": list(THRESHOLD_GRID),
-        "runs": [_run_entry(run, role="repeats" if run is repeats else "main") for run in runs],
+        "runs": [_run_entry(run, role="repeats" if run in repeats_parts else "main") for run in runs],
         "dev": {
             "thresholds": thresholds,
             "precision": _dev_precision(dev),
@@ -116,6 +128,55 @@ def build_decision_report(
     (out_dir / "README.md").write_text(
         _published(_markdown(summary, fallbacks_in_tau=fallbacks_in_tau), hosts), encoding="utf-8"
     )
+
+
+def _paths(given: Path | Sequence[Path] | None) -> list[Path]:
+    if given is None:
+        return []
+    return [given] if isinstance(given, Path) else list(given)
+
+
+def _merged(runs: Sequence[_Run]) -> _Run:
+    """Several runs of one split, one per decider, read as one: same tasks, dataset, sources and repeat count.
+
+    Retrieval alone (`hybrid@K`) is the same in every run, as the retrieval is shared and cached, so its searches are
+    taken from the first run that has the arm; a decider arm in two runs is refused.
+
+    Raises:
+        ValueError: The runs differ in tasks, dataset, sources or repeat count, or two of them hold one decider arm.
+    """
+    if len(runs) == 1:
+        return runs[0]
+    first = runs[0].manifest
+    shared = ("split", "dataset", "sources", "repeat", "negatives")
+    arms: dict[str, Any] = {}
+    searches: list[Record] = []
+    records: dict[str, Record] = {}
+    for run in runs:
+        manifest = run.manifest
+        if manifest["tasks"]["sha256"] != first["tasks"]["sha256"] or any(manifest[k] != first[k] for k in shared):
+            raise ValueError(f"run {run.run_id} differs from run {runs[0].run_id} in tasks, dataset, sources or repeat")
+        own: set[str] = set()
+        for name, config in manifest["arms"].items():
+            if name in arms:
+                if config["decider"] is not None:
+                    raise ValueError(f"arm {name} is in more than one run")
+                continue
+            arms[name] = config
+            own.add(name)
+        searches += [record for record in run.searches if record["arm"] in own]
+        records |= {name: record for name, record in run.arms.items() if name in own}
+    deciders: dict[str, Any] = {}
+    for run in runs:
+        deciders |= run.manifest.get("deciders") or {}
+    deployments = [run.manifest.get("clm_deployment") for run in runs if run.manifest.get("clm_deployment")]
+    manifest = dict(first) | {
+        "run_id": "+".join(run.run_id for run in runs),
+        "arms": arms,
+        "clm_deployment": deployments[0] if deployments else None,
+        "deciders": deciders,
+    }
+    return _Run(manifest, searches, records)
 
 
 def _read_run(run_dir: Path, *, split: str) -> _Run:
@@ -570,36 +631,40 @@ def _cost(records: Sequence[Record], *, config: dict[str, Any], manifest: dict[s
     usd: float | None = None
     busy: float | None = None
     wall: float | None = None
-    match config["decider"]:
-        case None:
-            usd = 0.0
-        case "jev":
-            limits = config["limits"]
-            if limits["price_input_per_mtok"] is not None:
-                output_price = limits["price_output_per_mtok"] or 0.0
-                usd = (input_tokens * limits["price_input_per_mtok"] + output_tokens * output_price) / 1_000_000
-        case "logprob" | "luna":
-            model = config["model_id"].partition("@")[0]
-            with contextlib.suppress(LookupError):  # a model genai-prices does not know stays unpriced
-                # Per search: price tiers (gpt-6-luna: 2x above 272K input tokens) apply to one request.
-                usd = float(
-                    sum(
-                        calc_price(
-                            Usage(input_tokens=item["input_tokens"], output_tokens=item["output_tokens"]),
-                            model_ref=model,
-                            provider_id="openai",
-                        ).total_price
-                        for item in usage
-                    )
+    local: dict[str, Any] = {}
+    spec = None if config["decider"] is None else REGISTRY[DeciderName(config["decider"])]
+    if spec is None:
+        usd = 0.0
+    elif spec.billing == "gpu-time":
+        per_second = manifest["clm_deployment"]["usd_per_gpu_hour"] / 3600
+        server = [record["server_seconds"] for record in records if record["server_seconds"] is not None]
+        if server:
+            busy = statistics.fmean(server) * per_second * 1000
+        wall = sum(record["decision_seconds"] for record in records) / count * per_second * 1000
+    elif spec.billing == "local":
+        # A local model costs no money; what it needs is the machine it ran on, which its latency depends on.
+        deciders: dict[str, Any] = manifest.get("deciders") or {}
+        entry: dict[str, Any] = deciders.get(spec.name) or {}
+        local = {"local": entry.get("hardware") or {"chip": None}}
+    elif spec.provider == "openai":
+        model = config["model_id"].partition("@")[0]
+        with contextlib.suppress(LookupError):  # a model genai-prices does not know stays unpriced
+            # Per search: price tiers (gpt-6-luna: 2x above 272K input tokens) apply to one request.
+            usd = float(
+                sum(
+                    calc_price(
+                        Usage(input_tokens=item["input_tokens"], output_tokens=item["output_tokens"]),
+                        model_ref=model,
+                        provider_id="openai",
+                    ).total_price
+                    for item in usage
                 )
-        case "clm":
-            per_second = manifest["clm_deployment"]["usd_per_gpu_hour"] / 3600
-            server = [record["server_seconds"] for record in records if record["server_seconds"] is not None]
-            if server:
-                busy = statistics.fmean(server) * per_second * 1000
-            wall = sum(record["decision_seconds"] for record in records) / count * per_second * 1000
-        case _:
-            pass
+            )
+    else:
+        limits = config["limits"]
+        if limits["price_input_per_mtok"] is not None:
+            output_price = limits["price_output_per_mtok"] or 0.0
+            usd = (input_tokens * limits["price_input_per_mtok"] + output_tokens * output_price) / 1_000_000
     return {
         "asks_per_search": sum(item["requests"] for item in usage) / count,
         "input_tokens_per_search": input_tokens / count,
@@ -607,6 +672,7 @@ def _cost(records: Sequence[Record], *, config: dict[str, Any], manifest: dict[s
         "usd_per_1000_searches": None if usd is None else usd / count * 1000,
         "clm_busy_usd_per_1000_searches": busy,
         "clm_wall_usd_per_1000_searches": wall,
+        **local,
     }
 
 
