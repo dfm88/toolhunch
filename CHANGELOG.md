@@ -6,7 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `strands_decider()`: AWS Strands Labs' Strands Decider 2B served locally (`strands-decider serve`), with
+  `STRANDS_LIMITS` (255 options, a 4,096-token window).
+- `clef()`: Cloudflare's Clef and Clef-flash on Workers AI, with `CLEF_LIMITS` and `CLEF_FLASH_LIMITS`. The account
+  ID goes into the URL only, never into `model_id` or `repr`.
+- `JevWireModel(path=..., response_root=...)`: a Jev-shaped body at another endpoint path, and an answer wrapped in
+  an envelope member such as Workers AI's `result`.
+
 ### Changed
+
+- `JevWireModel`'s `repr` shows `model_id` instead of `base_url`.
 
 - Development status: alpha, from pre-alpha.
 

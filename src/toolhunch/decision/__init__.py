@@ -20,13 +20,27 @@ from toolhunch.decision.base import (
     choice_answer,
 )
 from toolhunch.decision.decider import Abstention, ChoiceDecider, Decider, Decision, Exchange, ThresholdKey
-from toolhunch.decision.jev_wire import CLM_LIMITS, JEV_LIMITS, JevWireModel, clm, jev
+from toolhunch.decision.jev_wire import (
+    CLEF_FLASH_LIMITS,
+    CLEF_LIMITS,
+    CLM_LIMITS,
+    JEV_LIMITS,
+    STRANDS_LIMITS,
+    JevWireModel,
+    clef,
+    clm,
+    jev,
+    strands_decider,
+)
 from toolhunch.decision.logprobs import LOGPROB_LIMITS, OpenAILogprobModel
 
 __all__ = [
+    "CLEF_FLASH_LIMITS",
+    "CLEF_LIMITS",
     "CLM_LIMITS",
     "JEV_LIMITS",
     "LOGPROB_LIMITS",
+    "STRANDS_LIMITS",
     "Abstention",
     "Answer",
     "BinaryAnswer",
@@ -52,6 +66,8 @@ __all__ = [
     "ThresholdKey",
     "check_request",
     "choice_answer",
+    "clef",
     "clm",
     "jev",
+    "strands_decider",
 ]

@@ -1,12 +1,18 @@
-"""Decision models that speak TypeSafe's `/v1/systemone` protocol: Jev, and servers that copy it, such as CLM."""
+"""Decision models that speak TypeSafe's `/v1/systemone` protocol: Jev, and servers that copy it.
+
+CLM and Strands Decider serve it at `/v1/systemone`; Cloudflare's Clef takes the same body at its own Workers AI
+endpoint and wraps the answer in a `result` envelope.
+"""
 
 from __future__ import annotations
 
 import contextlib
+import json
 import math
+import os
 import sys
 from datetime import date
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from pydantic import BaseModel, Field, ValidationError
 
@@ -32,7 +38,18 @@ if TYPE_CHECKING:
     from toolhunch.decision._http import JsonReply
     from toolhunch.decision.base import Answer, DecisionRequest, Question, QuestionKind
 
-__all__ = ["CLM_LIMITS", "JEV_LIMITS", "JevWireModel", "clm", "jev"]
+__all__ = [
+    "CLEF_FLASH_LIMITS",
+    "CLEF_LIMITS",
+    "CLM_LIMITS",
+    "JEV_LIMITS",
+    "STRANDS_LIMITS",
+    "JevWireModel",
+    "clef",
+    "clm",
+    "jev",
+    "strands_decider",
+]
 
 # TypeSafe's docs say "64k" and "32k": read as 64,000 and 32,000, the lower of the two readings.
 JEV_LIMITS = ModelLimits(
@@ -58,6 +75,44 @@ CLM_LIMITS = ModelLimits(
 )
 """CLM's limits: its server cuts every text at 2,048 tokens, without saying so."""
 
+STRANDS_LIMITS = ModelLimits(
+    max_options_per_choice=255,
+    max_request_tokens=4096,
+    score_levels=(2, 10),
+    price_input_per_mtok=0.0,
+    price_output_per_mtok=0.0,
+    source=(
+        "strands-labs/strands-decider @ 75c9fd3: schema.py MAX_CHOICE_OPTIONS = 255, score levels 2-10; "
+        "StrandsAgents/strands-decider-2B-hobson-v19 @ bb282d7: hobson_config.json max_length 4096; runs locally"
+    ),
+    checked=date(2026, 10, 4),
+)
+"""Strands Decider 2B's limits: 255 options and a 4,096-token window, served locally at no charge.
+
+Over the window its server cuts the state unless it runs with `--strict-window`, which refuses with HTTP 422.
+"""
+
+_CLEF_SOURCE = (
+    "developers.cloudflare.com/workers-ai/models/{model}: 65,536-token context, 1-64 questions, "
+    "${price} per M input tokens, no output charge"
+)
+CLEF_LIMITS = ModelLimits(
+    max_request_tokens=65_536,
+    max_questions_per_request=64,
+    price_input_per_mtok=0.24,
+    price_output_per_mtok=0.0,
+    source=_CLEF_SOURCE.format(model="clef", price="0.24"),
+    checked=date(2026, 10, 4),
+)
+"""Cloudflare Clef's limits and price on Workers AI."""
+
+CLEF_FLASH_LIMITS = CLEF_LIMITS.model_copy(
+    update={"price_input_per_mtok": 0.09, "source": _CLEF_SOURCE.format(model="clef-flash", price="0.09")}
+)
+"""Cloudflare Clef-flash's limits and price on Workers AI."""
+
+_CLEF_BASE_URL = "https://api.cloudflare.com/client/v4/accounts/{account}/ai/run"
+
 _JEV_BASE_URL = "https://api.typesafe.ai/v1"
 _KINDS: frozenset[QuestionKind] = frozenset({"choice", "binary", "score"})
 _WIRE_TYPES = {"choice": "choice", "binary": "noul", "score": "score"}
@@ -80,8 +135,12 @@ class JevWireModel:
     CLM (see `clm`). It answers choice, binary and score questions.
 
     `base_url` must be an absolute http(s) URL without credentials: `ValueError` otherwise, so pass the
-    key as `api_key`. The identity `model_id` is `"<model>@<host>"`, taken from `model` and `base_url`. The
-    `model` and `confidence` fields of a response are never used; they stay in `DecisionResponse.raw`.
+    key as `api_key`. Requests go to `base_url + path`. The identity `model_id` is `"<model>@<host>"`, taken from
+    `model` and `base_url`, and is all `repr` shows, so an account ID in the URL never reaches it. The `model` and
+    `confidence` fields of a response are never used; they stay in `DecisionResponse.raw`.
+
+    `response_root` names the member of the reply that holds the answer, for a server that wraps it in an envelope
+    (`"result"` on Workers AI); `None` reads the reply itself.
     `limits` is declared data: a request beyond it raises `ValueError` before anything is sent.
 
     `extra_body` and the `**options` of `ask` are merged into the top level of the payload, shallowly and
@@ -107,6 +166,8 @@ class JevWireModel:
         api_key: str | None = None,
         extra_body: Mapping[str, Any] | None = None,
         latency_header: str | None = None,
+        path: str = "/systemone",
+        response_root: str | None = None,
         http_client: httpx2.AsyncClient | None = None,
         timeout: float = 30.0,
         max_retries: int = 3,
@@ -119,8 +180,9 @@ class JevWireModel:
         self._limits = limits
         self._extra_body = dict(extra_body or {})
         self._latency_header = latency_header
+        self._response_root = response_root
         self._poster = JsonPoster(
-            f"{self._base_url}/systemone",
+            f"{self._base_url}{path}",
             model_id=self._model_id,
             api_key=api_key,
             api_key_env=api_key_env,
@@ -150,7 +212,7 @@ class JevWireModel:
         return None
 
     def __repr__(self) -> str:
-        return f"JevWireModel(model={self._model!r}, base_url={self._base_url!r})"
+        return f"JevWireModel(model_id={self._model_id!r})"
 
     async def ask(self, request: DecisionRequest, /, **options: Any) -> DecisionResponse:
         """Ask every question of `request` in one call.
@@ -190,8 +252,9 @@ class JevWireModel:
         return body
 
     def _decode(self, request: DecisionRequest, reply: JsonReply) -> DecisionResponse:
+        body = reply.body if self._response_root is None else self._unwrap(reply.body)
         try:
-            envelope = _Envelope.model_validate(reply.body)
+            envelope = _Envelope.model_validate(body)
         except ValidationError as error:
             problem = error.errors(include_url=False, include_context=False, include_input=False)[0]
             where = ".".join(str(part) for part in problem["loc"])
@@ -210,6 +273,15 @@ class JevWireModel:
             server_seconds=self._server_seconds(reply.headers),
             raw=reply.body,
         )
+
+    def _unwrap(self, body: Mapping[str, Any]) -> dict[str, Any]:
+        """The member `response_root` of `body`, which must be a JSON object; `DecisionError` otherwise."""
+        root = self._response_root
+        inner = body.get(root) if root is not None else body
+        if not isinstance(inner, dict):
+            errors = f"; errors: {json.dumps(body['errors'])[:500]}" if body.get("errors") else ""
+            raise self._error(f"the reply has no {root!r} object{errors}")
+        return cast("dict[str, Any]", inner)
 
     def _answer(self, key: str, question: Question, wire: Mapping[str, Any] | None) -> Answer:
         if wire is None:
@@ -320,6 +392,77 @@ def clm(
         limits=limits,
         extra_body=extra_body,
         latency_header="x-clm-latency-ms",
+        http_client=http_client,
+        timeout=timeout,
+        max_retries=max_retries,
+    )
+
+
+def strands_decider(
+    base_url: str = "http://127.0.0.1:8000",
+    *,
+    model: str = "strands-decider-2B-hobson-v19",
+    limits: ModelLimits = STRANDS_LIMITS,
+    extra_body: Mapping[str, Any] | None = None,
+    http_client: httpx2.AsyncClient | None = None,
+    timeout: float = 30.0,
+    max_retries: int = 3,
+) -> JevWireModel:
+    """A Strands Decider server: `strands-decider serve` from strands-labs/strands-decider, without auth.
+
+    `base_url` is the server root; `/v1` is appended. Run the server with `--strict-window`, so a prompt over its
+    4,096-token window fails instead of losing part of its state; the planner keeps requests within
+    `STRANDS_LIMITS` and splits larger choices into two rounds.
+    """
+    return JevWireModel(
+        model,
+        base_url=f"{base_url.rstrip('/')}/v1",
+        api_key_env=None,
+        limits=limits,
+        extra_body=extra_body,
+        http_client=http_client,
+        timeout=timeout,
+        max_retries=max_retries,
+    )
+
+
+def clef(
+    model: Literal["clef", "clef-flash"] = "clef-flash",
+    *,
+    account_id: str | None = None,
+    account_id_env: str = "CLOUDFLARE_ACCOUNT_ID",
+    api_key: str | None = None,
+    api_key_env: str | None = "CLOUDFLARE_API_KEY",
+    limits: ModelLimits | None = None,
+    extra_body: Mapping[str, Any] | None = None,
+    http_client: httpx2.AsyncClient | None = None,
+    timeout: float = 30.0,
+    max_retries: int = 3,
+) -> JevWireModel:
+    """Cloudflare's Clef or Clef-flash on Workers AI, which takes Jev's body and wraps its answer in `result`.
+
+    The account ID is `account_id` or, read now, the `account_id_env` variable; it goes into the URL only, never
+    into `model_id` or `repr`. The key is `api_key` or, at call time, the `api_key_env` variable: a Cloudflare
+    API token with Workers AI permission (the REST API takes `Authorization: Bearer`, which a Global API Key does
+    not use). `limits` defaults to `CLEF_LIMITS` or `CLEF_FLASH_LIMITS`.
+
+    Raises:
+        ValueError: `model` is neither `"clef"` nor `"clef-flash"`, or no account ID is given or set.
+    """
+    if model not in ("clef", "clef-flash"):
+        raise ValueError(f'model must be "clef" or "clef-flash", got {model!r}')
+    account = account_id or os.environ.get(account_id_env, "")
+    if not account:
+        raise ValueError(f"clef needs a Cloudflare account ID: set {account_id_env} or pass account_id")
+    return JevWireModel(
+        model,
+        base_url=_CLEF_BASE_URL.format(account=account),
+        api_key=api_key,
+        api_key_env=api_key_env,
+        limits=limits or (CLEF_LIMITS if model == "clef" else CLEF_FLASH_LIMITS),
+        extra_body=extra_body,
+        path=f"/@cf/cloudflare/{model}",
+        response_root="result",
         http_client=http_client,
         timeout=timeout,
         max_retries=max_retries,
