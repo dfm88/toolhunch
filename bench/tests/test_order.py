@@ -10,8 +10,15 @@ import anyio
 import pytest
 from typer.testing import CliRunner
 
-from toolhunch import OpenAIEmbedder, ScoredCard, ToolCard, ToolCatalog
-from toolhunch.decision import JEV_LIMITS, LOGPROB_LIMITS, DecisionError, OpenAILogprobModel
+from toolhunch import DetailLevel, OpenAIEmbedder, ScoredCard, ToolCard, ToolCatalog
+from toolhunch.decision import (
+    CLEF_FLASH_LIMITS,
+    JEV_LIMITS,
+    LOGPROB_LIMITS,
+    STRANDS_LIMITS,
+    DecisionError,
+    OpenAILogprobModel,
+)
 from toolhunch.retrieval import Retrieval
 from toolhunch_bench import cli
 from toolhunch_bench import order as order_module
@@ -26,6 +33,7 @@ from toolhunch_bench.decision import (
 )
 from toolhunch_bench.decision_cache import CachedDecisionModel
 from toolhunch_bench.direct_cost import SpendGuard, SpendLimit
+from toolhunch_bench.ledger import BUDGET
 from toolhunch_bench.order import ORDER_DETAILS, ORDER_SEEDS, OrderDecisionModel, order_ledger_entries
 from toolhunch_bench.order_report import build_order_report, pilot_gates
 
@@ -590,3 +598,71 @@ async def test_noise_baseline_refuses_non_matching_or_incomplete_repeats(
         run_dir, out_dir=tmp_path / "noise-report", published_summary=None, noise_reference_run=reference
     )
     assert summary["same_order_noise_baseline"]["deciders"]["jev"]["comparable"] is False
+
+
+@pytest.mark.anyio
+async def test_order_report_covers_any_decider(
+    tmp_path: Path, order_data: ToolRetData, fake_decision_model: Any
+) -> None:
+    # Strands runs locally and Clef-flash is billed per declared token: neither is one of P1's two deciders.
+    task_file = tmp_path / "tasks.json"
+    write_task_file(task_file, order_data.tasks, seed=0)
+    run_dir = tmp_path / "runs/p2"
+
+    def persist(call: dict[str, Any]) -> None:
+        with (run_dir / "calls.jsonl").open("a") as journal:
+            journal.write(json.dumps(call) + "\n")
+
+    guard = SpendGuard(prior_usd=0.5, cap_usd=BUDGET.cap_usd, sink=persist)
+    fakes = {
+        "strands": fake_decision_model(
+            model_id="strands-decider-2B-hobson-v19@127.0.0.1:8000", limits=STRANDS_LIMITS, favourite="get_weather"
+        ),
+        "clef-flash": fake_decision_model(
+            model_id="clef-flash@api.cloudflare.com", limits=CLEF_FLASH_LIMITS, favourite="get_weather"
+        ),
+    }
+    details = {"strands": DetailLevel.BRIEF, "clef-flash": DetailLevel.FULL}
+    models = {name: OrderDecisionModel(fake, decider=name, guard=guard) for name, fake in fakes.items()}
+    arms = build_decision_arms(list(fakes), ks=[20], models=models, max_detail=details)
+    await run_decisions(
+        arms,
+        order_data,
+        order_data.tasks,
+        retriever=SharedRetrieval(CatalogRetriever()),
+        split="heldout",
+        sources=["plain"],
+        model_queries=None,
+        negatives=True,
+        repeat=1,
+        out_dir=tmp_path / "runs",
+        task_file=task_file,
+        model_queries_file=None,
+        run_id="p2",
+        order_seeds=ORDER_SEEDS,
+        manifest_extra={
+            "completed": True,
+            "experiment": "order-sensitivity-v1",
+            "pilot": True,
+            "estimate": {"usd": 0.01},
+            "prior_p1_usd": 0.5,
+            "cap_usd": BUDGET.cap_usd,
+        },
+        before_search=lambda context: setattr(guard, "context", context),
+    )
+
+    assert pilot_gates(run_dir)["passed"] is True
+    summary = build_order_report(run_dir, out_dir=tmp_path / "report", published_summary=None)
+    assert list(summary["deciders"]) == ["strands", "clef-flash"]
+    assert summary["deciders"]["strands"]["top_card_stability"]["value"] == 1.0
+    assert summary["deciders"]["strands"]["verified_decision_usd"] == 0
+    clef_calls = [call for call in guard.calls if call["provider"] == "cloudflare"]
+    assert summary["deciders"]["clef-flash"]["verified_decision_usd"] == pytest.approx(
+        sum(call["input_tokens"] for call in clef_calls) * 0.09 / 1_000_000
+    )
+    # Neither has published F2a evidence or a same-order repeats run: both say so instead of borrowing Jev's.
+    assert not summary["deciders"]["strands"]["identity_drift"]["comparable"]
+    assert set(summary["same_order_noise_baseline"]["deciders"]) == {"strands", "clef-flash"}
+    # Only the paid decider reaches the ledger, under the current phase.
+    [entry] = order_ledger_entries(guard, run_id="p2", pilot=True, budget=BUDGET)
+    assert (entry.provider, entry.purpose) == ("cloudflare", "P2: order sensitivity pilot")

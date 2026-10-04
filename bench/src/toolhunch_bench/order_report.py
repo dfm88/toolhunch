@@ -21,6 +21,11 @@ if TYPE_CHECKING:
 _RESAMPLES = 2000
 
 
+def _deciders(manifest: Mapping[str, Any]) -> list[str]:
+    """The deciders an order run asked, in the order of its arms."""
+    return [config["decider"] for config in manifest["arms"].values() if config["decider"] is not None]
+
+
 def _records(path: Path) -> list[dict[str, Any]]:
     return [] if not path.exists() else [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
 
@@ -132,7 +137,7 @@ def pilot_gates(run_dir: Path) -> dict[str, Any]:
     complete = manifest.get("completed") is True and len(searches) == expected and len(groups) == expected // 5
     complete &= set(groups) == {
         (name, task, variant)
-        for name in ("jev", "logprob")
+        for name in _deciders(manifest)
         for task in manifest.get("task_ids", [])
         for variant in ("positive", "negative")
     }
@@ -308,7 +313,7 @@ def _noise_baseline(
         or not (reference_run / "manifest.json").exists()
         or not (reference_run / "run.jsonl").exists()
     ):
-        return {"deciders": dict.fromkeys(("jev", "logprob"), unavailable)}
+        return {"deciders": dict.fromkeys(_deciders(manifest), unavailable)}
     reference: dict[str, Any] = json.loads((reference_run / "manifest.json").read_text())
     path = reference_run / "run.jsonl"
     records = _records(path)
@@ -324,7 +329,7 @@ def _noise_baseline(
         "caveat": "Observed same-order run noise, not a causal order-effect experiment. "
         "Compare pairwise agreement; all-three-same and all-five-same are different statistics.",
     }
-    for name in ("jev", "logprob"):
+    for name in _deciders(manifest):
         arm = f"hybrid+{name}@20"
         config = reference["arms"].get(arm, {})
         own = {
@@ -434,7 +439,7 @@ def build_order_report(
         "deciders": {},
         "same_order_noise_baseline": _noise_baseline(manifest, complete, reference_run=noise_reference_run),
     }
-    for decider in ("jev", "logprob"):
+    for decider in _deciders(manifest):
         own = {(task, variant): rows for (name, task, variant), rows in complete.items() if name == decider}
         positive = {key: rows for key, rows in own.items() if key[1] == "positive"}
         by_task: dict[str, list[float]] = {}

@@ -13,17 +13,16 @@ import anyio
 import httpx2
 
 from toolhunch import BM25Retriever, DetailLevel, OpenAIEmbedder
-from toolhunch.decision import DecisionError, OpenAILogprobModel, jev
+from toolhunch.decision import DecisionError, DecisionUsage
 from toolhunch_bench import BENCH_DIR
 from toolhunch_bench.datasets.toolret import TOOLRET_SUBTASKS, load_toolret, read_task_file
+from toolhunch_bench.deciders import DECIDERS as REGISTRY
+from toolhunch_bench.deciders import DeciderName, decision_model
 from toolhunch_bench.decision import (
-    JEV_MODEL,
-    LOGPROB_MODEL,
     CacheOnlyRetrieval,
     SharedRetrieval,
     build_decision_arms,
     estimate_decisions,
-    jev_usd,
     run_decisions,
 )
 from toolhunch_bench.direct_cost import (
@@ -38,11 +37,11 @@ from toolhunch_bench.embedding_cache import (
     CachedEmbedder,
     TruncatingEmbedder,
 )
-from toolhunch_bench.ledger import LedgerEntry, append_ledger, f2a_spend, read_ledger
+from toolhunch_bench.ledger import Budget, LedgerEntry, append_ledger, f2a_spend, read_ledger
 from toolhunch_bench.retrieval import build_arms
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping
     from pathlib import Path
 
     from toolhunch.decision import DecisionModel, DecisionRequest, DecisionResponse, ModelLimits, QuestionKind
@@ -51,7 +50,10 @@ if TYPE_CHECKING:
 ORDER_SEEDS = (0, 1, 2, 3, 4)
 MAX_INPUT_TOKENS = 8191
 ORDER_DETAILS = {"jev": DetailLevel.BRIEF, "logprob": DetailLevel.FULL}
+"""P1's deciders and their published configurations: the default of `order_experiment`."""
 P1_TARGET_USD = 5.0
+P1_BUDGET = Budget("P1:", P1_TARGET_USD, P1_CAP_USD)
+"""The budget P1's order runs were charged to: the default of `order_experiment`."""
 
 
 class OrderDecisionModel:
@@ -92,17 +94,19 @@ class OrderDecisionModel:
                 self._guard.context = context
 
     async def _ask(self, request: DecisionRequest, /, **options: Any) -> DecisionResponse:
-        if self._decider == "jev":
-            if self.limits.max_request_tokens is None:
-                raise ValueError("a Jev request token cap is required for the spend reservation")
-            upper = jev_usd(self.limits.max_request_tokens)
-            provider = "typesafe"
-        else:
+        spec = REGISTRY[DeciderName(self._decider)]
+        provider = spec.provider
+        if spec.provider == "openai":
             # ASCII JSON bytes bound BPE tokens, including escaping and the fixed letter prompt.
             upper = openai_usd(
-                model=LOGPROB_MODEL, input_tokens=len(json.dumps(asdict(request)).encode()) + 4096, output_tokens=1
+                model=spec.model, input_tokens=len(json.dumps(asdict(request)).encode()) + 4096, output_tokens=1
             )
-            provider = "openai"
+        elif spec.billing == "local":
+            upper = 0.0
+        else:
+            if self.limits.max_request_tokens is None:
+                raise ValueError(f"a request token cap is required for the {self._decider} spend reservation")
+            upper = self.limits.estimate_usd(DecisionUsage(1, self.limits.max_request_tokens, 0)) or 0.0
         self._guard.before(upper)
         started = time.perf_counter()
         try:
@@ -128,16 +132,18 @@ class OrderDecisionModel:
         cached = cast("dict[str, Any]", details).get("cached_tokens") if isinstance(details, dict) else None
         if not isinstance(cached, int) or not 0 <= cached <= response.usage.input_tokens:
             cached = None
-        usd = (
-            jev_usd(response.usage.input_tokens)
-            if self._decider == "jev"
-            else openai_usd(
-                model=LOGPROB_MODEL,
+        if spec.provider == "openai":
+            usd = openai_usd(
+                model=spec.model,
                 input_tokens=response.usage.input_tokens,
                 output_tokens=response.usage.output_tokens,
                 cache_read_tokens=cached or 0,
             )
-        )
+            list_usd = openai_usd(
+                model=spec.model, input_tokens=response.usage.input_tokens, output_tokens=response.usage.output_tokens
+            )
+        else:
+            usd = list_usd = 0.0 if spec.billing == "local" else self.limits.estimate_usd(response.usage) or 0.0
         self._guard.record(
             ProviderCall(
                 provider=provider,
@@ -147,26 +153,24 @@ class OrderDecisionModel:
                 cache_read_tokens=cached,
                 seconds=time.perf_counter() - started,
                 usd=usd,
-                list_usd=jev_usd(response.usage.input_tokens)
-                if self._decider == "jev"
-                else openai_usd(
-                    model=LOGPROB_MODEL,
-                    input_tokens=response.usage.input_tokens,
-                    output_tokens=response.usage.output_tokens,
-                ),
+                list_usd=list_usd,
                 budget_charge_usd=usd,
             )
         )
         return response
 
 
-def order_ledger_entries(guard: SpendGuard, *, run_id: str, pilot: bool) -> list[LedgerEntry]:
+def order_ledger_entries(
+    guard: SpendGuard, *, run_id: str, pilot: bool, budget: Budget = P1_BUDGET
+) -> list[LedgerEntry]:
     """Build ledger charges from real attempts, retaining failed-usage reserves."""
     grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
     for call in guard.calls:
         grouped.setdefault((call["provider"], call["model"]), []).append(call)
     entries: list[LedgerEntry] = []
     for (provider, model), calls in grouped.items():
+        if provider == "local":
+            continue  # a local model is not paid for: its calls stay in the run's calls.jsonl
         verified = sum(call["usd"] or 0 for call in calls)
         charge = sum(call["budget_charge_usd"] for call in calls)
         entries.append(
@@ -178,7 +182,7 @@ def order_ledger_entries(guard: SpendGuard, *, run_id: str, pilot: bool) -> list
                 input_tokens=sum(call["input_tokens"] or 0 for call in calls),
                 output_tokens=sum(call["output_tokens"] or 0 for call in calls),
                 usd=charge,
-                purpose="P1: order sensitivity " + ("pilot" if pilot else "full"),
+                purpose=f"{budget.prefix} order sensitivity " + ("pilot" if pilot else "full"),
                 note=f"Verified usage ${verified:.9f}; uncertain failed-attempt reserves "
                 f"${charge - verified:.9f}; {len(calls)} physical attempts; "
                 "no local replays; decision cache usage unmeasured.",
@@ -204,6 +208,8 @@ async def order_experiment(
     estimate_out: Path | None,
     echo: Callable[[str], None],
     embedding_cache_path: Path = EMBEDDING_CACHE_PATH,
+    deciders: Mapping[str, DetailLevel] = ORDER_DETAILS,
+    budget: Budget = P1_BUDGET,
 ) -> Path | None:
     """Estimate both workloads freely; paid full runs require a matching, automatically validated pilot."""
     import tiktoken
@@ -234,7 +240,7 @@ async def order_experiment(
     ):
         raise ValueError("order mode requires the published F2a held-out tasks and catalog")
     selected = tasks[:10] if pilot else tasks
-    prior = f2a_spend(read_ledger(ledger_path), purpose_prefix="P1:").usd
+    prior = f2a_spend(read_ledger(ledger_path), purpose_prefix=budget.prefix).usd
     run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + ("-order-pilot" if pilot else "-order")
     run_dir = runs_dir / run_id
 
@@ -242,8 +248,9 @@ async def order_experiment(
         with (run_dir / "calls.jsonl").open("a", encoding="utf-8") as journal:
             journal.write(json.dumps(call) + "\n")
 
-    guard = SpendGuard(prior_usd=prior, sink=persist)
-    adapters = {"jev": jev(JEV_MODEL, max_retries=0), "logprob": OpenAILogprobModel(LOGPROB_MODEL, max_retries=0)}
+    guard = SpendGuard(prior_usd=prior, cap_usd=budget.cap_usd, sink=persist)
+    names = list(deciders)
+    adapters = {name: decision_model(DeciderName(name), max_retries=0) for name in names}
     inner = OpenAIEmbedder("text-embedding-3-small", max_input_bytes=None, batch_size=512)
     cache = CachedEmbedder(
         GuardedEmbedder(
@@ -256,7 +263,7 @@ async def order_experiment(
     try:
         [hybrid] = build_arms(["hybrid"], embedder=cache, raw_text=data.raw_text)
         free = CacheOnlyRetrieval(hybrid.retriever, stand_in=BM25Retriever(), embeddings=cache)
-        estimate_arms = build_decision_arms(["jev", "logprob"], ks=[20], models=adapters, max_detail=ORDER_DETAILS)
+        estimate_arms = build_decision_arms(names, ks=[20], models=adapters, max_detail=deciders)
         estimates: dict[str, Any] = {}
         for phase, phase_tasks in (("pilot", tasks[:10]), ("full", tasks)):
             lines = await estimate_decisions(
@@ -284,8 +291,8 @@ async def order_experiment(
             }
         estimates |= {
             "prior_p1_usd": prior,
-            "target_usd": P1_TARGET_USD,
-            "cap_usd": P1_CAP_USD,
+            "target_usd": budget.target_usd,
+            "cap_usd": budget.cap_usd,
             "full_plus_prior_usd": prior + estimates["full"]["usd"],
             "pilot_full_plus_prior_usd": prior + estimates["pilot"]["usd"] + estimates["full"]["usd"],
             "retrieval_stand_in_queries": len(free.stand_in_queries),
@@ -301,8 +308,8 @@ async def order_experiment(
         )
         estimate = estimates["pilot" if pilot else "full"]
         echo(
-            f"Prior P1 ledger charge ${prior:.9f}; selected plus prior ${prior + estimate['usd']:.6f}; "
-            f"target ${P1_TARGET_USD:.2f}; hard cap ${P1_CAP_USD:.2f}"
+            f"Prior {budget.prefix.rstrip(':')} ledger charge ${prior:.9f}; selected plus prior "
+            f"${prior + estimate['usd']:.6f}; target ${budget.target_usd:.2f}; hard cap ${budget.cap_usd:.2f}"
         )
         echo(f"Prior + new pilot + full (no pilot replay): ${estimates['pilot_full_plus_prior_usd']:.6f}")
         echo(
@@ -312,8 +319,10 @@ async def order_experiment(
         if estimate_out is not None:
             estimate_out.parent.mkdir(parents=True, exist_ok=True)
             estimate_out.write_text(json.dumps(estimates, indent=2) + "\n")
-        if prior + estimate["usd"] > P1_CAP_USD:
-            raise ValueError("selected estimate plus prior P1 charge exceeds the hard cap; nothing spent")
+        if prior + estimate["usd"] > budget.cap_usd:
+            raise ValueError(
+                f"selected estimate plus prior {budget.prefix.rstrip(':')} charge exceeds the hard cap; nothing spent"
+            )
         if dry_run:
             return None
         if not pilot:
@@ -336,15 +345,16 @@ async def order_experiment(
             raise ValueError("paid order mode requires cached hybrid query and corpus embeddings; no stand-ins allowed")
         load_dotenv(BENCH_DIR.parent / ".env", override=False)
         models = {name: OrderDecisionModel(adapter, decider=name, guard=guard) for name, adapter in adapters.items()}
-        arms = build_decision_arms(["jev", "logprob"], ks=[20], models=models, max_detail=ORDER_DETAILS)
+        arms = build_decision_arms(names, ks=[20], models=models, max_detail=deciders)
         extra = {
             "experiment": "order-sensitivity-v1",
             "pilot": pilot,
             "completed": False,
             "estimate": estimate,
             "prior_p1_usd": prior,
-            "target_usd": P1_TARGET_USD,
-            "cap_usd": P1_CAP_USD,
+            "budget": {"prefix": budget.prefix, "prior_usd": prior, "cap_usd": budget.cap_usd},
+            "target_usd": budget.target_usd,
+            "cap_usd": budget.cap_usd,
             "order_configuration": _configuration(estimate_arms),
             "provider_retries": 0,
             "pilot_run": None if pilot_run is None else pilot_run.name,
@@ -378,9 +388,10 @@ async def order_experiment(
             raise ValueError("order run failed automatic gates; full progression is prohibited")
         return run_dir
     finally:
-        for entry in order_ledger_entries(guard, run_id=run_id, pilot=pilot):
+        for entry in order_ledger_entries(guard, run_id=run_id, pilot=pilot, budget=budget):
             append_ledger(entry, path=ledger_path)
         cache.close()
         for adapter in adapters.values():
-            await adapter.aclose()
+            if (close := getattr(adapter, "aclose", None)) is not None:
+                await close()
         await inner.aclose()

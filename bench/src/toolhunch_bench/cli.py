@@ -316,20 +316,23 @@ def decision(
     if order_sensitivity:
         from toolhunch_bench.order import ORDER_DETAILS, order_experiment
 
+        # P1's pair keeps its published configurations; any other decider names its own, chosen on dev.
+        order_details = {name: details.get(name) or ORDER_DETAILS.get(name) for name in names}
         if (
             split != "heldout"
-            or names != ["jev", "logprob"]
+            or not names
             or ks != [20]
             or source_list != ["plain"]
             or not negatives
             or not reserved
             or repeat != 1
             or limit is not None
-            or any(level != ORDER_DETAILS[name] for name, level in details.items())
+            or any(level is None for level in order_details.values())
+            or (names == ["jev", "logprob"] and any(order_details[name] != ORDER_DETAILS[name] for name in names))
         ):
             raise typer.BadParameter(
-                "order mode requires heldout, jev,logprob, K20, plain, positives/negatives, "
-                "reserved option, Jev BRIEF/logprob FULL, repeat 1 and no --limit"
+                "order mode requires heldout, K20, plain, positives/negatives, the reserved option, repeat 1, no "
+                "--limit, and a --max-detail for every decider (Jev BRIEF and logprob FULL for P1's pair)"
             )
         try:
             result = asyncio.run(
@@ -343,6 +346,8 @@ def decision(
                     pilot_run=pilot_run,
                     estimate_out=estimate_out,
                     echo=typer.echo,
+                    deciders={name: level for name, level in order_details.items() if level is not None},
+                    budget=BUDGET,
                 )
             )
         except Exception as error:
