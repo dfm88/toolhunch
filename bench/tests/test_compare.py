@@ -23,6 +23,8 @@ def search(task: str, *, top: str, p: float, none: float = 0.1, error: str | Non
         "ranked": [] if error else [top, other],
         "probabilities": {} if error else {top: p, other: 1 - p - none},
         "none_probability": none,
+        "abstained": None if error else none >= p,
+        "relevant": ["a"],
         "error": error,
     }
 
@@ -82,3 +84,26 @@ def test_compare_runs_counts_what_it_cannot_match(tmp_path: Path) -> None:
     assert summary["max_abs_dp_search"]["task"] == "t2"
     assert summary["median_abs_dp"] == pytest.approx((0.02 + 0.55) / 2)
     assert summary["gate"]["passed"] is False
+
+    # The gate the maintainer amended to (spec §9): the published quantities, P@1 per cell and the answer-or-abstain
+    # decision. t1 and t2 both answer on both sides; the candidate's t2 picks b, so its P@1 is lower.
+    assert summary["abstain_agreement"] == 1.0
+    assert summary["p_at_1_by_cell"] == {"K20 plain": {"reference": 1.0, "candidate": 0.5}}
+    amended = CliRunner().invoke(
+        cli.app,
+        [
+            "compare-runs",
+            str(reference),
+            str(candidate),
+            "--reference-decider",
+            "clm",
+            "--candidate-decider",
+            "clm-local",
+            "--min-abstain-agreement",
+            "0.98",
+            "--same-p-at-1",
+        ],
+    )
+    assert amended.exit_code == 0, amended.output
+    gate = json.loads(amended.output)["gate"]
+    assert (gate["min_abstain_agreement"], gate["same_p_at_1"], gate["passed"]) == (0.98, True, False)

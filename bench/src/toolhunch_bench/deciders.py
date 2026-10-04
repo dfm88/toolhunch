@@ -195,8 +195,9 @@ DECIDERS: Mapping[DeciderName, DeciderSpec] = {
             serial=True,
             local_url=_CLM_LOCAL_URL,
             caveat="We run CLM on a Mac (transformers, bf16, MPS) instead of vLLM on CUDA. Its parity with our Modal "
-            "deployment was checked on what reports publish, P@1 per cell and the answer-or-abstain decision; its "
-            "figures stay provisional until the CLM authors confirm parity. `clm-serve` keeps the vectors of the texts "
+            "deployment was checked on what reports publish, P@1 per cell and the answer-or-abstain decision "
+            "(`bench/results/2026-10-toolret-decision-p2/clm-parity.json`); its figures stay provisional until the "
+            "CLM authors confirm parity. `clm-serve` keeps the vectors of the texts "
             "it has embedded (its action cache, on by default), and our arms ask the same requests and cards more "
             "than once, so its latency here is mostly a warm-cache latency.",
         ),

@@ -54,7 +54,9 @@ def compare_runs(reference: Path, candidate: Path, *, reference_decider: str, ca
         matched pairs where either side failed; `compared`, the rest. Over the compared pairs: `top1_agreement`, the
         share with the same top card; `median_abs_dp`, the median over searches of each search's largest absolute
         probability difference, over the options both sides share; `max_abs_dp`, the largest of those, with
-        `max_abs_dp_search`; and `options_mismatched`, pairs whose option sets differ.
+        `max_abs_dp_search`; `options_mismatched`, pairs whose option sets differ. Then what reports publish:
+        `abstain_agreement`, the share where both sides answer or both abstain, and `p_at_1_by_cell`, each side's
+        P@1 (a relevant tool first, abstention ignored) on the compared positives of each K and query source.
     """
     left = _searches(reference, reference_decider)
     right = _searches(candidate, candidate_decider)
@@ -71,6 +73,14 @@ def compare_runs(reference: Path, candidate: Path, *, reference_decider: str, ca
         largest.append((max((abs(before[option] - after[option]) for option in shared), default=0.0), key))
         same_top += _top(left[key]) == _top(right[key])
     worst = max(largest, default=None)
+    same_decision = sum(left[key]["abstained"] == right[key]["abstained"] for key in compared)
+    cells: dict[str, dict[str, list[bool]]] = {}
+    for key in compared:
+        if key[1] != "positive":
+            continue
+        cell = cells.setdefault(f"K{key[3]} {key[2]}", {"reference": [], "candidate": []})
+        for side, record in (("reference", left[key]), ("candidate", right[key])):
+            cell[side].append(_top(record) in record["relevant"])
     return {
         "reference": reference.name,
         "candidate": candidate.name,
@@ -88,4 +98,8 @@ def compare_runs(reference: Path, candidate: Path, *, reference_decider: str, ca
         "max_abs_dp_search": None
         if worst is None
         else dict(zip(("task", "variant", "source", "k", "repeat", "order_seed"), worst[1], strict=True)),
+        "abstain_agreement": same_decision / len(compared) if compared else None,
+        "p_at_1_by_cell": {
+            name: {side: sum(hits) / len(hits) for side, hits in sides.items()} for name, sides in sorted(cells.items())
+        },
     }

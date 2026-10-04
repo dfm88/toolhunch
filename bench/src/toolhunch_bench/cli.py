@@ -584,6 +584,10 @@ def compare_runs_command(
     candidate_decider: Annotated[str, typer.Option(help="The decider whose searches the candidate holds.")],
     min_top1: Annotated[float | None, typer.Option(help="Gate: the least top-card agreement that passes.")] = None,
     max_median_dp: Annotated[float | None, typer.Option(help="Gate: the largest median |dp| that passes.")] = None,
+    min_abstain_agreement: Annotated[
+        float | None, typer.Option(help="Gate: the least answer-or-abstain agreement that passes.")
+    ] = None,
+    same_p_at_1: Annotated[bool, typer.Option(help="Gate: P@1 must be equal in every K and source cell.")] = False,
     out: Annotated[Path | None, typer.Option(help="Also write the comparison as JSON here.")] = None,
 ) -> None:
     """Compare two runs of the same searches, such as one model on two deployments; no provider is contacted."""
@@ -592,14 +596,19 @@ def compare_runs_command(
     result = compare_runs(
         reference, candidate, reference_decider=reference_decider, candidate_decider=candidate_decider
     )
-    if min_top1 is not None or max_median_dp is not None:
-        top1, median = result["top1_agreement"], result["median_abs_dp"]
+    if min_top1 is not None or max_median_dp is not None or min_abstain_agreement is not None or same_p_at_1:
+        top1, median, agreement = result["top1_agreement"], result["median_abs_dp"], result["abstain_agreement"]
+        cells: dict[str, dict[str, float]] = result["p_at_1_by_cell"]
         result["gate"] = {
             "min_top1": min_top1,
             "max_median_dp": max_median_dp,
+            "min_abstain_agreement": min_abstain_agreement,
+            "same_p_at_1": same_p_at_1,
             "passed": result["compared"] > 0
             and (min_top1 is None or (top1 is not None and top1 >= min_top1))
-            and (max_median_dp is None or (median is not None and median <= max_median_dp)),
+            and (max_median_dp is None or (median is not None and median <= max_median_dp))
+            and (min_abstain_agreement is None or (agreement is not None and agreement >= min_abstain_agreement))
+            and (not same_p_at_1 or all(cell["reference"] == cell["candidate"] for cell in cells.values())),
         }
     text = json.dumps(result, indent=2)
     typer.echo(text)
