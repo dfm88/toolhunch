@@ -9,7 +9,9 @@ import random
 import statistics
 from typing import TYPE_CHECKING, Any
 
-from toolhunch_bench import BENCH_DIR
+from toolhunch_bench import BENCH_DIR, without_local_root
+from toolhunch_bench.deciders import DECIDERS as REGISTRY
+from toolhunch_bench.deciders import DeciderName, report_caveats
 from toolhunch_bench.decision_report import published_manifest
 from toolhunch_bench.metrics import cluster_bootstrap_ci, percentile
 from toolhunch_bench.order import ORDER_SEEDS
@@ -493,9 +495,13 @@ def build_order_report(
             "identity_drift": _drift(manifest, decider, own, published=published, reference_run=reference_run),
         }
     out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
-    (out_dir / "README.md").write_text(_readme(summary))
+    (out_dir / "summary.json").write_text(without_local_root(json.dumps(summary, indent=2) + "\n"))
+    (out_dir / "README.md").write_text(without_local_root(_readme(summary)))
     return summary
+
+
+def _configurations(count: int) -> str:
+    return {1: "this configuration", 2: "these two configurations"}.get(count, f"these {count} configurations")
 
 
 def _readme(summary: Mapping[str, Any]) -> str:
@@ -506,12 +512,22 @@ def _readme(summary: Mapping[str, Any]) -> str:
             else f"{metric['value']:.3f} ({metric['ci95'][0]:.3f} to {metric['ci95'][1]:.3f})"
         )
 
+    arms = summary["manifest"]["arms"]
+    names = list(summary["deciders"])
+    configured = " and ".join(
+        f"{REGISTRY[DeciderName(name)].label} {arms[f'hybrid+{name}@20']['max_detail']}" for name in names
+    )
+    recorded: dict[str, Any] = summary["manifest"].get("deciders") or {}
+    caveats = [
+        line for paragraph in report_caveats({n: recorded.get(n, {}) for n in names}) for line in (paragraph, "")
+    ]
     lines = [
         "# ToolRet candidate-order sensitivity",
         "",
-        "K=20, plain queries, Jev BRIEF and logprob FULL, reserved option last. "
+        f"K=20, plain queries, {configured}, reserved option last. "
         "P@1 means a relevant tool first with abstention ignored; selecting it does not complete a task.",
         "",
+        *caveats,
         "Identity and task-seeded shuffles 1-4 were asked with no local decision replay. "
         "95% intervals resample whole task clusters 2,000 times, seed 0.",
         "",
@@ -619,25 +635,33 @@ def _readme(summary: Mapping[str, Any]) -> str:
             f"{average['physical_attempts_per_search']} physical asks per search for the five decisions.",
             "",
             average["probabilities"],
-            "Logprob finalists can differ across permutations: this averages different final questions, "
-            "not jointly comparable logits over all twenty candidates. It is a heuristic with a measured "
-            "five-decision cost, not a free correction or a guaranteed improvement.",
+            (
+                "Logprob finalists can differ across permutations: this averages different final questions, "
+                "not jointly comparable logits over all twenty candidates. "
+                if name == "logprob"
+                else ""
+            )
+            + "It is a heuristic with a measured five-decision cost, not a free correction or a guaranteed "
+            "improvement.",
             "",
             f"Identity drift: {json.dumps(row['identity_drift'])}",
             "",
         ]
     lines += [
-        "Only this date, K=20, plain queries and these two configurations are covered. "
+        f"Only this date, K=20, plain queries and {_configurations(len(names))} are covered. "
         "The chosen-slot statistic is descriptive: repeated searches are correlated and uniform-position causality "
-        "is not established. Logprob final questions contain finalists; actual per-round slot/card mappings "
-        "are retained in the raw exchanges. Gold-removed negatives may still admit an unlabeled relevant tool.",
+        "is not established. "
+        + ("Logprob final questions contain finalists; actual" if "logprob" in names else "Actual")
+        + " per-round slot/card mappings are retained in the raw exchanges. Gold-removed negatives may still admit "
+        "an unlabeled relevant tool.",
         "",
         f"Verified run cost ${summary['gates']['verified_usd']:.6f}; guarded charge "
         f"${summary['gates']['budget_charge_usd']:.6f}. Model, prompt, payload, catalog, task, seed, order, "
         "git and scheduling provenance are pinned in summary.json and the raw manifest.",
         "",
         "Calls are serialized and never locally replayed. Provider cache reads use their returned discount; "
-        "unreported cache usage is charged at list price. Jev cache usage is unmeasured.",
+        "unreported cache usage is charged at list price."
+        + (" Jev cache usage is unmeasured." if "jev" in names else ""),
         "",
     ]
     return "\n".join(lines)

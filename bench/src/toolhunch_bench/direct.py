@@ -82,7 +82,7 @@ def arm_decider(arm: str) -> str | None:
     return None
 
 
-def _searches(arm: str) -> bool:
+def arm_searches(arm: str) -> bool:
     """Whether an arm searches first: hybrid alone, a decider after search, or an agent over 20 searched tools."""
     return arm in SEARCHING_ARMS or arm.startswith(_DECIDER_SEARCH)
 
@@ -253,7 +253,7 @@ async def estimate_direct(
     for selected in catalogs:
         positives += len(selected.positives)
         negatives += len(selected.negatives)
-        searches = any((arm, selected.source) not in not_applicable for arm in arms if _searches(arm))
+        searches = any((arm, selected.source) not in not_applicable for arm in arms if arm_searches(arm))
         if searches:
             document_texts += [default_search_text(card) for card in selected.catalog]
         for arm in arms:
@@ -524,7 +524,7 @@ class DirectRunner:
         }
         before: int | None = None
         try:
-            if _searches(arm):
+            if arm_searches(arm):
                 retrieval, seconds, usd = await self._retrieval(task, catalog)
                 cards = [match.card for match in retrieval.matches]
                 record |= {"search_seconds": seconds, "search_usd": usd}

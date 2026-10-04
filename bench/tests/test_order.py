@@ -659,6 +659,14 @@ async def test_order_report_covers_any_decider(
     assert gates["passed"] is True
     summary = build_order_report(run_dir, out_dir=tmp_path / "report", published_summary=None)
     assert list(summary["deciders"]) == list(names)
+    # The README names each decider's configuration and its caveats; an order run reports no latency, so no machine.
+    readme = (tmp_path / "report" / "README.md").read_text()
+    configured = " and ".join(
+        {"strands": "Strands Decider 2B BRIEF", "clef-flash": "Clef-flash FULL"}[n] for n in names
+    )
+    assert f"K=20, plain queries, {configured}, reserved option last." in readme
+    assert ("**Clef-flash.** Workers AI serves the current Clef-flash" in readme) == ("clef-flash" in names)
+    assert "**Local deciders.**" not in readme
     assert summary["deciders"]["strands"]["top_card_stability"]["value"] == 1.0
     assert summary["deciders"]["strands"]["verified_decision_usd"] == 0
     if "clef-flash" in names:

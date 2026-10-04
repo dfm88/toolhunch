@@ -7,7 +7,7 @@ import pytest
 from genai_prices import Usage, calc_price
 from typer.testing import CliRunner
 
-from toolhunch_bench import cli
+from toolhunch_bench import BENCH_DIR, cli
 from toolhunch_bench.decision import CLM_DEPLOYMENT
 from toolhunch_bench.decision_report import build_decision_report
 from toolhunch_bench.metrics import THRESHOLD_GRID, bootstrap_ci, cluster_bootstrap_ci
@@ -893,3 +893,63 @@ def test_decision_report_command_takes_a_repeats_run(tmp_path: Path) -> None:
     assert report(tmp_path / "report")[0]["heldout"]["repeats"]["run_id"] == "heldout-repeats"
     missing = CliRunner().invoke(cli.app, [*arguments, "--heldout-repeats", str(tmp_path / "nowhere")])
     assert missing.exit_code == 2  # the option is checked like the other run directories
+
+
+def test_heldout_runs_one_per_decider_read_as_one_report(tmp_path: Path) -> None:
+    # P2 runs each decider on its own (one local server at a time): the report reads the runs as one held-out run,
+    # and says what a reader needs about where each decider ran and whether its version is pinned.
+    strands, clef = "hybrid+strands@3", "hybrid+clef@3"
+    strands_id, clef_id = "strands-decider-2B-hobson-v19@127.0.0.1:8000", "clef@api.cloudflare.com"
+    keys = {
+        "strands": f"{strands_id}|tool-choice-v1|4444444444444444|choice",
+        "clef": f"{clef_id}|tool-choice-v1|5555555555555555|choice",
+    }
+    arms = {
+        "strands": {strands: arm(3, "strands", strands_id)},
+        "clef": {clef: arm(3, "clef", clef_id, price_input_per_mtok=0.24)},
+    }
+    hardware = {"chip": "Apple M5 Max", "memory_gb": 128, "os": "macOS 26.1"}
+    # Strands' /health names its checkpoint by absolute path: a published file keeps the repository path only.
+    health = [{"status": "ok", "checkpoint": f"{BENCH_DIR.parent}/bench/models/strands-decider-2B-hobson-v19"}]
+    provenance = {
+        "strands": {"label": "Strands Decider 2B", "billing": "local", "hardware": hardware, "health": health},
+        "clef": {"label": "Clef", "billing": "tokens", "version_pinned": False},
+    }
+    dev_searches = [
+        decided(arm_name, "d1", best=0.8, none=0.1, first_right=True, decider=name, key=keys[name])
+        for name, arm_name in (("strands", strands), ("clef", clef))
+    ]
+    dev = write_run(tmp_path, "dev", dev_searches, split="dev", arms=arms["strands"] | arms["clef"])
+    parts: list[Path] = []
+    for name, arm_name, first_right in (("strands", strands, True), ("clef", clef, False)):
+        searches = [
+            retrieved("hybrid@3", "h1"),
+            retrieved("hybrid@3", "h2"),
+            decided(arm_name, "h1", best=0.9, none=0.05, first_right=first_right, decider=name, key=keys[name]),
+            decided(arm_name, "h2", best=0.9, none=0.05, first_right=True, decider=name, key=keys[name]),
+        ]
+        part = write_run(tmp_path, f"heldout-{name}", searches, split="heldout", arms={"hybrid@3": arm(3)} | arms[name])
+        edit_manifest(part, lambda manifest, name=name: manifest.update(deciders={name: provenance[name]}))
+        parts.append(part)
+
+    build_decision_report([dev], parts, out_dir=tmp_path / "report")
+    summary, readme = report(tmp_path / "report")
+
+    assert summary["heldout"]["run_id"] == "heldout-strands+heldout-clef"
+    assert (rows(summary, strands)["plain"]["p_at_1"], rows(summary, clef)["plain"]["p_at_1"]) == (1.0, 0.5)
+    assert rows(summary, "hybrid@3")["plain"]["records"] == 2  # the shared search is counted once
+    assert [(entry["split"], entry["role"], entry["run_id"]) for entry in summary["runs"]] == [
+        ("dev", "main", "dev"),
+        ("heldout", "main", "heldout-strands"),
+        ("heldout", "main", "heldout-clef"),
+    ]
+    assert "# ToolRet decision stage, held-out run heldout-strands+heldout-clef" in readme
+    assert "Held-out runs `heldout-strands`, `heldout-clef`, one per decider:" in readme
+    assert "**Clef.** Workers AI serves the current Clef" in readme
+    assert "**Local deciders.** Strands Decider 2B ran on one machine (Apple M5 Max, 128 GB, macOS 26.1)" in readme
+    # A local model's cost reads "local", never $0; the machine is in the summary next to it.
+    assert "| hybrid+strands@3 | plain | 1.00 | 100 | local | - | - |" in readme
+    assert rows(summary, strands)["plain"]["cost"]["local"] == hardware
+    published = (tmp_path / "report" / "summary.json").read_text()
+    assert str(BENCH_DIR.parent) not in published
+    assert '"checkpoint": "bench/models/strands-decider-2B-hobson-v19"' in published

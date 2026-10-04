@@ -22,8 +22,9 @@ from typing import TYPE_CHECKING, Any
 
 from genai_prices import Usage, calc_price
 
+from toolhunch_bench import without_local_root
 from toolhunch_bench.deciders import DECIDERS as REGISTRY
-from toolhunch_bench.deciders import DeciderName
+from toolhunch_bench.deciders import DeciderName, report_caveats
 from toolhunch_bench.metrics import (
     THRESHOLD_GRID,
     Outcome,
@@ -765,10 +766,13 @@ def _clm_hosts(runs: Sequence[_Run]) -> list[str]:
 
 
 def _published(text: str, hosts: Sequence[str]) -> str:
-    """`text` with every CLM host, in model ids, threshold keys, URLs and errors alike, replaced by `modal`."""
+    """`text` with every CLM host replaced by `modal`, and with no absolute path of this checkout.
+
+    The hosts are replaced wherever they appear: model ids, threshold keys, URLs and errors alike.
+    """
     for host in hosts:
         text = text.replace(host, PUBLIC_CLM_HOST)
-    return text
+    return without_local_root(text)
 
 
 def published_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
@@ -795,6 +799,11 @@ def _markdown(summary: dict[str, Any], *, fallbacks_in_tau: bool) -> str:
             "deployment matches their reference setup.",
             "",
         ]
+    recorded: dict[str, Any] = {}
+    for entry in summary["runs"]:
+        recorded |= entry["manifest"].get("deciders") or {}
+    for paragraph in report_caveats(recorded):
+        lines += [paragraph, ""]
     lines += _runs_section(summary["runs"], deployments=deployments)
     if heldout is not None:
         lines += _heldout_section(heldout, runs=summary["runs"])
@@ -814,21 +823,28 @@ def _intro(summary: dict[str, Any]) -> str:
             f"Dev runs only ({dev_runs}): the thresholds, the P@1 of the ablations and the determinism check below "
             "settle the settings of the held-out run. None of these numbers is a held-out result."
         )
-    manifest = _main_heldout(summary["runs"])["manifest"]
+    parts = _main_heldout(summary["runs"])
+    manifest = parts[0]["manifest"]
     dataset, tasks = manifest["dataset"], manifest["tasks"]
+    named = (
+        f"Held-out run `{heldout['run_id']}`"
+        if len(parts) == 1
+        else f"Held-out runs {', '.join(f'`{entry["run_id"]}`' for entry in parts)}, one per decider"
+    )
+    commits = _unique(f"`{_commit(entry['manifest']['git'])}`" for entry in parts)
     return (
-        f"Held-out run `{heldout['run_id']}`: {tasks['count']} tasks from `{tasks['file']}` (sha256 "
+        f"{named}: {tasks['count']} tasks from `{tasks['file']}` (sha256 "
         f"`{tasks['sha256'][:12]}`), `{dataset['name']}` at `{dataset['revision'][:7]}` with {dataset['tools']:,} "
         f"tools, catalog `{dataset['catalog_fingerprint'][:19]}`; toolhunch {manifest['versions']['toolhunch']}, "
-        f"commit `{_commit(manifest['git'])}`, Python {manifest['versions']['python']}. Every abstention threshold "
-        f"applied here was chosen on the dev runs ({dev_runs}); no held-out search chose one."
+        f"{'commit' if len(commits) == 1 else 'commits'} {', '.join(commits)}, Python "
+        f"{manifest['versions']['python']}. Every abstention threshold applied here was chosen on the dev runs "
+        f"({dev_runs}); no held-out search chose one."
     )
 
 
-def _main_heldout(runs: Sequence[dict[str, Any]]) -> dict[str, Any]:
-    """The entry of the held-out run the tables come from, not the one that repeats its searches."""
-    [entry] = [entry for entry in runs if entry["split"] == "heldout" and entry["role"] == "main"]
-    return entry
+def _main_heldout(runs: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The entries of the held-out runs the tables come from (one per decider, or one for all), not the repeats."""
+    return [entry for entry in runs if entry["split"] == "heldout" and entry["role"] == "main"]
 
 
 def _commit(git: dict[str, Any]) -> str:
@@ -885,7 +901,7 @@ def _runs_section(runs: Sequence[dict[str, Any]], *, deployments: Sequence[dict[
 
 def _heldout_section(heldout: dict[str, Any], *, runs: Sequence[dict[str, Any]]) -> list[str]:
     rows = heldout["rows"]
-    entry = _main_heldout(runs)
+    entry = _main_heldout(runs)[0]  # the runs of one held-out report share their tasks and model queries
     lines = ["## Held-out", ""]
     if entry["model_tasks"] is not None:
         lines += [
@@ -1049,11 +1065,10 @@ def _cost_cells(cost: dict[str, Any] | None) -> list[str]:
     if cost is None:
         return ["n/a"] * 5
     usd = ("usd_per_1000_searches", "clm_busy_usd_per_1000_searches", "clm_wall_usd_per_1000_searches")
-    return [
-        f"{cost['asks_per_search']:.2f}",
-        f"{cost['input_tokens_per_search']:,.0f}",
-        *(_fixed(cost[name], 4, missing="-") for name in usd),
-    ]
+    cells = [_fixed(cost[name], 4, missing="-") for name in usd]
+    if "local" in cost:  # a local model costs no money: it reads "local", never $0
+        cells[0] = "local"
+    return [f"{cost['asks_per_search']:.2f}", f"{cost['input_tokens_per_search']:,.0f}", *cells]
 
 
 def _dev_section(dev: dict[str, Any]) -> list[str]:

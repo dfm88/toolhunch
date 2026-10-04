@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+import statistics
 from collections import defaultdict
 from dataclasses import asdict
 from typing import TYPE_CHECKING, Any
 
-from toolhunch_bench.direct import DIRECT_ARMS, LUNA_ARMS, NOT_APPLICABLE, arm_decider
+from toolhunch_bench import without_local_root
+from toolhunch_bench.deciders import report_caveats
+from toolhunch_bench.direct import DIRECT_ARMS, LUNA_ARMS, NOT_APPLICABLE, arm_decider, arm_searches
 from toolhunch_bench.metrics import Outcome, cluster_bootstrap_ci, percentile, selective_metrics
 
 if TYPE_CHECKING:
@@ -191,6 +194,7 @@ def build_direct_report(run_dir: Path, *, out_dir: Path, added: Sequence[Path] =
     records, calls = _lines(run_dir / "run.jsonl"), _lines(run_dir / "calls.jsonl")
     own_calls = list(calls)
     manifests = [manifest]
+    search_ms = {run_dir.name: _search_ms(records)}
     for path in added:
         extra = json.loads((path / "manifest.json").read_text())
         if extra["tasks_sha256"] != manifest["tasks_sha256"] or extra["dataset"] != manifest["dataset"]:
@@ -198,7 +202,9 @@ def build_direct_report(run_dir: Path, *, out_dir: Path, added: Sequence[Path] =
         if set(extra["arms"]) & set(manifest["arms"]):
             raise ValueError(f"{path} repeats arms of {run_dir}")
         manifests.append(extra)
-        records += _lines(path / "run.jsonl")
+        extra_records = _lines(path / "run.jsonl")
+        search_ms[path.name] = _search_ms(extra_records)
+        records += extra_records
         calls += _lines(path / "calls.jsonl")
     not_applicable = dict(NOT_APPLICABLE)
     for exclusion in (item for recorded in manifests for item in recorded.get("not_applicable", [])):
@@ -355,12 +361,47 @@ def build_direct_report(run_dir: Path, *, out_dir: Path, added: Sequence[Path] =
             "Search overhead is attributed to each strategy that searches; physical search calls are paid once.",
             "Cold is the first scored positive; a replay there provides no new cold measurement.",
             "Caching reflects one provider's routing in one single-turn run and does not isolate a latency effect.",
+            *_added_caveats(manifests, search_ms),
         ],
     }
     out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
-    (out_dir / "README.md").write_text(_markdown(summary))
+    (out_dir / "summary.json").write_text(without_local_root(json.dumps(summary, indent=2) + "\n"))
+    (out_dir / "README.md").write_text(without_local_root(_markdown(summary)))
     return summary
+
+
+def _search_ms(records: Sequence[dict[str, Any]]) -> float | None:
+    """The median search time, in milliseconds, of a run's searching arms over the requests it timed (no replays)."""
+    seconds = [
+        r["search_seconds"]
+        for r in records
+        if arm_searches(r["arm"]) and not r["replayed"] and r["search_seconds"] is not None
+    ]
+    return statistics.median(seconds) * 1000 if seconds else None
+
+
+def _added_caveats(manifests: Sequence[dict[str, Any]], search_ms: dict[str, float | None]) -> list[str]:
+    """The caveats of the deciders the runs recorded, and of search times that differ between the runs.
+
+    A run that found its query embeddings cached by an earlier run searches without an embedding call, so its
+    searching arms' latency is lower by that call; the medians are stated when one is at least twice another and
+    the gap is 50 ms or more.
+    """
+    recorded: dict[str, Any] = {}
+    for manifest in manifests:
+        deciders: dict[str, dict[str, Any]] = manifest.get("deciders") or {}
+        for name, entry in deciders.items():
+            recorded[name] = entry.get("provenance") or {}
+    caveats = report_caveats(recorded)
+    timed = {run: ms for run, ms in search_ms.items() if ms is not None}
+    if timed and max(timed.values()) >= 2 * min(timed.values()) and max(timed.values()) - min(timed.values()) >= 50:
+        medians = ", ".join(f"`{run}` {ms:.0f} ms" for run, ms in timed.items())
+        caveats.append(
+            f"**Search time differs between runs.** Median search of the searching arms: {medians}. A run that "
+            "found its query embeddings already cached searched without an embedding call: compare the latency of "
+            "searching arms across runs only after this difference."
+        )
+    return caveats
 
 
 def _remaining_workload(

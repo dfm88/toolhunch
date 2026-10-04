@@ -7,6 +7,7 @@ member, one entry and its declared `ModelLimits` in the library.
 
 from __future__ import annotations
 
+import json
 import os
 import platform
 import subprocess
@@ -18,6 +19,7 @@ import anyio
 import httpx2
 
 from toolhunch.decision import OpenAILogprobModel, clef, clm, jev, strands_decider
+from toolhunch_bench import without_local_root
 from toolhunch_bench.structured import StructuredChoiceModel
 
 if TYPE_CHECKING:
@@ -39,6 +41,7 @@ __all__ = [
     "decision_model",
     "local_provenance",
     "missing_env",
+    "report_caveats",
 ]
 
 
@@ -104,6 +107,7 @@ class DeciderSpec:
         request_overhead_tokens: Tokens it bills beyond a request's text, per request, for estimates only.
         option_overhead_tokens: Tokens it bills beyond a request's text, per choice option, for estimates only.
         estimate_output_tokens: Output tokens per ask, for estimates only.
+        caveat: What every report prints next to its figures, beyond the machine a local model ran on.
     """
 
     name: DeciderName
@@ -119,6 +123,7 @@ class DeciderSpec:
     request_overhead_tokens: int = 0
     option_overhead_tokens: int = 0
     estimate_output_tokens: int = 0
+    caveat: str | None = None
 
 
 def _url(variable: tuple[str, str]) -> str:
@@ -176,7 +181,7 @@ DECIDERS: Mapping[DeciderName, DeciderSpec] = {
         ),
         DeciderSpec(
             name=DeciderName.CLM_LOCAL,
-            label="CLM",
+            label="CLM (Mac bf16 MPS)",
             provider="local",
             model=CLM_MODEL,
             billing="local",
@@ -189,6 +194,11 @@ DECIDERS: Mapping[DeciderName, DeciderSpec] = {
             },
             serial=True,
             local_url=_CLM_LOCAL_URL,
+            caveat="We run CLM on a Mac (transformers, bf16, MPS) instead of vLLM on CUDA. Its parity with our Modal "
+            "deployment was checked on what reports publish, P@1 per cell and the answer-or-abstain decision; its "
+            "figures stay provisional until the CLM authors confirm parity. `clm-serve` keeps the vectors of the texts "
+            "it has embedded (its action cache, on by default), and our arms ask the same requests and cards more "
+            "than once, so its latency here is mostly a warm-cache latency.",
         ),
         DeciderSpec(
             name=DeciderName.STRANDS,
@@ -221,6 +231,8 @@ DECIDERS: Mapping[DeciderName, DeciderSpec] = {
                 "api_version_at_probe": _CLEF_API_VERSION,
             },
             option_overhead_tokens=_CLEF_OPTION_OVERHEAD,
+            caveat="Workers AI serves the current Clef behind `@cf/cloudflare/clef`, and no version can be "
+            "pinned: a later run may answer differently from the one reported here.",
         ),
         DeciderSpec(
             name=DeciderName.CLEF_FLASH,
@@ -236,6 +248,8 @@ DECIDERS: Mapping[DeciderName, DeciderSpec] = {
                 "api_version_at_probe": _CLEF_API_VERSION,
             },
             option_overhead_tokens=_CLEF_OPTION_OVERHEAD,
+            caveat="Workers AI serves the current Clef-flash behind `@cf/cloudflare/clef-flash`, and no version can be "
+            "pinned: a later run may answer differently from the one reported here.",
         ),
     )
 }
@@ -296,6 +310,30 @@ def missing_env(names: Iterable[DeciderName]) -> list[str]:
     return [variable for variable in needed if not os.environ.get(variable)]
 
 
+def report_caveats(deciders: Mapping[str, Mapping[str, Any]]) -> list[str]:
+    """What a report says next to the figures of the deciders its runs recorded, one paragraph each.
+
+    Each decider's own caveat comes first, then one about the machine the local ones ran on, from the hardware their
+    provenance recorded; a run that recorded no machine (an order run, which reports no latency) adds none. A name
+    the registry does not know adds nothing, so runs from before the registry add none.
+    """
+    specs = [DECIDERS[DeciderName(name)] for name in deciders if name in DeciderName]
+    paragraphs = [f"**{spec.label}.** {spec.caveat}" for spec in specs if spec.caveat]
+    local = [spec for spec in specs if spec.billing == "local"]
+    machines = [
+        f"{hardware['chip']}, {hardware['memory_gb']} GB, {hardware['os']}"
+        for spec in local
+        if (hardware := deciders[spec.name].get("hardware"))
+    ]
+    if machines:
+        labels = " and ".join(spec.label for spec in local)
+        paragraphs.append(
+            f"**Local deciders.** {labels} ran on one machine ({'; '.join(dict.fromkeys(machines))}): their cost "
+            "reads “local”, and their latency is that machine's, not comparable like for like with a hosted API's."
+        )
+    return paragraphs
+
+
 async def local_provenance(name: DeciderName, *, client: httpx2.AsyncClient | None = None) -> dict[str, Any]:
     """What a run manifest records about `name`: its entry's provenance, and more for a local model.
 
@@ -315,7 +353,7 @@ async def local_provenance(name: DeciderName, *, client: httpx2.AsyncClient | No
         for url in urls:
             try:
                 response = await http.get(url)
-                health.append(response.json() if response.is_success else None)
+                health.append(json.loads(without_local_root(response.text)) if response.is_success else None)
             except (httpx2.HTTPError, ValueError):
                 health.append(None)
     finally:

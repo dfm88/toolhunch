@@ -18,7 +18,7 @@ from pydantic_ai.usage import RequestUsage
 from typer.testing import CliRunner
 
 from toolhunch import BM25Retriever, OpenAIEmbedder, ToolCard, ToolCatalog
-from toolhunch.decision import JEV_LIMITS, STRANDS_LIMITS, ChoiceQuestion, DecisionRequest
+from toolhunch.decision import CLEF_LIMITS, JEV_LIMITS, STRANDS_LIMITS, ChoiceQuestion, DecisionRequest
 from toolhunch_bench import cli
 from toolhunch_bench.datasets.toolret import ToolRetData, ToolRetTask
 from toolhunch_bench.decision import CacheOnlyRetrieval, SharedRetrieval
@@ -851,3 +851,47 @@ async def test_direct_runs_a_registered_decider_in_rounds(tmp_path: Path, fake_d
     assert {call["usd"] for call in guard.calls} == {0.0}
     assert row["positive_cost"]["warm"]["local"] is True
     assert "| strands-all, in rounds | pooled | local | local | local |" in readme
+
+
+async def test_direct_report_discloses_added_deciders_and_search_time(tmp_path: Path, fake_decision_model: Any) -> None:
+    # P2 adds runs to P1's report. What a reader needs is stated beside the rows: Clef has no pinned version, a local
+    # model's machine, and that a run whose query embeddings an earlier run cached searches faster.
+    selected = direct_catalogs(
+        data(sources={"webtools_spotify": "restgpt-spotify"}, count=2), sources={"webtools_spotify": "restgpt-spotify"}
+    )
+    hardware = {"chip": "Apple M5 Max", "memory_gb": 128, "os": "macOS 26.1"}
+    runs: list[Path] = []
+    for name, model_id, limits, provenance in (
+        ("strands", "strands-fake@127.0.0.1:8000", STRANDS_LIMITS, {"billing": "local", "hardware": hardware}),
+        ("clef", "clef@api.cloudflare.com", CLEF_LIMITS, {"billing": "tokens", "version_pinned": False}),
+    ):
+        guard = SpendGuard()
+        model = fake_decision_model(model_id=model_id, limits=limits, favourite="weather tool")
+        arms = decider_arms([name])
+        estimate = await estimate_direct(selected, retriever=BM25Retriever(), models={name: model}, arms=arms)
+        runs.append(
+            await DirectRunner(
+                retriever=BM25Retriever(),
+                models={
+                    name: GuardedDecisionModel(model, guard=guard, provider="local" if name == "strands" else name)
+                },
+                agent=None,
+                guard=guard,
+                arms=arms,
+                provenance={name: provenance},
+            ).run(selected, out_dir=tmp_path / "runs", run_id=name, pilot=False, estimate=estimate)
+        )
+    # The first run's searches embedded their queries (150 ms); the added run found them cached.
+    path = runs[0] / "run.jsonl"
+    records = [json.loads(line) for line in path.read_text().splitlines()]
+    for record in records:
+        if record["arm"] == "hybrid@20+strands":
+            record["search_seconds"] = 0.15
+    path.write_text("".join(json.dumps(record) + "\n" for record in records))
+
+    build_direct_report(runs[0], out_dir=tmp_path / "report", added=[runs[1]])
+    readme = (tmp_path / "report" / "README.md").read_text()
+
+    assert "- **Clef.** Workers AI serves the current Clef" in readme
+    assert "- **Local deciders.** Strands Decider 2B ran on one machine (Apple M5 Max, 128 GB, macOS 26.1)" in readme
+    assert "- **Search time differs between runs.** Median search of the searching arms: `strands` 150 ms" in readme
