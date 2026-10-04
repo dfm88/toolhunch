@@ -20,6 +20,8 @@ site/
 
 # Benchmark artefacts: raw runs stay local, curated results are committed under bench/results/
 bench/runs/
+# Local model files (Hub cache, checkpoints, the CLM venv) for the local deciders, P2
+bench/models/
 
 .DS_Store
 

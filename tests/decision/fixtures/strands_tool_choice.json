@@ -1,0 +1,46 @@
+{
+  "source": "strands-decider serve @ 75c9fd3, checkpoint strands-decider-2B-hobson-v19 @ bb282d7, MLX on Apple M5 Max, --strict-window, recorded 2026-10-04",
+  "request": {
+    "state": "Request: Book me a table for two at an Italian place tonight at 8.",
+    "model": "strands-decider-2B-hobson-v19",
+    "questions": {
+      "tool": {
+        "type": "choice",
+        "instructions": "Which tool should the assistant call next to fulfil the request?",
+        "criteria": {
+          "get_weather": "get_weather: Get the current weather and the forecast for a city.",
+          "book_restaurant": "book_restaurant: Reserve a table at a restaurant for a given date, time and party size.",
+          "order_food_delivery": "order_food_delivery: Order food for home delivery from a nearby restaurant.",
+          "send_email": "send_email: Send an email to a recipient with a subject and a body.",
+          "none": "None of these tools can fulfil the request."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "response": {
+    "model": "strands-decider-2B-hobson-v19",
+    "answers": {
+      "tool": {
+        "type": "choice",
+        "choice": "book_restaurant",
+        "probabilities": {
+          "get_weather": 0.0048,
+          "book_restaurant": 0.9803,
+          "order_food_delivery": 0.0038,
+          "send_email": 0.0026,
+          "none": 0.0084
+        },
+        "confidence": 0.9754
+      }
+    },
+    "usage": {
+      "input_tokens": 171,
+      "output_tokens": 1
+    },
+    "latency_ms": 47.63
+  }
+}
