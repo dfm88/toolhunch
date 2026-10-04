@@ -56,7 +56,7 @@ def pilot_gates(run_dir: Path) -> dict[str, Any]:
     calls = _records(run_dir / "calls.jsonl")
     groups = _groups(records)
     searches = [row for row in records if row.get("record") == "search" and row.get("decider") is not None]
-    expected = len(manifest.get("task_ids", [])) * 2 * 2 * 5
+    expected = len(manifest.get("task_ids", [])) * len(_deciders(manifest)) * 2 * len(ORDER_SEEDS)
     errors = sum(row.get("error") is not None for row in searches)
     mappings_valid = True
     orders_valid = True

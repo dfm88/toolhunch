@@ -601,10 +601,12 @@ async def test_noise_baseline_refuses_non_matching_or_incomplete_repeats(
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize("names", [("strands", "clef-flash"), ("strands",)], ids=["two", "one"])
 async def test_order_report_covers_any_decider(
-    tmp_path: Path, order_data: ToolRetData, fake_decision_model: Any
+    tmp_path: Path, order_data: ToolRetData, fake_decision_model: Any, names: tuple[str, ...]
 ) -> None:
-    # Strands runs locally and Clef-flash is billed per declared token: neither is one of P1's two deciders.
+    # Strands runs locally and Clef-flash is billed per declared token: neither is one of P1's two deciders. P2 asks
+    # one decider per order run (one local server at a time), so the gates count the deciders the run asked.
     task_file = tmp_path / "tasks.json"
     write_task_file(task_file, order_data.tasks, seed=0)
     run_dir = tmp_path / "runs/p2"
@@ -622,7 +624,8 @@ async def test_order_report_covers_any_decider(
             model_id="clef-flash@api.cloudflare.com", limits=CLEF_FLASH_LIMITS, favourite="get_weather"
         ),
     }
-    details = {"strands": DetailLevel.BRIEF, "clef-flash": DetailLevel.FULL}
+    fakes = {name: fakes[name] for name in names}
+    details = {name: {"strands": DetailLevel.BRIEF, "clef-flash": DetailLevel.FULL}[name] for name in names}
     models = {name: OrderDecisionModel(fake, decider=name, guard=guard) for name, fake in fakes.items()}
     arms = build_decision_arms(list(fakes), ks=[20], models=models, max_detail=details)
     await run_decisions(
@@ -651,18 +654,22 @@ async def test_order_report_covers_any_decider(
         before_search=lambda context: setattr(guard, "context", context),
     )
 
-    assert pilot_gates(run_dir)["passed"] is True
+    gates = pilot_gates(run_dir)
+    assert gates["expected_searches"] == len(order_data.tasks) * len(names) * 2 * len(ORDER_SEEDS)
+    assert gates["passed"] is True
     summary = build_order_report(run_dir, out_dir=tmp_path / "report", published_summary=None)
-    assert list(summary["deciders"]) == ["strands", "clef-flash"]
+    assert list(summary["deciders"]) == list(names)
     assert summary["deciders"]["strands"]["top_card_stability"]["value"] == 1.0
     assert summary["deciders"]["strands"]["verified_decision_usd"] == 0
-    clef_calls = [call for call in guard.calls if call["provider"] == "cloudflare"]
-    assert summary["deciders"]["clef-flash"]["verified_decision_usd"] == pytest.approx(
-        sum(call["input_tokens"] for call in clef_calls) * 0.09 / 1_000_000
-    )
+    if "clef-flash" in names:
+        clef_calls = [call for call in guard.calls if call["provider"] == "cloudflare"]
+        assert summary["deciders"]["clef-flash"]["verified_decision_usd"] == pytest.approx(
+            sum(call["input_tokens"] for call in clef_calls) * 0.09 / 1_000_000
+        )
     # Neither has published F2a evidence or a same-order repeats run: both say so instead of borrowing Jev's.
     assert not summary["deciders"]["strands"]["identity_drift"]["comparable"]
-    assert set(summary["same_order_noise_baseline"]["deciders"]) == {"strands", "clef-flash"}
+    assert set(summary["same_order_noise_baseline"]["deciders"]) == set(names)
     # Only the paid decider reaches the ledger, under the current phase.
-    [entry] = order_ledger_entries(guard, run_id="p2", pilot=True, budget=BUDGET)
-    assert (entry.provider, entry.purpose) == ("cloudflare", "P2: order sensitivity pilot")
+    entries = order_ledger_entries(guard, run_id="p2", pilot=True, budget=BUDGET)
+    paid = [("cloudflare", "P2: order sensitivity pilot")] if "clef-flash" in names else []
+    assert [(entry.provider, entry.purpose) for entry in entries] == paid
