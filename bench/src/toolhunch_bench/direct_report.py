@@ -7,7 +7,7 @@ from collections import defaultdict
 from dataclasses import asdict
 from typing import TYPE_CHECKING, Any
 
-from toolhunch_bench.direct import DIRECT_ARMS, LUNA_ARMS, NOT_APPLICABLE
+from toolhunch_bench.direct import DIRECT_ARMS, LUNA_ARMS, NOT_APPLICABLE, arm_decider
 from toolhunch_bench.metrics import Outcome, cluster_bootstrap_ci, percentile, selective_metrics
 
 if TYPE_CHECKING:
@@ -132,16 +132,47 @@ def _row(
                 for r in positives
             ]
         )
-        if arm in {"hybrid@20+jev", "jev-all"}
+        if arm_decider(arm) is not None
         else None,
         "none_option": none,
         "detail_counts": {level: sum(level in r["detail"] for r in records) for level in ("FULL", "BRIEF", "NAME")},
+        **(_rounds(records) if arm_decider(arm) is not None else {}),
         "multi_calls": sum(r["extra_calls"] > 0 for r in records),
         "agent_text_none": sum(r.get("text_is_none") is True for r in parsed),
         "agent_other_text_abstentions": sum(r["abstained"] and r.get("text_is_none") is False for r in parsed),
         "positive_cost": {phase: _cost(records, phase=phase, arm=arm) for phase in ("cold", "warm")},
         "negative_cost": _cost(records, phase="negative", arm=arm),
     }
+
+
+def _rounds(records: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    """How a decider arm's questions were planned: one question or two rounds, and below FULL detail or not.
+
+    Each record lists one detail level per question asked, so its length is the number of physical requests.
+    """
+    asked = [r for r in records if r["detail"]]
+    return {
+        "rounds": {
+            "one_question": sum(len(r["detail"]) == 1 for r in asked),
+            "two_rounds": sum(len(r["detail"]) > 1 for r in asked),
+        },
+        "lower_detail": sum(any(level != "FULL" for level in r["detail"]) for r in asked),
+        "physical_requests": sum(len(r["detail"]) for r in asked),
+    }
+
+
+def _label(row: dict[str, Any]) -> str:
+    """An arm's name, marked when some of its questions were split into rounds or shown below FULL detail."""
+    rounds: dict[str, int] = row.get("rounds") or {}
+    marks = [
+        mark
+        for mark, present in (
+            ("in rounds", rounds.get("two_rounds", 0) > 0),
+            ("lower detail", int(row.get("lower_detail") or 0) > 0),
+        )
+        if present
+    ]
+    return row["arm"] + (f", {', '.join(marks)}" if marks else "")
 
 
 def _lines(path: Path) -> list[dict[str, Any]]:
@@ -172,7 +203,9 @@ def build_direct_report(run_dir: Path, *, out_dir: Path, added: Sequence[Path] =
         not_applicable[(exclusion["arm"], exclusion["catalog"])] = {
             field: exclusion[field] for field in ("reason", "source", "date")
         }
-    arms = [*DIRECT_ARMS, *(arm for arm in LUNA_ARMS if any(r["arm"] == arm for r in records))]
+    added_arms = list(dict.fromkeys(r["arm"] for r in records if r["arm"] not in DIRECT_ARMS))
+    arms = [*DIRECT_ARMS, *(arm for arm in LUNA_ARMS if arm in added_arms)]
+    arms += [arm for arm in added_arms if arm not in LUNA_ARMS]
     sources = [c["source"] for c in manifest["catalogs"]]
     common = [source for source in sources if all((arm, source) not in not_applicable for arm in arms)]
     applicable = [r for r in records if (r["arm"], r["catalog"]) not in not_applicable]
@@ -454,7 +487,7 @@ def _markdown(summary: dict[str, Any]) -> str:
         delta = "—" if row["arm"] == "hybrid@20" else interval(row["delta_vs_hybrid"])
         mix = f"{none['negative_share']:.1%}" if none["negative_share"] is not None else "n/a"
         lines.append(
-            f"| {row['arm']} | {row['catalog']} | {interval(row['relevant_pick_rate'])} | "
+            f"| {_label(row)} | {row['catalog']} | {interval(row['relevant_pick_rate'])} | "
             f"{delta} | {none['correct']} / {none['wrong']} / {none['abstained']} | "
             f"{none['negative_requests']}/{none['requests']} ({mix}) | {none['errors']} |"
         )
@@ -482,7 +515,7 @@ def _markdown(summary: dict[str, Any]) -> str:
             else "n/a"
         )
         lines.append(
-            f"| {row['arm']} | {row['catalog']} | {money(cold['billed_usd'], unpriced=cold['unpriced_attempts'])} | "
+            f"| {_label(row)} | {row['catalog']} | {money(cold['billed_usd'], unpriced=cold['unpriced_attempts'])} | "
             f"{money(warm['billed_usd_per_1000'], unpriced=warm['unpriced_attempts'])} | "
             f"{money(warm['list_usd_per_1000'], unpriced=warm['unpriced_attempts'])} | {cache} | {latency} | "
             f"{money(negative['billed_usd_per_1000'], unpriced=negative['unpriced_attempts'])} |"

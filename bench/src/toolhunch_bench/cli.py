@@ -66,7 +66,14 @@ from toolhunch_bench.decision import (
 )
 from toolhunch_bench.decision_cache import DECISION_CACHE_PATH, CachedDecisionModel
 from toolhunch_bench.decision_report import build_decision_report
-from toolhunch_bench.direct import DIRECT_ARMS, LUNA_ARMS, DirectRunner, direct_catalogs, estimate_direct
+from toolhunch_bench.direct import (
+    DIRECT_ARMS,
+    LUNA_ARMS,
+    DirectRunner,
+    decider_arms,
+    direct_catalogs,
+    estimate_direct,
+)
 from toolhunch_bench.direct_agent import CachedAgent
 from toolhunch_bench.direct_cost import (
     AGENT_MODEL,
@@ -605,8 +612,19 @@ def direct(
     luna: Annotated[
         bool, typer.Option("--luna", help="Only the agent arms again, with GPT-6 Luna and reasoning off.")
     ] = False,
+    deciders: Annotated[
+        str,
+        typer.Option(
+            help="Only the decider arms of these deciders (hybrid@20+<name>, <name>-all), under the current phase's "
+            f"budget; comma-separated, from: {', '.join(DECIDERS)}."
+        ),
+    ] = "",
 ) -> None:
-    """Compare five direct-choice strategies; every paid attempt shares the P1 spend guard."""
+    """Compare direct-choice strategies; every paid attempt shares one spend guard.
+
+    Without options it runs the five P1 arms; `--luna` the agent arms with GPT-6 Luna; `--deciders` the decider arms
+    of the deciders named, merged later into the P1 report with `direct-report --add`.
+    """
     from dataclasses import asdict
 
     from openai import AsyncOpenAI
@@ -615,17 +633,22 @@ def direct(
     pydantic_ai.BANNER_ENABLED = False
     data = load_toolret(cache_dir=TOOLRET_CACHE)
     full, small = direct_catalogs(data), direct_catalogs(data, pilot=True)
-    spend = f2a_spend(read_ledger(LEDGER_PATH), purpose_prefix="P1:")
-    arms = LUNA_ARMS if luna else DIRECT_ARMS
-    run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + ("-direct-luna" if luna else "-direct")
-    run_id += "-pilot" if pilot else ""
-    purpose = "P1: direct choice " + ("luna " if luna else "") + ("pilot" if pilot else "full")
+    names = [DeciderName(name) for name in _listed(deciders, allowed=DECIDERS, option="--deciders")]
+    if names and luna:
+        raise typer.BadParameter("--deciders and --luna run different arms; give one", param_hint="--deciders")
+    prefix, cap = (BUDGET.prefix, BUDGET.cap_usd) if names else ("P1:", P1_CAP_USD)
+    spend = f2a_spend(read_ledger(LEDGER_PATH), purpose_prefix=prefix)
+    arms = decider_arms(names) if names else LUNA_ARMS if luna else DIRECT_ARMS
+    suffix = "-direct-" + "-".join(names) if names else "-direct-luna" if luna else "-direct"
+    run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + suffix + ("-pilot" if pilot else "")
+    which = f"{', '.join(names)} " if names else "luna " if luna else ""
+    purpose = f"{prefix} direct choice {which}" + ("pilot" if pilot else "full")
 
     def persist_call(call: dict[str, Any]) -> None:
         with (RUNS_DIR / run_id / "calls.jsonl").open("a") as journal:
             journal.write(json.dumps(call) + "\n")
 
-    guard = SpendGuard(prior_usd=spend.usd, sink=persist_call)
+    guard = SpendGuard(prior_usd=spend.usd, cap_usd=cap, sink=persist_call)
     inner = OpenAIEmbedder(DECISION_EMBEDDING_MODEL, batch_size=512, max_input_bytes=None)
     cache = CachedEmbedder(
         GuardedEmbedder(
@@ -635,8 +658,14 @@ def direct(
         path=EMBEDDING_CACHE_PATH,
         chunk_size=512,
     )
-    adapter = jev(model=JEV_MODEL, max_retries=0)
-    models: CachedDecisionModel | None = None
+    if names:  # building Clef reads the account ID, and a local server's URL may be set there; keys at call time
+        load_dotenv(BENCH_DIR.parent / ".env", override=False)
+    raw: dict[str, DecisionModel] = (
+        {name: decision_model(name, max_retries=0 if _guarded(name) else 3) for name in names}
+        if names
+        else {"jev": jev(model=JEV_MODEL, max_retries=0)}
+    )
+    models: dict[str, DecisionModel] = {}
     agent: CachedAgent | None = None
     client: AsyncOpenAI | None = None
     paid_cleanup_done = False
@@ -644,10 +673,10 @@ def direct(
         [hybrid] = build_arms(["hybrid"], embedder=cache, raw_text=data.raw_text)
         free = CacheOnlyRetrieval(hybrid.retriever, stand_in=BM25Retriever(), embeddings=cache)
         full_estimate = asyncio.run(
-            estimate_direct(full, retriever=SharedRetrieval(free), jev_model=adapter, embeddings=cache, arms=arms)
+            estimate_direct(full, retriever=SharedRetrieval(free), models=raw, embeddings=cache, arms=arms)
         )
         pilot_estimate = asyncio.run(
-            estimate_direct(small, retriever=SharedRetrieval(free), jev_model=adapter, embeddings=cache, arms=arms)
+            estimate_direct(small, retriever=SharedRetrieval(free), models=raw, embeddings=cache, arms=arms)
         )
         estimate = pilot_estimate if pilot else full_estimate
         estimates = {
@@ -663,36 +692,44 @@ def direct(
             "Conservative estimate (no cache savings, bounded output): "
             f"pilot ${pilot_estimate.usd:.4f}; full ${full_estimate.usd:.4f}"
         )
+        phase = prefix.rstrip(":")
         typer.echo(
-            f"P1 total so far: ${spend.usd:.4f}; selected estimate plus prior: "
-            f"${spend.usd + estimate.usd:.4f}; cap ${P1_CAP_USD:.2f}"
+            f"{phase} total so far: ${spend.usd:.4f}; selected estimate plus prior: "
+            f"${spend.usd + estimate.usd:.4f}; cap ${cap:.2f}"
         )
         if estimate_out is not None:
             estimate_out.parent.mkdir(parents=True, exist_ok=True)
             estimate_out.write_text(json.dumps(estimates, indent=2) + "\n")
-        if spend.usd + estimate.usd > P1_CAP_USD:
-            typer.echo("Over the P1 cap: nothing was spent.", err=True)
+        if spend.usd + estimate.usd > cap:
+            typer.echo(f"Over the {phase} cap: nothing was spent.", err=True)
             raise typer.Exit(code=2)
         if dry_run:
             return
         load_dotenv(BENCH_DIR.parent / ".env", override=False)
-        if any(not os.environ.get(name) for name in ("OPENAI_API_KEY", "TYPESAFE_API_KEY")[: 1 if luna else 2]):
+        if names:
+            if missing := missing_env([*names]) + ([] if os.environ.get("OPENAI_API_KEY") else ["OPENAI_API_KEY"]):
+                typer.echo(f"Paid direct choice needs these variables set: {', '.join(missing)}.", err=True)
+                raise typer.Exit(code=2)
+        elif any(not os.environ.get(name) for name in ("OPENAI_API_KEY", "TYPESAFE_API_KEY")[: 1 if luna else 2]):
             typer.echo("Paid direct choice requires OPENAI_API_KEY and, without --luna, TYPESAFE_API_KEY.", err=True)
             raise typer.Exit(code=2)
         client = AsyncOpenAI(base_url="https://api.openai.com/v1", max_retries=0, timeout=60)
         model = OpenAIChatModel(LUNA_MODEL if luna else AGENT_MODEL, provider=OpenAIProvider(openai_client=client))
         agent = CachedAgent(model, path=BENCH_DIR / "runs" / "cache" / "agent.sqlite", guard=guard)
-        models = CachedDecisionModel(
-            GuardedDecisionModel(adapter, guard=guard),
-            path=BENCH_DIR / "runs" / "cache" / "direct-decisions.sqlite",
-        )
+        direct_cache = BENCH_DIR / "runs" / "cache" / "direct-decisions.sqlite"
+        for name, model in raw.items():
+            provider = REGISTRY[DeciderName(name)].provider
+            guarded = GuardedDecisionModel(model, guard=guard, provider=provider) if _guarded(name) else model
+            models[name] = CachedDecisionModel(guarded, path=direct_cache)
+        provenance = {str(name): asyncio.run(local_provenance(name)) for name in names}
         runner = DirectRunner(
             retriever=hybrid.retriever,
-            jev_model=models,
-            agent=None if luna else agent,
+            models=models,
+            agent=None if luna or names else agent,
             luna_agent=agent if luna else None,
             guard=guard,
             arms=arms,
+            provenance=provenance,
         )
 
         async def execute() -> Path:
@@ -703,7 +740,9 @@ def direct(
                 )
             finally:
                 await inner.aclose()
-                await adapter.aclose()
+                for model in raw.values():
+                    if (close := getattr(model, "aclose", None)) is not None:
+                        await close()
                 await client.close()
                 paid_cleanup_done = True
 
@@ -715,6 +754,7 @@ def direct(
                 {"source": c.source, "positives": len(c.positives), "negatives": len(c.negatives)} for c in full
             ],
             "prior_p1_usd": spend.usd,
+            "budget": {"prefix": prefix, "prior_usd": spend.usd, "cap_usd": cap},
             "purpose": purpose,
         }
         (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
@@ -752,13 +792,16 @@ def direct(
                 path=LEDGER_PATH,
             )
         cache.close()
-        if models is not None:
-            models.close()
+        for cached in models.values():
+            if isinstance(cached, CachedDecisionModel):
+                cached.close()
         if agent is not None:
             agent.close()
         if not paid_cleanup_done:
             asyncio.run(inner.aclose())
-            asyncio.run(adapter.aclose())
+            for model in raw.values():
+                if (close := getattr(model, "aclose", None)) is not None:
+                    asyncio.run(close())
             if client is not None:
                 asyncio.run(client.close())
 
@@ -922,6 +965,12 @@ def _decision_models(
         raw[name] = decision_model(name, max_retries=0 if guarded else 3)
         asked[name] = GuardedDecisionModel(raw[name], guard=guard, provider=spec.provider) if guarded else raw[name]
     return raw, asked
+
+
+def _guarded(name: str) -> bool:
+    """Whether a decider bills per declared token, so that its every attempt goes through the spend guard."""
+    spec = REGISTRY[DeciderName(name)]
+    return spec.billing == "tokens" and spec.provider != "openai"
 
 
 def _print_decision_estimate(lines: Sequence[EstimateLine], *, searches: int, retrieval: CacheOnlyRetrieval) -> None:

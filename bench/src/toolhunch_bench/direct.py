@@ -64,6 +64,29 @@ AGENT_MODELS: Mapping[str, str] = {
     "agent-luna-all": LUNA_MODEL,
 }
 SEARCHING_ARMS = frozenset({"hybrid@20", "hybrid@20+jev", "agent@20", "agent-luna@20"})
+_DECIDER_SEARCH = "hybrid@20+"
+_DECIDER_ALL = "-all"
+
+
+def decider_arms(names: Sequence[str]) -> tuple[str, ...]:
+    """Each decider's two arms: search then the decider (`hybrid@20+<name>`), and the whole catalog (`<name>-all`)."""
+    return tuple(arm for name in names for arm in (f"{_DECIDER_SEARCH}{name}", f"{name}{_DECIDER_ALL}"))
+
+
+def arm_decider(arm: str) -> str | None:
+    """The decider an arm asks, such as `jev` for `hybrid@20+jev` and `jev-all`; `None` for search or an agent."""
+    if arm.startswith(_DECIDER_SEARCH):
+        return arm.removeprefix(_DECIDER_SEARCH)
+    if arm.endswith(_DECIDER_ALL) and not arm.startswith("agent"):
+        return arm.removesuffix(_DECIDER_ALL)
+    return None
+
+
+def _searches(arm: str) -> bool:
+    """Whether an arm searches first: hybrid alone, a decider after search, or an agent over 20 searched tools."""
+    return arm in SEARCHING_ARMS or arm.startswith(_DECIDER_SEARCH)
+
+
 NOT_APPLICABLE: Mapping[tuple[str, str], Mapping[str, str]] = {
     ("agent-all", "metatool_which"): {
         "reason": "OpenAI Chat Completions rejected 200 function tools: HTTP 400 "
@@ -193,18 +216,19 @@ async def estimate_direct(
     catalogs: Sequence[DirectCatalog],
     *,
     retriever: Retriever,
-    jev_model: DecisionModel,
+    models: Mapping[str, DecisionModel],
     embeddings: CachedEmbedder | None = None,
     not_applicable: Mapping[tuple[str, str], Mapping[str, str]] = NOT_APPLICABLE,
     arms: Sequence[str] = DIRECT_ARMS,
 ) -> DirectEstimate:
     """Estimate identical planned requests without contacting a decision model or a missing embedding.
 
-    Jev planning uses the existing decision estimator. Agent input is tokenized from prompt-bearing wire fields;
-    output is bounded by its configured limit and cache savings are not assumed. Replay savings are not assumed.
-    Missing dense vectors with fewer than K lexical matches use the longest applicable FULL cards, separately
-    measured for Jev's heuristic text and the agent's function schema. The actual Jev planner still applies limits
-    and detail reduction. Full-length lexical stand-ins remain approximate, not a guaranteed whole-run upper bound.
+    Each decider's planning uses the existing decision estimator, with its own declared limits. Agent input is
+    tokenized from prompt-bearing wire fields; output is bounded by its configured limit and cache savings are not
+    assumed. Replay savings are not assumed. Missing dense vectors with fewer than K lexical matches use the longest
+    applicable FULL cards, separately measured for Jev's heuristic text and the agent's function schema. The actual
+    Jev planner still applies limits and detail reduction. Full-length lexical stand-ins remain approximate, not a
+    guaranteed whole-run upper bound.
     """
     import tiktoken
 
@@ -229,7 +253,7 @@ async def estimate_direct(
     for selected in catalogs:
         positives += len(selected.positives)
         negatives += len(selected.negatives)
-        searches = any((arm, selected.source) not in not_applicable for arm in arms if arm in SEARCHING_ARMS)
+        searches = any((arm, selected.source) not in not_applicable for arm in arms if _searches(arm))
         if searches:
             document_texts += [default_search_text(card) for card in selected.catalog]
         for arm in arms:
@@ -239,26 +263,26 @@ async def estimate_direct(
             if searches:
                 query_texts.append(task.query)
             data = ToolRetData(catalog=catalog, tasks=(task,), raw_text={}, mapping_stats={})
-            models = [
+            decider_arms_here = [
                 DecisionArm(
                     name=name,
-                    decider_name="jev",
-                    k=20 if name.endswith("+jev") else len(catalog),
+                    decider_name=decider,
+                    k=20 if name.startswith(_DECIDER_SEARCH) else len(catalog),
                     decider=None,
                     config={"max_detail": "FULL", "reserved_option": True},
-                    model=jev_model,
+                    model=models[decider],
                 )
-                for name in ("hybrid@20+jev", "jev-all")
-                if name in arms
+                for name in arms
+                if (decider := arm_decider(name)) is not None
             ]
-            for arm in models:
+            for arm in decider_arms_here:
                 if (arm.name, selected.source) in not_applicable:
                     continue
                 lines = await estimate_decisions(
                     [arm],
                     data,
                     [task],
-                    retriever=jev_retrieval if arm.name == "hybrid@20+jev" else CatalogOrderRetriever(),
+                    retriever=jev_retrieval if arm.name.startswith(_DECIDER_SEARCH) else CatalogOrderRetriever(),
                     sources=("plain",),
                     model_queries=None,
                     negatives=False,
@@ -339,7 +363,7 @@ async def estimate_direct(
         stand_in_searches=len(getattr(retriever, "stand_in_queries", ())),
         planned_requests_by_arm=planned,
         candidate_bound_searches={
-            "hybrid@20+jev": len(jev_retrieval.bounded),
+            **{arm: len(jev_retrieval.bounded) for arm in arms if arm.startswith(_DECIDER_SEARCH)},
             "agent@20": len(agent_retrieval.bounded),
         },
         candidate_bound_method="Short/empty missing-dense BM25 stand-ins: min(K, applicable catalog size) longest "
@@ -355,17 +379,19 @@ class DirectRunner:
         self,
         *,
         retriever: Retriever,
-        jev_model: DecisionModel,
+        models: Mapping[str, DecisionModel],
         agent: CachedAgent | None,
         guard: SpendGuard,
         not_applicable: Mapping[tuple[str, str], Mapping[str, str]] = NOT_APPLICABLE,
         arms: Sequence[str] = DIRECT_ARMS,
         luna_agent: CachedAgent | None = None,
+        provenance: Mapping[str, Mapping[str, Any]] | None = None,
     ) -> None:
         self.retriever = SharedRetrieval(retriever)
-        self.jev_model, self.agent, self.guard = jev_model, agent, guard
+        self.models, self.agent, self.guard = models, agent, guard
         self.arms, self.luna_agent = tuple(arms), luna_agent
         self.not_applicable = not_applicable
+        self.provenance = dict(provenance or {})
         self._searches: dict[tuple[str, str], tuple[Retrieval, float, float]] = {}
 
     async def run(
@@ -393,12 +419,17 @@ class DirectRunner:
             for arm in self.arms
         }
         manifest["planned_requests_by_arm"] = planned
-        manifest["jev"] = {
-            "model": self.jev_model.model_id,
-            "limits": self.jev_model.limits.model_dump(mode="json"),
-            "max_detail": "FULL",
-            "abstention": {"reserved_option": True, "threshold": 0},
-            "expected_rounds": 1,
+        # Rounds are not assumed: each record lists its exchanges, one per question asked.
+        manifest["deciders"] = {
+            name: {
+                "model": model.model_id,
+                "limits": model.limits.model_dump(mode="json"),
+                "max_detail": "FULL",
+                "abstention": {"reserved_option": True, "threshold": 0},
+                "provenance": dict(self.provenance.get(name, {})),
+            }
+            for name, model in self.models.items()
+            if any(arm_decider(arm) == name for arm in self.arms)
         }
         (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
         completed = False
@@ -493,7 +524,7 @@ class DirectRunner:
         }
         before: int | None = None
         try:
-            if arm in SEARCHING_ARMS:
+            if _searches(arm):
                 retrieval, seconds, usd = await self._retrieval(task, catalog)
                 cards = [match.card for match in retrieval.matches]
                 record |= {"search_seconds": seconds, "search_usd": usd}
@@ -503,11 +534,11 @@ class DirectRunner:
             before = len(self.guard.calls)
             if arm == "hybrid@20":
                 record |= {"ranked": record["candidates"], "pick": cards[0].id if cards else None, "abstained": False}
-            elif arm in {"hybrid@20+jev", "jev-all"}:
+            elif (decider := arm_decider(arm)) is not None:
                 pipeline = ToolSearchPipeline(
                     CatalogOrderRetriever(),
                     k=max(1, len(cards)),
-                    decider=ChoiceDecider(self.jev_model, abstention=Abstention(), max_detail=DetailLevel.FULL),
+                    decider=ChoiceDecider(self.models[decider], abstention=Abstention(), max_detail=DetailLevel.FULL),
                 )
                 result = await pipeline.search([task.query], ToolCatalog(cards), context=task.query)
                 assert result.decision is not None

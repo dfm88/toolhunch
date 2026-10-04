@@ -18,7 +18,7 @@ from pydantic_ai.usage import RequestUsage
 from typer.testing import CliRunner
 
 from toolhunch import BM25Retriever, OpenAIEmbedder, ToolCard, ToolCatalog
-from toolhunch.decision import JEV_LIMITS, ChoiceQuestion, DecisionRequest
+from toolhunch.decision import JEV_LIMITS, STRANDS_LIMITS, ChoiceQuestion, DecisionRequest
 from toolhunch_bench import cli
 from toolhunch_bench.datasets.toolret import ToolRetData, ToolRetTask
 from toolhunch_bench.decision import CacheOnlyRetrieval, SharedRetrieval
@@ -28,6 +28,8 @@ from toolhunch_bench.direct import (
     DIRECT_ARMS,
     CatalogOrderRetriever,
     DirectRunner,
+    arm_decider,
+    decider_arms,
     direct_catalogs,
     estimate_direct,
 )
@@ -290,13 +292,15 @@ async def test_runner_report_symmetric_scoring_and_replay_exclusion(tmp_path: Pa
         return ModelResponse(parts=parts, usage=RequestUsage(input_tokens=100, cache_read_tokens=50, output_tokens=1))
 
     fake = fake_decision_model(model_id="jev-fake@test", limits=JEV_LIMITS, favourite="weather tool", none_weight=100)
-    estimates = await estimate_direct(selected, retriever=BM25Retriever(), jev_model=fake)
+    estimates = await estimate_direct(selected, retriever=BM25Retriever(), models={"jev": fake})
     for suffix in ("first", "replay"):
         guard = SpendGuard()
         decision = CachedDecisionModel(GuardedDecisionModel(fake, guard=guard), path=tmp_path / "jev.sqlite")
         agent = CachedAgent(FunctionModel(answer, model_name="fake-agent"), path=tmp_path / "agent.sqlite", guard=guard)
         try:
-            directory = await DirectRunner(retriever=BM25Retriever(), jev_model=decision, agent=agent, guard=guard).run(
+            directory = await DirectRunner(
+                retriever=BM25Retriever(), models={"jev": decision}, agent=agent, guard=guard
+            ).run(
                 selected,
                 out_dir=tmp_path / "runs",
                 run_id=suffix,
@@ -374,8 +378,10 @@ async def test_non_applicable_runner_and_estimator_contract(
         }
     }
     fake = fake_decision_model(model_id="jev-fake@test", limits=JEV_LIMITS, favourite="weather tool")
-    estimate = await estimate_direct(selected, retriever=BM25Retriever(), jev_model=fake, not_applicable=exclusion)
-    unrestricted = await estimate_direct(selected, retriever=BM25Retriever(), jev_model=fake, not_applicable={})
+    estimate = await estimate_direct(
+        selected, retriever=BM25Retriever(), models={"jev": fake}, not_applicable=exclusion
+    )
+    unrestricted = await estimate_direct(selected, retriever=BM25Retriever(), models={"jev": fake}, not_applicable={})
     assert estimate.planned_requests_by_arm == {arm: 15 if arm == "agent-all" else 30 for arm in DIRECT_ARMS}
     assert unrestricted.planned_requests_by_arm["agent-all"] == 30
     assert unrestricted.usd > estimate.usd
@@ -391,7 +397,7 @@ async def test_non_applicable_runner_and_estimator_contract(
     agent = CachedAgent(FunctionModel(answer), path=tmp_path / "agent.sqlite", guard=guard)
     try:
         directory = await DirectRunner(
-            retriever=BM25Retriever(), jev_model=decision, agent=agent, guard=guard, not_applicable=exclusion
+            retriever=BM25Retriever(), models={"jev": decision}, agent=agent, guard=guard, not_applicable=exclusion
         ).run(selected, out_dir=tmp_path, run_id="applicability", pilot=True, estimate=estimate)
         manifest = json.loads((directory / "manifest.json").read_text())
         records = [json.loads(line) for line in (directory / "run.jsonl").read_text().splitlines()]
@@ -418,7 +424,7 @@ async def test_historical_rejections_common_pool_unknown_cost_and_jev_cache(
     sources = {"webtools_spotify": "restgpt-spotify", "metatool_which": "metatool"}
     selected = direct_catalogs(data(sources=sources, count=2), sources=sources)
     fake = fake_decision_model(model_id="jev-fake@test", limits=JEV_LIMITS, favourite="weather tool")
-    estimate = await estimate_direct(selected, retriever=BM25Retriever(), jev_model=fake)
+    estimate = await estimate_direct(selected, retriever=BM25Retriever(), models={"jev": fake})
     guard = SpendGuard()
 
     def answer(messages: Sequence[ModelMessage], info: AgentInfo) -> ModelResponse:
@@ -427,9 +433,9 @@ async def test_historical_rejections_common_pool_unknown_cost_and_jev_cache(
     decision = CachedDecisionModel(GuardedDecisionModel(fake, guard=guard), path=tmp_path / "jev.sqlite")
     agent = CachedAgent(FunctionModel(answer), path=tmp_path / "agent.sqlite", guard=guard)
     try:
-        directory = await DirectRunner(retriever=BM25Retriever(), jev_model=decision, agent=agent, guard=guard).run(
-            selected, out_dir=tmp_path, run_id="historical", pilot=True, estimate=estimate
-        )
+        directory = await DirectRunner(
+            retriever=BM25Retriever(), models={"jev": decision}, agent=agent, guard=guard
+        ).run(selected, out_dir=tmp_path, run_id="historical", pilot=True, estimate=estimate)
     finally:
         decision.close()
         agent.close()
@@ -613,11 +619,11 @@ async def test_direct_estimate_bounds_short_missing_dense_candidates_only(
         embedding_calls = len(embedder.calls)
         free = CacheOnlyRetrieval(CatalogOrderRetriever(), stand_in=BM25Retriever(), embeddings=embeddings)
         shared = SharedRetrieval(free)
-        estimate = await estimate_direct(selected, retriever=shared, jev_model=model, embeddings=embeddings)
+        estimate = await estimate_direct(selected, retriever=shared, models={"jev": model}, embeddings=embeddings)
         reference = await estimate_direct(
             selected,
             retriever=SharedRetrieval(CatalogOrderRetriever() if cached else BM25Retriever()),
-            jev_model=model,
+            models={"jev": model},
             embeddings=embeddings,
         )
         assert not model.asks
@@ -661,8 +667,8 @@ async def test_full_and_pilot_estimate_fallback_counts_are_scoped_to_each_wrappe
     model = fake_decision_model(limits=JEV_LIMITS)
     free = CacheOnlyRetrieval(CatalogOrderRetriever(), stand_in=BM25Retriever(), embeddings=embeddings)
     try:
-        full_estimate = await estimate_direct(full, retriever=SharedRetrieval(free), jev_model=model)
-        pilot_estimate = await estimate_direct(pilot, retriever=SharedRetrieval(free), jev_model=model)
+        full_estimate = await estimate_direct(full, retriever=SharedRetrieval(free), models={"jev": model})
+        pilot_estimate = await estimate_direct(pilot, retriever=SharedRetrieval(free), models={"jev": model})
         assert full_estimate.stand_in_searches == len(free.stand_in_queries) == 4
         assert pilot_estimate.stand_in_searches == 1
         assert asdict(pilot_estimate)["stand_in_searches"] == 1
@@ -797,3 +803,42 @@ async def test_projection_applicable_evidence_sunk_charges_and_completion(
     assert all(line.split(" | ")[3] == "—" for line in baseline_rows)
     if records:
         assert "0.000 (0.000 to 0.000)" in (tmp_path / "result/README.md").read_text()
+
+
+async def test_direct_runs_a_registered_decider_in_rounds(tmp_path: Path, fake_decision_model: Any) -> None:
+    # A three-tool catalog plus the reserved option overflows a three-option cap: positives need two rounds, while a
+    # negative (gold tools removed, one tool left) fits one question.
+    selected = direct_catalogs(
+        data(sources={"webtools_spotify": "restgpt-spotify"}, count=2), sources={"webtools_spotify": "restgpt-spotify"}
+    )
+    limits = STRANDS_LIMITS.model_copy(update={"max_options_per_choice": 3})
+    model = fake_decision_model(model_id="strands-fake@127.0.0.1:8000", limits=limits, favourite="weather tool")
+    arms = decider_arms(["strands"])
+    assert arms == ("hybrid@20+strands", "strands-all")
+    assert [arm_decider(arm) for arm in (*arms, "hybrid@20+jev", "jev-all", "agent-all", "hybrid@20")] == [
+        "strands",
+        "strands",
+        "jev",
+        "jev",
+        None,
+        None,
+    ]
+    estimate = await estimate_direct(selected, retriever=BM25Retriever(), models={"strands": model}, arms=arms)
+    guard = SpendGuard()
+
+    directory = await DirectRunner(
+        retriever=BM25Retriever(), models={"strands": model}, agent=None, guard=guard, arms=arms
+    ).run(selected, out_dir=tmp_path / "runs", run_id="strands", pilot=False, estimate=estimate)
+
+    records = [json.loads(line) for line in (directory / "run.jsonl").read_text().splitlines()]
+    everything = [r for r in records if r["arm"] == "strands-all"]
+    assert all(len(r["detail"]) == 2 for r in everything if r["variant"] == "positive")
+    assert all(len(r["detail"]) == 1 for r in everything if r["variant"] == "negative")
+    manifest = json.loads((directory / "manifest.json").read_text())
+    assert manifest["deciders"]["strands"]["model"] == "strands-fake@127.0.0.1:8000"
+    summary = build_direct_report(directory, out_dir=tmp_path / "report")
+    [row] = [row for row in summary["rows"] if row["arm"] == "strands-all" and row["catalog"] == "pooled"]
+    positives = sum(r["variant"] == "positive" for r in everything)
+    assert row["rounds"] == {"one_question": len(everything) - positives, "two_rounds": positives}
+    assert row["physical_requests"] == 2 * positives + (len(everything) - positives)
+    assert "| strands-all, in rounds | pooled |" in (tmp_path / "report" / "README.md").read_text()
