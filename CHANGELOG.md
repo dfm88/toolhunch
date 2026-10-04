@@ -14,10 +14,21 @@ All notable changes to this project are documented here. The format follows
   ID goes into the URL only, never into `model_id` or `repr`.
 - `JevWireModel(path=..., response_root=...)`: a Jev-shaped body at another endpoint path, and an answer wrapped in
   an envelope member such as Workers AI's `result`.
+- Benchmark: Strands Decider 2B, Clef, Clef-flash and CLM on a Mac in the held-out re-ranking, direct-choice and
+  candidate-order tests (`bench/results/2026-10-toolret-{decision,direct,order}-p2/`). Deciders are registry
+  entries keyed by name (`--deciders`); local models run from `bench/deploy/strands_local.sh` and
+  `bench/deploy/clm_local/` with their files in the git-ignored `bench/models/`.
+- `toolhunch-bench compare-runs`: one model's searches on two deployments, with top-card agreement, probability
+  differences, P@1 per cell and answer-or-abstain agreement.
+- `toolhunch-bench cost-latency-chart`: precision against the decision's latency and cost for every published
+  decider, local ones drawn hollow with their machine in the caption.
 
 ### Changed
 
 - `JevWireModel`'s `repr` shows `model_id` instead of `base_url`.
+- Benchmark reports state each decider's caveats (an unpinned version, a model run locally and the machine) and a
+  local model's cost as "local"; the direct-choice report gives each run's search time when runs differ, and the
+  decision latency alone; `decision-report --heldout` reads one run per decider.
 
 - Development status: alpha, from pre-alpha.
 
