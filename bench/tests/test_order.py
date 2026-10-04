@@ -16,7 +16,11 @@ from toolhunch.decision import (
     JEV_LIMITS,
     LOGPROB_LIMITS,
     STRANDS_LIMITS,
+    ChoiceQuestion,
     DecisionError,
+    DecisionRequest,
+    DecisionResponse,
+    DecisionUsage,
     OpenAILogprobModel,
 )
 from toolhunch.retrieval import Retrieval
@@ -667,6 +671,9 @@ async def test_order_report_covers_any_decider(
     assert f"K=20, plain queries, {configured}, reserved option last." in readme
     assert ("**Clef-flash.** Workers AI serves the current Clef-flash" in readme) == ("clef-flash" in names)
     assert "**Local deciders.**" not in readme
+    # A local decider's cost reads "local", never $0 (spec D9), in its section and, alone in a run, in the run cost.
+    assert "measured decision cost per 1,000 searches local;" in readme
+    assert ("Verified run cost local." in readme) == (names == ("strands",))
     assert summary["deciders"]["strands"]["top_card_stability"]["value"] == 1.0
     assert summary["deciders"]["strands"]["verified_decision_usd"] == 0
     if "clef-flash" in names:
@@ -681,3 +688,36 @@ async def test_order_report_covers_any_decider(
     entries = order_ledger_entries(guard, run_id="p2", pilot=True, budget=BUDGET)
     paid = [("cloudflare", "P2: order sensitivity pilot")] if "clef-flash" in names else []
     assert [(entry.provider, entry.purpose) for entry in entries] == paid
+
+
+@pytest.mark.anyio
+async def test_order_model_charges_an_unpriceable_reply(fake_decision_model: Any) -> None:
+    # A priced decider whose reply reports no input tokens (a renamed usage field defaults to 0) is a failure charged
+    # at its reservation, never a $0 success (Review Focus 2).
+    base = fake_decision_model(model_id="clef-flash@api.cloudflare.com", limits=CLEF_FLASH_LIMITS, favourite="weather")
+
+    class Unpriced:
+        model_id, limits, question_kinds, prompt_version = (
+            base.model_id,
+            base.limits,
+            base.question_kinds,
+            base.prompt_version,
+        )
+
+        async def ask(self, request: DecisionRequest, /, **options: Any) -> DecisionResponse:
+            return replace(await base.ask(request, **options), usage=DecisionUsage(1, 0, 0))
+
+    guard = SpendGuard(prior_usd=0.0, cap_usd=BUDGET.cap_usd)
+    model = OrderDecisionModel(Unpriced(), decider="clef-flash", guard=guard)
+    request = DecisionRequest(
+        state="Request: weather in Rome",
+        questions={"tool": ChoiceQuestion(instructions="Which?", options={"a": "weather", "none": "None fits."})},
+    )
+
+    with pytest.raises(DecisionError):
+        await model.ask(request)
+
+    [call] = guard.calls
+    assert call["error"] == "priced reply without input tokens"
+    assert call["usd"] is None
+    assert call["budget_charge_usd"] == pytest.approx(65_536 * 0.09 / 1_000_000)

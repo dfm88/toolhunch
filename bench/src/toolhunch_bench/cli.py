@@ -219,6 +219,15 @@ def write_model_queries(
         typer.echo(f"  {task_id}: {words[:200]}{'...' if len(words) > 200 else ''}")
 
 
+_DIRECT_DECIDERS = tuple(
+    name
+    for name, spec in REGISTRY.items()
+    if spec.billing == "local" or (spec.billing == "tokens" and spec.provider != "openai")
+)
+"""The deciders `direct --deciders` runs: local ones, and the ones billed per declared token, which its guard prices
+and its ledger records. OpenAI's would spend without a cap or a ledger line, Modal's CLM credits unledgered."""
+
+
 @app.command()
 def retrieval(
     tasks: TaskFile,
@@ -459,7 +468,7 @@ def decision(
         finally:
             records = _run_records(RUNS_DIR / run_id)  # a failed run still paid for what it asked
             for entry in _decision_ledger_entries(
-                models, arms=arms, records=records, embeddings=cache, run_id=run_id, purpose=purpose
+                models, arms=arms, records=records, embeddings=cache, run_id=run_id, purpose=purpose, guard=guard
             ):
                 append_ledger(entry, path=LEDGER_PATH)
                 paid = " in Modal credits" if entry.provider == "modal" else ""
@@ -683,7 +692,7 @@ def direct(
         str,
         typer.Option(
             help="Only the decider arms of these deciders (hybrid@20+<name>, <name>-all), under the current phase's "
-            f"budget; comma-separated, from: {', '.join(DECIDERS)}."
+            f"budget; comma-separated, from: {', '.join(_DIRECT_DECIDERS)}."
         ),
     ] = "",
 ) -> None:
@@ -698,11 +707,11 @@ def direct(
     from pydantic_ai.providers.openai import OpenAIProvider
 
     pydantic_ai.BANNER_ENABLED = False
-    data = load_toolret(cache_dir=TOOLRET_CACHE)
-    full, small = direct_catalogs(data), direct_catalogs(data, pilot=True)
-    names = [DeciderName(name) for name in _listed(deciders, allowed=DECIDERS, option="--deciders")]
+    names = [DeciderName(name) for name in _listed(deciders, allowed=_DIRECT_DECIDERS, option="--deciders")]
     if names and luna:
         raise typer.BadParameter("--deciders and --luna run different arms; give one", param_hint="--deciders")
+    data = load_toolret(cache_dir=TOOLRET_CACHE)
+    full, small = direct_catalogs(data), direct_catalogs(data, pilot=True)
     prefix, cap = (BUDGET.prefix, BUDGET.cap_usd) if names else ("P1:", P1_CAP_USD)
     spend = f2a_spend(read_ledger(LEDGER_PATH), purpose_prefix=prefix)
     arms = decider_arms(names) if names else LUNA_ARMS if luna else DIRECT_ARMS
@@ -1122,12 +1131,14 @@ def _decision_ledger_entries(
     embeddings: CachedEmbedder,
     run_id: str,
     purpose: str,
+    guard: SpendGuard,
 ) -> list[LedgerEntry]:
     """One ledger line per provider a decision run paid: what the caches billed, and CLM's wall time in Modal credits.
 
     A decision cache bills only the asks the model answered, so each line's note also counts the asks that failed: the
-    provider may have billed some of them. CLM is billed by time: the wall seconds of its finished arms at the
-    deployment's GPU price, in Modal credits, which the cap leaves out.
+    provider may have billed some of them. A decider the spend guard prices is ledgered at what the guard charged,
+    each failed attempt at its reservation, as direct and order runs are. CLM is billed by time: the wall seconds of
+    its finished arms at the deployment's GPU price, in Modal credits, which the cap leaves out.
     """
     decider_of = {arm.name: arm.decider_name for arm in arms}
     wall: dict[str, float] = {}
@@ -1160,6 +1171,12 @@ def _decision_ledger_entries(
             usage = Usage(input_tokens=billed.input_tokens, output_tokens=billed.output_tokens)
             price = calc_price(usage, model_ref=billed_model, provider_id="openai")
             provider, usd = "openai", float(price.total_price)
+        elif _guarded(name):
+            charged = [call for call in guard.calls if call["model"] == model.model_id]
+            provider, billed_model = spec.provider, spec.model
+            usd = sum(call["budget_charge_usd"] for call in charged)
+            reserved = sum(call["error"] is not None for call in charged)
+            asks += f"; {reserved:,} failed attempts charged at their reservation" if reserved else ""
         else:
             provider, billed_model, usd = spec.provider, spec.model, model.limits.estimate_usd(billed) or 0.0
         entries.append(

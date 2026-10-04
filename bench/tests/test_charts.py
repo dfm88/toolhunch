@@ -98,7 +98,7 @@ def test_cost_latency_marks_local_deciders(tmp_path: Path) -> None:
             pick("hybrid@20", 0.55, None, 0.0),
             pick("jev-all", 0.74, 320, 0.28),
             pick("hybrid@20+jev", 0.71, 280, 0.08),
-            pick("strands-all", 0.62, 116, None, local=True),
+            pick("strands-all", 0.62, 116, None, local=True) | {"lower_detail": 375},
             pick("hybrid@20+strands", 0.61, 157, None, local=True),
             pick("clef-all", 0.80, 1430, 1.63),
             pick("hybrid@20+clef", 0.77, 612, 0.44),
@@ -139,5 +139,7 @@ def test_cost_latency_marks_local_deciders(tmp_path: Path) -> None:
         assert f'id="point-{point}-local"' in text
     assert "clm" not in text
     assert "CLM" not in text
-    # Text is drawn as paths; the caption is also the SVG's description, which states the machine.
+    # Text is drawn as paths; the caption is also the SVG's description, which states the machine and the points
+    # whose cards were sent below full detail to fit a window.
     assert "Apple M5 Max, 128 GB, macOS 26.1" in text
+    assert "Lower detail: Strands Decider 2B (all tools)" in text

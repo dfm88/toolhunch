@@ -468,11 +468,12 @@ class _Point:
     milliseconds: float
     cost: str
     local: bool
+    lowered: bool = False
 
 
 # Label offsets in points from the point, per arm of the P2 cost-latency figure; a far label gets a connector.
 _P2_OFFSETS: dict[str, tuple[float, float]] = {
-    "strands-all": (-10, 42),
+    "strands-all": (-82, 92),
     "hybrid@20+strands": (14, -46),
     "hybrid@20+jev": (16, -40),
     "jev-all": (-14, 36),
@@ -488,6 +489,9 @@ _P2_OFFSETS: dict[str, tuple[float, float]] = {
     "hybrid+clef@20": (12, -16),
     "hybrid+clef-flash@20": (12, -4),
 }
+
+# Labels aligned against the side their offset points to: a long label placed in free space beyond the point.
+_P2_LEFT_ALIGNED = frozenset({"strands-all"})
 
 
 def _usd(usd: float | None, *, local: bool) -> str:
@@ -541,6 +545,7 @@ def _direct_points(direct: dict[str, Any]) -> list[_Point]:
                 milliseconds=warm["decision_latency_p50_ms"],
                 cost=_usd(warm.get("billed_usd_per_1000"), local=local),
                 local=local,
+                lowered=bool(row.get("lower_detail")),
             )
         )
     return points
@@ -567,6 +572,7 @@ def _rerank_points(decisions: Sequence[dict[str, Any]], luna: dict[str, Any] | N
                 milliseconds=row["latency_ms"]["decision"]["p50"],
                 cost=_usd(row["cost"]["usd_per_1000_searches"], local=local),
                 local=local,
+                lowered=bool(row.get("lower_detail_searches")),
             )
     if luna is not None:
         first = luna["first_pick"]
@@ -612,7 +618,7 @@ def _panel(axes: Any, points: Sequence[_Point], *, head: str, search: float) -> 
             gid=f"point-{_slug(point.key)}" + ("-local" if point.local else ""),
         )
         dx, dy = _P2_OFFSETS.get(point.key) or _TRADEOFF_LABELS[point.key][2:]
-        align = "left" if dx > 0 else "right"
+        align = "left" if dx > 0 or point.key in _P2_LEFT_ALIGNED else "right"
         if abs(dy) > 20:
             axes.annotate(
                 "",
@@ -623,7 +629,14 @@ def _panel(axes: Any, points: Sequence[_Point], *, head: str, search: float) -> 
             )
         for text, shift, va, style in (
             (point.name, 1, "bottom", {"weight": "bold", "color": _INK}),
-            (f"{point.detail} · {point.cost}" if point.detail else point.cost, -1, "top", {"color": _MUTED}),
+            (
+                " · ".join(
+                    part for part in (point.detail, "lower detail" if point.lowered else "", point.cost) if part
+                ),
+                -1,
+                "top",
+                {"color": _MUTED},
+            ),
         ):
             axes.annotate(
                 text,
@@ -699,6 +712,9 @@ def build_cost_latency(
         )
     elif unpinned:
         notes.append("Clef and Clef-flash have no pinned version.")
+    if lowered := [point for point in points if point.lowered]:
+        names = ", ".join(f"{point.name} ({point.detail})" if point.detail else point.name for point in lowered)
+        notes.append(f"Lower detail: {names} sent cards below full detail to fit the model's window.")
     footer = "\n".join([*notes, f"toolhunch · ToolRet · runs of {', '.join(dates)}"])
     out_dir.mkdir(parents=True, exist_ok=True)
     with cast("Any", matplotlib).rc_context(_STYLE):

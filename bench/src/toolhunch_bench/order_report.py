@@ -518,6 +518,8 @@ def _readme(summary: Mapping[str, Any]) -> str:
         f"{REGISTRY[DeciderName(name)].label} {arms[f'hybrid+{name}@20']['max_detail']}" for name in names
     )
     recorded: dict[str, Any] = summary["manifest"].get("deciders") or {}
+    # A local decider costs no money: its cost reads "local", never $0 (spec D9).
+    local = {name for name in names if REGISTRY[DeciderName(name)].billing == "local"}
     caveats = [
         line for paragraph in report_caveats({n: recorded.get(n, {}) for n in names}) for line in (paragraph, "")
     ]
@@ -631,7 +633,7 @@ def _readme(summary: Mapping[str, Any]) -> str:
             f"{counts['correct']}/{counts['wrong']}/{counts['abstained']}, "
             f"{counts['negatives']}/{counts['searches']} negatives ({(counts['negative_share'] or 0):.0%}). "
             f"Production requires five decisions per search; measured decision cost per 1,000 searches "
-            f"${(average['decision_usd_per_1000_searches'] or 0):.4f}; "
+            f"{'local' if name in local else '$' + format(average['decision_usd_per_1000_searches'] or 0, '.4f')}; "
             f"{average['physical_attempts_per_search']} physical asks per search for the five decisions.",
             "",
             average["probabilities"],
@@ -655,9 +657,14 @@ def _readme(summary: Mapping[str, Any]) -> str:
         + " per-round slot/card mappings are retained in the raw exchanges. Gold-removed negatives may still admit "
         "an unlabeled relevant tool.",
         "",
-        f"Verified run cost ${summary['gates']['verified_usd']:.6f}; guarded charge "
-        f"${summary['gates']['budget_charge_usd']:.6f}. Model, prompt, payload, catalog, task, seed, order, "
-        "git and scheduling provenance are pinned in summary.json and the raw manifest.",
+        (
+            "Verified run cost local."
+            if set(names) <= local
+            else f"Verified run cost ${summary['gates']['verified_usd']:.6f}; guarded charge "
+            f"${summary['gates']['budget_charge_usd']:.6f}."
+        )
+        + " Model, prompt, payload, catalog, task, seed, order, git and scheduling provenance are pinned in "
+        "summary.json and the raw manifest.",
         "",
         "Calls are serialized and never locally replayed. Provider cache reads use their returned discount; "
         "unreported cache usage is charged at list price."

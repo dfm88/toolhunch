@@ -15,7 +15,7 @@ from pydantic_ai.usage import RequestUsage
 from typer.testing import CliRunner
 
 from toolhunch import ToolCard, ToolCatalog
-from toolhunch.decision import CLM_LIMITS, JEV_LIMITS, LOGPROB_LIMITS
+from toolhunch.decision import CLM_LIMITS, JEV_LIMITS, LOGPROB_LIMITS, DecisionUsage
 from toolhunch_bench import cli
 from toolhunch_bench.datasets.model_queries import (
     WRITER_MODEL,
@@ -454,8 +454,11 @@ def test_a_decision_run_warms_clm_up_and_records_what_it_billed(
     # Jev bills per declared token, so its asks go through the spend guard, which retries a failed attempt once:
     # its 8 failed searches are 16 failed attempts.
     assert jev.input_tokens == 10 * (len(jev_model.asks) - 16)  # 10 input tokens for every ask it answered
-    assert jev.usd == pytest.approx(jev.input_tokens * 0.042 / 1_000_000)
-    assert ", 8 failed," in jev.note  # the provider may have billed them, but they are not in the usage
+    # The guard charged each failed attempt its reservation, which the ledger keeps, as direct and order runs do: the
+    # provider may have billed those attempts, and the next run's cap check reads the ledger.
+    reservation = JEV_LIMITS.estimate_usd(DecisionUsage(1, JEV_LIMITS.max_request_tokens or 0, 0)) or 0.0
+    assert jev.usd == pytest.approx(jev.input_tokens * 0.042 / 1_000_000 + 16 * reservation)
+    assert ", 8 failed," in jev.note
     logprob = by_model["openai", "gpt-4.1-mini-2025-04-14"]
     assert logprob.input_tokens == 10 * (len(logprob_model.asks) - 12)
     assert ", 12 failed," in logprob.note
@@ -499,3 +502,18 @@ def test_a_failing_decision_run_still_records_what_it_billed(
     assert (logprob.input_tokens, logprob.usd) == (0, 0.0)
     assert logprob.note.startswith("asks: 0 answered by the model, 0 by the cache, 1 failed,")
     assert all(model.closed for model in decision_setup.models.values())
+
+
+@pytest.mark.parametrize("name", ["logprob", "luna", "clm"])
+def test_direct_refuses_deciders_it_cannot_guard_or_ledger(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
+    # The direct path guards and ledgers deciders billed per declared token and local ones only: OpenAI's would spend
+    # without a cap or a ledger line, and Modal's CLM would spend credits unledgered. It refuses before loading data.
+    def never(**_: Any) -> None:
+        raise AssertionError("ToolRet loaded before the deciders were checked")
+
+    monkeypatch.setattr(cli, "load_toolret", never)
+
+    result = CliRunner().invoke(cli.app, ["direct", "--deciders", name, "--dry-run"])
+
+    assert result.exit_code == 2, result.output
+    assert f"unknown {name}" in result.output

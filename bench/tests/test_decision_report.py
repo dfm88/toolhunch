@@ -925,9 +925,29 @@ def test_heldout_runs_one_per_decider_read_as_one_report(tmp_path: Path) -> None
         searches = [
             retrieved("hybrid@3", "h1"),
             retrieved("hybrid@3", "h2"),
-            decided(arm_name, "h1", best=0.9, none=0.05, first_right=first_right, decider=name, key=keys[name]),
-            decided(arm_name, "h2", best=0.9, none=0.05, first_right=True, decider=name, key=keys[name]),
+            decided(
+                arm_name,
+                "h1",
+                best=0.9,
+                none=0.05,
+                first_right=first_right,
+                decider=name,
+                key=keys[name],
+                exchanges=[(100, 100)],
+            ),
+            decided(
+                arm_name,
+                "h2",
+                best=0.9,
+                none=0.05,
+                first_right=True,
+                decider=name,
+                key=keys[name],
+                exchanges=[(100, 100)],
+            ),
         ]
+        if name == "strands":  # a 4,096-token window: the planner sent h2's cards at BRIEF, below the FULL allowed
+            searches[3]["exchanges"][0]["detail"] = "BRIEF"
         part = write_run(tmp_path, f"heldout-{name}", searches, split="heldout", arms={"hybrid@3": arm(3)} | arms[name])
         edit_manifest(part, lambda manifest, name=name: manifest.update(deciders={name: provenance[name]}))
         parts.append(part)
@@ -947,6 +967,11 @@ def test_heldout_runs_one_per_decider_read_as_one_report(tmp_path: Path) -> None
     assert "Held-out runs `heldout-strands`, `heldout-clef`, one per decider:" in readme
     assert "**Clef.** Workers AI serves the current Clef" in readme
     assert "**Local deciders.** Strands Decider 2B ran on one machine (Apple M5 Max, 128 GB, macOS 26.1)" in readme
+    # Searches the planner sent below the detail allowed are counted and named, never read as FULL-detail results.
+    assert rows(summary, strands)["plain"]["lower_detail_searches"] == 1
+    assert rows(summary, strands)["plain"]["detail_mix"] == {"FULL": 1, "BRIEF": 1}
+    assert rows(summary, clef)["plain"]["lower_detail_searches"] == 0
+    assert "**Lower detail.** hybrid+strands@3 plain: 1 of 2 searches (asks FULL 1, BRIEF 1)" in readme
     # A local model's cost reads "local", never $0; the machine is in the summary next to it.
     assert "| hybrid+strands@3 | plain | 1.00 | 100 | local | - | - |" in readme
     assert rows(summary, strands)["plain"]["cost"]["local"] == hardware

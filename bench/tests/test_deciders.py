@@ -73,12 +73,17 @@ async def test_registry_builds_and_guards_every_decider(monkeypatch: pytest.Monk
     assert (call["provider"], call["input_tokens"]) == ("cloudflare", 1_000)
     assert call["usd"] == pytest.approx(1_000 * 0.09 / 1_000_000)
 
-    # A priced reply without input tokens cannot be accounted for: a failure, never $0.
+    # A priced reply without input tokens cannot be accounted for: a failure charged at its reservation, never $0,
+    # and never retried, since the provider has billed the reply already.
+    sent, unpriced_guard = len(calls), SpendGuard()
     unpriced = GuardedDecisionModel(
-        clef("clef-flash", http_client=workers_ai(0, calls)), guard=SpendGuard(), provider="cloudflare", retries=0
+        clef("clef-flash", http_client=workers_ai(0, calls)), guard=unpriced_guard, provider="cloudflare", retries=1
     )
     with pytest.raises(ProviderFailure, match="without input tokens"):
         await unpriced.ask(REQUEST)
+    assert len(calls) == sent + 1
+    [failed] = unpriced_guard.calls
+    assert failed["budget_charge_usd"] == pytest.approx(65_536 * 0.09 / 1_000_000)
 
     # An attempt that could pass the cap is refused before anything is sent.
     sent = len(calls)

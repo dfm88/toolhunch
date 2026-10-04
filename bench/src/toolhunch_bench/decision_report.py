@@ -11,6 +11,7 @@ run. The CLM endpoint's host is published as `modal`.
 
 from __future__ import annotations
 
+import collections
 import contextlib
 import functools
 import json
@@ -45,6 +46,8 @@ BOOTSTRAP_RESAMPLES = 2000
 BOOTSTRAP_SEED = 0
 DETERMINISM_TOLERANCE = 0.01
 """The largest probability change between repeats for which one repetition of a search is enough."""
+_DETAILS = ("FULL", "BRIEF", "NAME")
+"""Card detail levels, most first: the order a row's detail mix is listed in."""
 PUBLIC_CLM_HOST = "modal"
 """What the published files call the CLM endpoint's host: the deployment script documents it, its URL stays private."""
 SEARCHED = "model (searched)"
@@ -533,6 +536,10 @@ def _row(run: _Run, *, arm: str, source: str, taus: dict[str, float]) -> dict[st
     reserved_and_tau = _rule(ok, _dev_taus(ok, taus))
     differences = [float(_first_right(record)) - float(_retrieval_right(record)) for record in positives]
     paired = config["decider"] is not None and bool(differences)
+    # The detail each ask was sent at: a small window makes the planner lower it below the most detail allowed.
+    asked: list[list[dict[str, Any]]] = [record["exchanges"] or [] for record in decided]
+    sent = collections.Counter[str](exchange["detail"] for exchanges in asked for exchange in exchanges)
+    lowered = sum(any(exchange["detail"] != config["max_detail"] for exchange in exchanges) for exchanges in asked)
     return {
         "arm": arm,
         "decider": config["decider"],
@@ -550,6 +557,8 @@ def _row(run: _Run, *, arm: str, source: str, taus: dict[str, float]) -> dict[st
         "delta_p_at_1": statistics.fmean(differences) if paired else None,
         "delta_p_at_1_ci95": _interval(positives, differences) if paired else None,
         "ceiling": _share([record["gold_in_candidates"] for record in positives]),
+        "detail_mix": {level: sent[level] for level in _DETAILS if sent[level]} if config["decider"] else None,
+        "lower_detail_searches": lowered if config["decider"] else None,
         "rules": {
             "answer_always": _rule(ok, [0.0] * len(ok), answer_always=True),
             "reserved": _rule(ok, [0.0] * len(ok)),
@@ -920,6 +929,19 @@ def _heldout_section(heldout: dict[str, Any], *, runs: Sequence[dict[str, Any]])
         *_table(header, [_precision_row(row) for row in rows], align="llrrrrr"),
         "",
     ]
+    if lowered := [row for row in rows if row["lower_detail_searches"]]:
+        parts = "; ".join(
+            f"{row['arm']} {row['source']}: {row['lower_detail_searches']} of {row['records']} searches (asks "
+            + ", ".join(f"{level} {count}" for level, count in row["detail_mix"].items())
+            + ")"
+            for row in lowered
+        )
+        lines += [
+            f"**Lower detail.** {parts}. To fit the model's window the planner sent these searches' cards below the "
+            "detail allowed, so these rows mix detail levels; their threshold keys record the detail allowed, not "
+            "the detail sent.",
+            "",
+        ]
     header = ["arm", "source", "rule", "τ", "searches", "errors", "coverage", "selective accuracy"]
     header += [
         "correct",

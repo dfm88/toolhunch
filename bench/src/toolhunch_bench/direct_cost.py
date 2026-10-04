@@ -106,6 +106,9 @@ class SpendGuard:
             raise SpendLimit("provider usage exceeded its conservative reservation; run stopped")
 
 
+_UNPRICED = "priced reply without input tokens"
+
+
 class GuardedDecisionModel:
     """A decision model with each real attempt guarded, priced and recorded.
 
@@ -185,7 +188,7 @@ class GuardedDecisionModel:
                         )
                     )
                     return response
-                failure = "priced reply without input tokens"
+                failure = _UNPRICED
             self._guard.record(
                 ProviderCall(
                     provider=self._provider,
@@ -200,7 +203,8 @@ class GuardedDecisionModel:
                     error=failure,
                 )
             )
-            if attempt == self._retries:
+            # A reply the provider billed but did not account for is not retried: a retry would be billed again.
+            if attempt == self._retries or failure == _UNPRICED:
                 raise ProviderFailure(failure)
         raise AssertionError("unreachable")
 

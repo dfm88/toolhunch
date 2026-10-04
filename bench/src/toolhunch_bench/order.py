@@ -127,6 +127,23 @@ class OrderDecisionModel:
                 )
             )
             raise DecisionError(f"order decision failed: {type(error).__name__}") from None
+        if upper > 0 and response.usage.input_tokens <= 0:
+            # A priced reply without input tokens cannot be accounted for: its reservation is charged, never $0.
+            self._guard.record(
+                ProviderCall(
+                    provider=provider,
+                    model=self.model_id,
+                    input_tokens=None,
+                    output_tokens=None,
+                    cache_read_tokens=None,
+                    seconds=time.perf_counter() - started,
+                    usd=None,
+                    list_usd=None,
+                    budget_charge_usd=upper,
+                    error="priced reply without input tokens",
+                )
+            )
+            raise DecisionError("order decision failed: priced reply without input tokens")
         usage = response.raw.get("usage", {})
         details: Any = cast("dict[str, Any]", usage).get("prompt_tokens_details", {}) if isinstance(usage, dict) else {}
         cached = cast("dict[str, Any]", details).get("cached_tokens") if isinstance(details, dict) else None
