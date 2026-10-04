@@ -8,7 +8,15 @@ import httpx2
 import pytest
 
 from toolhunch.cards import DetailLevel, ToolCard
-from toolhunch.decision import STRANDS_LIMITS, ChoiceAnswer, ChoiceQuestion, DecisionRequest, strands_decider
+from toolhunch.decision import (
+    STRANDS_LIMITS,
+    ChoiceAnswer,
+    ChoiceQuestion,
+    DecisionError,
+    DecisionRequest,
+    clef,
+    strands_decider,
+)
 from toolhunch.decision.planner import RoundPlan, plan_rounds
 from toolhunch.tokens import HeuristicTokenizer
 
@@ -91,3 +99,41 @@ async def test_strands_decider_answers_within_its_window() -> None:
     assert split.single is None
     assert len(split.chunks) >= 2
     assert all(chunk.question is None or chunk.question.estimated_input_tokens <= 4096 for chunk in split.chunks)
+
+
+async def test_clef_reads_the_workers_ai_envelope(monkeypatch: pytest.MonkeyPatch) -> None:
+    requests: list[httpx2.Request] = []
+    fixture, client = replay("clef_flash_tool_choice", requests)
+    model = clef("clef-flash", account_id="acc123", api_key="k", http_client=client)
+
+    response = await model.ask(REQUEST)
+
+    [sent] = requests
+    assert str(sent.url) == "https://api.cloudflare.com/client/v4/accounts/acc123/ai/run/@cf/cloudflare/clef-flash"
+    assert sent.headers["authorization"] == "Bearer k"
+    assert json.loads(sent.content)["model"] == "clef-flash"
+    answer = response.answers["tool"]
+    assert isinstance(answer, ChoiceAnswer)
+    assert list(answer.probabilities) == list(OPTIONS)
+    assert response.usage.input_tokens == fixture["response"]["result"]["usage"]["input_tokens"]
+    assert model.model_id == "clef-flash@api.cloudflare.com"
+    assert "acc123" not in model.model_id
+    assert "acc123" not in repr(model)
+    assert model.limits.max_options_per_choice == 255
+
+    # A refused request: the recorded HTTP 400 with Workers AI's error envelope.
+    _, refusing = replay("clef_error", [])
+    with pytest.raises(DecisionError, match="HTTP 400"):
+        await clef("clef-flash", account_id="acc123", api_key="k", http_client=refusing, max_retries=0).ask(REQUEST)
+
+    # HTTP 200 without a `result` object: named, with the envelope's errors, never a KeyError.
+    def no_result(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, json={"success": False, "errors": [{"code": 7003}], "messages": []})
+
+    empty = httpx2.AsyncClient(transport=httpx2.MockTransport(no_result))
+    with pytest.raises(DecisionError, match=r"no 'result' object.*7003"):
+        await clef("clef-flash", account_id="acc123", api_key="k", http_client=empty).ask(REQUEST)
+
+    monkeypatch.delenv("TOOLHUNCH_TEST_UNSET", raising=False)
+    with pytest.raises(ValueError, match="TOOLHUNCH_TEST_UNSET"):
+        clef("clef-flash", account_id_env="TOOLHUNCH_TEST_UNSET")

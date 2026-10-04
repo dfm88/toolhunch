@@ -195,6 +195,23 @@ def typesafe_api_key() -> str:
 
 
 @pytest.fixture
+def cloudflare_account() -> str:
+    """Cloudflare's account ID and API token, from the environment or .env; skips the test unless both are set."""
+    account, key = _env("CLOUDFLARE_ACCOUNT_ID"), _env("CLOUDFLARE_API_KEY")
+    if not account or not key:
+        pytest.skip("CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_KEY are not both set")
+    return account
+
+
+@pytest.fixture
+def strands_base_url() -> str:
+    """The root of a local Strands Decider server (`STRANDS_BASE_URL`); skips the test when it is not set."""
+    if not (base_url := _env("STRANDS_BASE_URL")):
+        pytest.skip("STRANDS_BASE_URL is not set")
+    return base_url
+
+
+@pytest.fixture
 def clm_base_url() -> str:
     """The CLM server root from the environment or the repository's .env; skips the test unless the key is set too."""
     base_url, key = _env("CLM_BASE_URL"), _env("CLM_API_KEY")

@@ -7,8 +7,10 @@ from toolhunch.decision import (
     DecisionRequest,
     DecisionResponse,
     OpenAILogprobModel,
+    clef,
     clm,
     jev,
+    strands_decider,
 )
 
 pytestmark = [pytest.mark.anyio, pytest.mark.live]
@@ -65,5 +67,21 @@ async def test_logprob_model_answers_a_tool_choice(openai_api_key: str) -> None:
         assert response.usage.input_tokens > 0
         assert response.usage.output_tokens == 1  # max_tokens is 1
         assert response.server_seconds is None  # this adapter has no server-side timing
+    finally:
+        await model.aclose()
+
+
+async def test_clef_flash_answers_a_tool_choice(cloudflare_account: str) -> None:
+    model = clef("clef-flash", account_id=cloudflare_account)  # the key is read from CLOUDFLARE_API_KEY
+    try:
+        assert (await check_a_tool_choice(model)).usage.input_tokens > 0
+    finally:
+        await model.aclose()
+
+
+async def test_strands_answers_a_tool_choice(strands_base_url: str) -> None:
+    model = strands_decider(strands_base_url)
+    try:
+        await check_a_tool_choice(model)
     finally:
         await model.aclose()

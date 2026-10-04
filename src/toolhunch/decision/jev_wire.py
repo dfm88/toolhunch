@@ -94,9 +94,11 @@ Over the window its server cuts the state unless it runs with `--strict-window`,
 
 _CLEF_SOURCE = (
     "developers.cloudflare.com/workers-ai/models/{model}: 65,536-token context, 1-64 questions, "
-    "${price} per M input tokens, no output charge"
+    "${price} per M input tokens, no output charge; option cap: a 255-option choice accepted on 2026-10-04 "
+    "(api-version 2026-10-01.epoch), more not tried"
 )
 CLEF_LIMITS = ModelLimits(
+    max_options_per_choice=255,
     max_request_tokens=65_536,
     max_questions_per_request=64,
     price_input_per_mtok=0.24,
