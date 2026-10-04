@@ -576,6 +576,38 @@ def order_report(
     typer.echo(f"report written to {out}")
 
 
+@app.command("compare-runs")
+def compare_runs_command(
+    reference: Annotated[Path, typer.Argument(help="The reference run directory.", exists=True, file_okay=False)],
+    candidate: Annotated[Path, typer.Argument(help="The run to compare with it.", exists=True, file_okay=False)],
+    reference_decider: Annotated[str, typer.Option(help="The decider whose searches the reference holds.")],
+    candidate_decider: Annotated[str, typer.Option(help="The decider whose searches the candidate holds.")],
+    min_top1: Annotated[float | None, typer.Option(help="Gate: the least top-card agreement that passes.")] = None,
+    max_median_dp: Annotated[float | None, typer.Option(help="Gate: the largest median |dp| that passes.")] = None,
+    out: Annotated[Path | None, typer.Option(help="Also write the comparison as JSON here.")] = None,
+) -> None:
+    """Compare two runs of the same searches, such as one model on two deployments; no provider is contacted."""
+    from toolhunch_bench.compare import compare_runs
+
+    result = compare_runs(
+        reference, candidate, reference_decider=reference_decider, candidate_decider=candidate_decider
+    )
+    if min_top1 is not None or max_median_dp is not None:
+        top1, median = result["top1_agreement"], result["median_abs_dp"]
+        result["gate"] = {
+            "min_top1": min_top1,
+            "max_median_dp": max_median_dp,
+            "passed": result["compared"] > 0
+            and (min_top1 is None or (top1 is not None and top1 >= min_top1))
+            and (max_median_dp is None or (median is not None and median <= max_median_dp)),
+        }
+    text = json.dumps(result, indent=2)
+    typer.echo(text)
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text + "\n")
+
+
 @app.command("clef-probe")
 def clef_probe_command() -> None:
     """P2 Stop 0: probe Clef and Clef-flash on Workers AI (paid, under $0.01) and save scrubbed fixtures."""
