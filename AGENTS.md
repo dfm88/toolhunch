@@ -16,8 +16,8 @@ Status: alpha.
 
 ```shell
 uv sync --all-packages              # core + bench + dev tools
-uv run pytest                       # unit tests (no network)
-uv run pytest -m live               # live tests against paid APIs; need keys in .env
+uv run pytest                       # unit tests (no network: sockets are blocked)
+TOOLHUNCH_LIVE=1 uv run pytest -m live   # live tests against paid APIs; keys in .env, opt-in in the shell
 uv run ruff format . && uv run ruff check --fix .
 uv run pyright                      # strict
 uv run --group docs mkdocs serve    # docs
@@ -65,9 +65,10 @@ Create a module when its code lands; do not add empty placeholders.
 
 ## Testing
 
-- Every library change comes with tests. `tests/` never touches the network: HTTP adapters are tested
-  with `httpx2.MockTransport` and recorded payloads.
-- Live tests carry `@pytest.mark.live` and skip when their key is missing.
+- Every library change comes with tests. `tests/` never touches the network: `pytest-socket` blocks network
+  sockets (`--disable-socket`), and HTTP adapters are tested with `httpx2.MockTransport` and recorded payloads.
+- Live tests carry `@pytest.mark.live`, get the network back, and skip unless `TOOLHUNCH_LIVE=1` is set in the
+  shell (a value in `.env` never counts) and their key is present. Never set it to check that they skip.
 - `inline-snapshot` for structured outputs; update snapshots deliberately
   (`--inline-snapshot=fix`), never blindly.
 

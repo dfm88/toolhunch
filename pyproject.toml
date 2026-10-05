@@ -45,6 +45,7 @@ dev = [
     "ipdb>=0.13.13",
     "pyright>=1.1.414",
     "pytest>=9.1.1",
+    "pytest-socket>=0.8.1",
     "python-dotenv>=1.2.3",
     "ruff>=0.16.9",
 ]
@@ -97,14 +98,23 @@ convention = "google"
 [tool.pyright]
 pythonVersion = "3.12"
 typeCheckingMode = "strict"
-include = ["src", "tests", "bench/src", "bench/tests", "examples"]
+include = ["conftest.py", "src", "tests", "bench/src", "bench/tests", "examples"]
 venvPath = "."
 venv = ".venv"
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "bench/tests"]
-addopts = ["--strict-markers", "--strict-config", "--import-mode=importlib", "-ra", "-m", "not live"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--import-mode=importlib",
+    "-ra",
+    "-m",
+    "not live",
+    "--disable-socket",
+    "--allow-unix-socket",  # asyncio and anyio open a Unix socketpair for their event loop
+]
 xfail_strict = true
 markers = [
-    "live: calls a paid external API; needs keys in .env and is skipped otherwise",
+    "live: calls a paid external API; needs its keys in .env and TOOLHUNCH_LIVE=1 in the shell, and is skipped otherwise",
 ]
