@@ -36,6 +36,9 @@ pytestmark = pytest.mark.anyio
 
 TOOLS_50 = [f"t{i:02d}" for i in range(50)]
 
+# A head for the whole question and a window per option, like a local encoder's.
+LAYA_LIKE = ModelLimits(max_question_tokens=240, max_option_tokens=12, source="test", checked=date(2026, 10, 5))
+
 
 class Words:
     """A token is a word, so a token budget can be worked out by hand."""
@@ -418,6 +421,44 @@ async def test_the_threshold_key_follows_the_payload_shape(fake_model: Any) -> N
     assert two_rounds.key.payload_shape == "0fcf3645d5f1b6f9"
 
 
+async def test_new_settings_enter_the_key_only_when_they_change_the_questions(fake_model: Any) -> None:
+    candidates = scored(*TOOLS_50[:20])
+    base = await ChoiceDecider(fake_model({}), abstention=Abstention()).decide("Request: x", candidates)
+    assert base.key.payload_shape == "db6d5d57dd5971bd"  # unchanged: the thresholds measured so far still hold
+    assert not {"min_detail", "budgets", "tokenizer"} & set(base.shape)
+
+    floored = await ChoiceDecider(fake_model({}), abstention=Abstention(), min_detail=DetailLevel.BRIEF).decide(
+        "Request: x", candidates
+    )
+    assert floored.shape["min_detail"] == "BRIEF"
+    assert floored.key != base.key
+
+    budgeted = await ChoiceDecider(fake_model({}, limits=LAYA_LIKE), abstention=Abstention()).decide(
+        "Request: x", candidates
+    )
+    assert budgeted.shape["budgets"] == {
+        "max_options_per_choice": None,
+        "max_request_tokens": None,
+        "max_state_plus_question_tokens": None,
+        "max_question_tokens": 240,
+        "max_option_tokens": 12,
+        "max_text_tokens": None,
+    }
+    assert budgeted.key != base.key
+
+    counted = await ChoiceDecider(fake_model({}), abstention=Abstention(), tokenizer=Words()).decide(
+        "Request: x", candidates
+    )
+    assert counted.shape["tokenizer"] == "Words"
+    assert counted.key != base.key
+
+    # The default tokenizer, named or not, is not a change; a floor above the ceiling is refused.
+    named = ChoiceDecider(fake_model({}), abstention=Abstention(), tokenizer=HeuristicTokenizer())
+    assert (await named.decide("Request: x", candidates)).key == base.key
+    with pytest.raises(ValueError, match="min_detail=FULL is above max_detail=BRIEF"):
+        ChoiceDecider(fake_model({}), min_detail=DetailLevel.FULL, max_detail=DetailLevel.BRIEF)
+
+
 async def test_max_detail_caps_how_the_cards_are_described(fake_model: Any) -> None:
     described = "Does a thing. Then another."
     model = fake_model({})
@@ -571,6 +612,17 @@ def test_latency_is_the_critical_path_of_the_rounds() -> None:
     partial = decision_of(exchange_of(1, seconds=0.3, server=0.03), exchange_of(2, seconds=0.2, server=None))
     assert partial.server_seconds is None
     assert partial.seconds == pytest.approx(0.5)
+
+
+def test_sequential_seconds_add_every_call() -> None:
+    decision = decision_of(
+        exchange_of(1, seconds=0.1, server=None),
+        exchange_of(1, seconds=0.3, server=None),
+        exchange_of(2, seconds=0.2, server=None),
+    )
+    assert decision.seconds == pytest.approx(0.5)  # round one's slowest, then the final
+    assert decision.sequential_seconds == pytest.approx(0.6)  # a server that answers one request at a time
+    assert decision_of().sequential_seconds == 0.0
 
 
 def test_a_model_without_choice_is_rejected(fake_model: Any) -> None:

@@ -11,7 +11,14 @@ import anyio
 
 from toolhunch.cards import DetailLevel
 from toolhunch.decision.base import ChoiceAnswer, DecisionError, DecisionRequest, DecisionUsage
-from toolhunch.decision.planner import NONE_KEY, PROMPT_VERSION, fit_state, plan_question, plan_rounds
+from toolhunch.decision.planner import (
+    NONE_KEY,
+    PROMPT_VERSION,
+    CandidatesDoNotFit,
+    fit_state,
+    plan_question,
+    plan_rounds,
+)
 from toolhunch.retrieval.base import ScoredCard
 from toolhunch.tokens import HeuristicTokenizer
 
@@ -107,7 +114,11 @@ class Decision:
         abstained: Whether the decider says that no candidate fits. `ranked` is kept either way.
         key: What any threshold applied to this decision holds for.
         shape: What `key.payload_shape` digests: the number of candidates, the option count of every question asked
-            in each round, whether there was a reserved option, and the settings that shape the questions.
+            in each round, whether there was a reserved option, and the settings that shape the questions. A
+            setting that leaves the questions as they were before it existed is left out, so a key from before
+            it still holds: `"min_detail"` only above `NAME`, `"budgets"` (the limits the questions were planned
+            under) only when the model declares `max_question_tokens` or `max_option_tokens`, and `"tokenizer"`
+            (its class name) only when it is not a `HeuristicTokenizer`.
         state_cut: Whether the state was cut to fit the model.
         exchanges: Every call made: round one in chunk order, then the final question. Empty when nothing was asked.
     """
@@ -134,6 +145,14 @@ class Decision:
         the `seconds` of the responses, not measured around the calls.
         """
         return _critical_path((exchange.round, exchange.response.seconds) for exchange in self.exchanges)
+
+    @property
+    def sequential_seconds(self) -> float:
+        """How long the calls take against a server that answers one request at a time: every call's `seconds` added.
+
+        0.0 when nothing was asked. Compare `seconds`, which counts the calls of round one as running at the same time.
+        """
+        return sum((exchange.response.seconds for exchange in self.exchanges), 0.0)
 
     @property
     def server_seconds(self) -> float | None:
@@ -177,8 +196,11 @@ class ChoiceDecider:
 
     A state over the model's budget is cut in the middle by `fit_state`, and `Decision.state_cut` says so. With no
     candidate, or one and no reserved option, there is nothing to choose between and nothing is asked. Cards are
-    described to the model by `max_detail` at most, lower when a limit demands it, and counted by `tokenizer`
-    (`HeuristicTokenizer` by default).
+    described to the model by `max_detail` at most and `min_detail` at least, lower when a limit demands it, and
+    counted by `tokenizer` (`HeuristicTokenizer` by default). A question that fits only below `min_detail` is split
+    into groups instead. What these settings and the model's declared budgets do to the questions enters
+    `Decision.shape` only when it differs from the defaults, and the tokenizer's class name enters it when it is not
+    the default one, so a threshold keeps its key until the questions it was measured on change.
 
     A model failure is raised as it is, `DecisionError` for a call that failed or answered something that does not
     match the question, with no fallback to retrieval order.
@@ -190,13 +212,15 @@ class ChoiceDecider:
         *,
         abstention: Abstention | None = None,
         max_detail: DetailLevel = DetailLevel.FULL,
+        min_detail: DetailLevel = DetailLevel.NAME,
         finalists_per_chunk: int = 2,
         tokenizer: Tokenizer | None = None,
     ) -> None:
         """Configure the decider.
 
         Raises:
-            ValueError: `model` does not answer choice questions, or `finalists_per_chunk` is below 1.
+            ValueError: `model` does not answer choice questions, `finalists_per_chunk` is below 1, or `min_detail`
+                is above `max_detail`.
         """
         if "choice" not in model.question_kinds:
             raise ValueError(
@@ -205,10 +229,13 @@ class ChoiceDecider:
             )
         if finalists_per_chunk < 1:
             raise ValueError(f"finalists_per_chunk must be at least 1, got {finalists_per_chunk}")
+        if min_detail > max_detail:
+            raise ValueError(f"min_detail={min_detail.name} is above max_detail={max_detail.name}")
         self._model = model
         self._abstention = abstention
         self._reserved = abstention is not None and abstention.reserved_option
         self._max_detail = max_detail
+        self._min_detail = min_detail
         self._finalists_per_chunk = finalists_per_chunk
         self._tokenizer: Tokenizer = HeuristicTokenizer() if tokenizer is None else tokenizer
 
@@ -218,9 +245,16 @@ class ChoiceDecider:
         `candidates` come in retrieval order, best first, and that order breaks every tie.
 
         Raises:
-            ValueError: The candidates do not have distinct card ids. Or they do not fit the model's limits:
-                more than two rounds hold, the finalists of round one do not fit its token budget, the state's
-                search queries alone take its state budget, or a card cannot be shown within a per-text cap.
+            ValueError: The candidates do not have distinct card ids, or the state's search queries alone take
+                its state budget.
+            CandidatesDoNotFit: The candidates do not fit the model's limits, however they are asked. A
+                `ValueError`, raised before the first call. `card_id` is the id of the card no question can show:
+                its name is over `max_text_tokens`, or its option key and framing are over `max_option_tokens`.
+                It is `None` when the candidates as a whole do not fit: more than two rounds hold, two of them do
+                not fit the token budget together, or not even one finalist from each group fits the final
+                question. With `card_id` `None` it is also what stops a final question that does not fit after
+                round one has been asked, which the check before the first call cannot rule out when tools share
+                a name.
             DecisionError: A call to the model failed or its answer does not match the question. Round one asks
                 its chunks at the same time; when several fail, the first in chunk order is raised, and the calls
                 of the other chunks are not cancelled.
@@ -243,6 +277,7 @@ class ChoiceDecider:
             limits=limits,
             tokenizer=self._tokenizer,
             max_detail=self._max_detail,
+            min_detail=self._min_detail,
             finalists_per_chunk=self._finalists_per_chunk,
         )
         rounds = await self._ask_rounds(state, cards, plan)
@@ -301,10 +336,13 @@ class ChoiceDecider:
             limits=self._model.limits,
             tokenizer=self._tokenizer,
             max_detail=self._max_detail,
+            min_detail=self._min_detail,
         )
         if final is None:
-            raise ValueError(
-                f"the {len(finalists)} finalists of the first round do not fit the token budget of "
+            # `plan_rounds` checked a worst-case final before the first call, so this is a guard against a final
+            # that costs more than the worst case did, as with repeated names, which the final keys `name #2`.
+            raise CandidatesDoNotFit(
+                f"the {len(finalists)} finalists of the first round do not fit the final question of "
                 f"{self._model.model_id}: {len(cards)} candidates are more than two rounds can rank with these limits"
             )
         return [[asked for asked in first if asked is not None], [await self._ask(state, final, round_number=2)]]
@@ -378,6 +416,22 @@ class ChoiceDecider:
             "questions_per_request": 1,
             "option_keys": _OPTION_KEYS,
         }
+        # Each field below enters only when it differs from what the decider did before it existed, so an existing
+        # key does not move.
+        if self._min_detail > DetailLevel.NAME:
+            shape["min_detail"] = self._min_detail.name
+        limits = self._model.limits
+        if limits.max_question_tokens is not None or limits.max_option_tokens is not None:
+            shape["budgets"] = {
+                "max_options_per_choice": limits.max_options_per_choice,
+                "max_request_tokens": limits.max_request_tokens,
+                "max_state_plus_question_tokens": limits.max_state_plus_question_tokens,
+                "max_question_tokens": limits.max_question_tokens,
+                "max_option_tokens": limits.max_option_tokens,
+                "max_text_tokens": limits.max_text_tokens,
+            }
+        if type(self._tokenizer) is not HeuristicTokenizer:
+            shape["tokenizer"] = type(self._tokenizer).__qualname__
         canonical = json.dumps(shape, sort_keys=True, separators=(",", ":"))
         own_version = self._model.prompt_version
         return Decision(

@@ -24,6 +24,16 @@ All notable changes to this project are documented here. The format follows
   decider, local ones drawn hollow with their machine in the caption.
 - `DecisionError.status`: the HTTP status a server refused the call with, after any retries; `None` for every other
   failure.
+- `ModelLimits.max_question_tokens` and `ModelLimits.max_option_tokens`: the tokens one question may take (its
+  instructions and every option) and the tokens one option may take as the server renders it (key, framing and
+  text). The planner keeps every question within them.
+- `ChoiceDecider(min_detail=...)`: a floor under the detail the cards are shown at. A question that fits only below
+  it is split into groups instead of dropping descriptions. `render_within_budget`, `plan_question` and
+  `plan_rounds` take it too, and `render_within_budget` accepts one text cap per card.
+- `CandidatesDoNotFit`, a `ValueError` for candidates no question can hold within a model's limits. Its `card_id` is
+  the card that cannot be shown, or `None` when the list as a whole does not fit.
+- `Decision.sequential_seconds`: the decision's time against a server that answers one request at a time, every
+  call's time added. `Decision.seconds` keeps counting the calls of round one as simultaneous.
 
 ### Changed
 
@@ -35,6 +45,18 @@ All notable changes to this project are documented here. The format follows
 - Benchmark runs stop when a provider refuses the key, the payment or the permission (HTTP 401, 402, 403), or after
   three failed attempts in a row at one provider with HTTP 429, a server fault or no reply; the manifest says why.
   A figure takes each decider's color, and whether it is shown, from its registry entry.
+- When a model declares `max_option_tokens` and a tool's name, at name level, is over it, the option is sent as its
+  key alone with no text, since at that level the text only repeats the key. A key that does not fit raises
+  `CandidatesDoNotFit` with the card's `card_id`, as does a name over `max_text_tokens`, which raised a plain
+  `ValueError` before.
+- When the candidates need two rounds, `plan_rounds` checks before the first call that a final question fits, at the
+  worst case of the finalists the first round can keep, and keeps one finalist per group when more do not fit. A list
+  that cannot be asked about raises `CandidatesDoNotFit` before any call, where it used to fail after the first
+  round's calls were paid for. Code that caught `ValueError` still catches it.
+- `Decision.shape`, and so `ThresholdKey.payload_shape`, gains `min_detail`, `budgets` (the limits the questions were
+  planned under) and `tokenizer` (its class name), each only when it differs from the default: above `NAME`, when
+  the model declares `max_question_tokens` or `max_option_tokens`, and when the tokenizer is not a
+  `HeuristicTokenizer`. Every existing key is unchanged.
 
 - Development status: alpha, from pre-alpha.
 
