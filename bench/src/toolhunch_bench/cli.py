@@ -743,8 +743,8 @@ def direct(
 
     Without options it runs the five P1 arms; `--luna` the agent arms with GPT-6 Luna; `--deciders` the decider arms
     of the deciders named, merged later into the P1 report with `direct-report --add`. Before the estimate, each
-    `<name>-all` arm plans every request of each catalog without asking anything: a catalog two rounds cannot hold is
-    not applicable for it, and neither estimated nor run.
+    `<name>-all` arm plans every request of each catalog without asking anything: a catalog with a request that does
+    not fit the two-round policy is not applicable for it, and neither estimated nor run.
     """
     from dataclasses import asdict
 
@@ -757,9 +757,10 @@ def direct(
         raise typer.BadParameter("--deciders and --luna run different arms; give one", param_hint="--deciders")
     details = _details(max_detail, option="--max-detail")
     floors = _details(min_detail, option="--min-detail")
-    if (details or floors) and not names:
+    if strays := sorted(set(details).union(floors).difference(names)):
         raise typer.BadParameter(
-            "detail settings apply to the --deciders arms", param_hint="--max-detail, --min-detail"
+            f"{', '.join(strays)} not among --deciders: detail settings apply to its arms",
+            param_hint="--max-detail, --min-detail",
         )
     _check_floors(floors, ceilings=details)
     data = load_toolret(cache_dir=TOOLRET_CACHE)

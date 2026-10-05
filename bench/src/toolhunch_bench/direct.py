@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from toolhunch import Retriever, ToolCard
     from toolhunch.decision import DecisionModel
     from toolhunch.retrieval import EmbeddingKind
+    from toolhunch.tokens import Tokenizer
     from toolhunch_bench.datasets.toolret import ToolRetTask
     from toolhunch_bench.embedding_cache import CachedEmbedder
 
@@ -179,7 +180,7 @@ def planned_not_applicable(
     max_detail: Mapping[str, DetailLevel] | None = None,
     min_detail: Mapping[str, DetailLevel] | None = None,
 ) -> dict[tuple[str, str], dict[str, str]]:
-    """The `<name>-all` arms and catalogs whose requests two rounds cannot hold, found without asking anything.
+    """The `<name>-all` arms and catalogs with a request that does not fit the two-round policy, found asking nothing.
 
     Each request of each catalog is planned as the run would ask it: the state `ToolSearchPipeline` builds from the
     request, cut by `fit_state`, then `plan_rounds` over the whole catalog with the reserved option, the decider's
@@ -196,9 +197,12 @@ def planned_not_applicable(
     for arm in arms:
         if (name := arm_decider(arm)) is None or arm_searches(arm):
             continue
-        limits, tokenizer = models[name].limits, planner_tokenizer(name)
+        limits, tokenizer = models[name].limits, _CountOnce(planner_tokenizer(name))
         top = (max_detail or {}).get(name, DetailLevel.FULL)
         floor = (min_detail or {}).get(name, DetailLevel.NAME)
+        # `plan_rounds` reads the state only through its token count, so a request with the same cards and as long a
+        # state has the same plan: the positives of a catalog differ in their state alone.
+        planned: set[tuple[int, tuple[str, ...]]] = set()
         for selected in catalogs:
             for task, _variant, catalog, _phase in selected.requests():
                 cards = list(catalog)
@@ -207,6 +211,10 @@ def planned_not_applicable(
                 state, _ = fit_state(
                     build_state(task.query, clean_queries([task.query])), limits=limits, tokenizer=tokenizer
                 )
+                key = (tokenizer.count(state), tuple(card.id for card in cards))
+                if key in planned:
+                    continue
+                planned.add(key)
                 try:
                     plan_rounds(
                         state,
@@ -222,6 +230,19 @@ def planned_not_applicable(
                     found[(arm, selected.source)] = {"reason": str(unfit), "source": "planner", "date": today}
                     break
     return found
+
+
+class _CountOnce:
+    """`inner`, counting each distinct text once: planning a catalog counts the same card texts again and again."""
+
+    def __init__(self, inner: Tokenizer) -> None:
+        self._inner = inner
+        self._counts: dict[str, int] = {}
+
+    def count(self, text: str, /) -> int:
+        if (tokens := self._counts.get(text)) is None:
+            tokens = self._counts[text] = self._inner.count(text)
+        return tokens
 
 
 class CatalogOrderRetriever:
@@ -476,7 +497,8 @@ class DirectRunner:
         """Write requests incrementally and stop on budget exhaustion, a crash, or more than 5% errors in an arm.
 
         Only provider errors count towards the 5%: a search the planner could not ask about is recorded and reported,
-        and the run goes on.
+        and the run goes on. As in decision runs, a search whose candidates do not fit the two-round policy has its
+        reason in `not_applicable` and no error; one with a card no question can show names it in `failed_card`.
         """
         run_dir = out_dir / run_id
         run_dir.mkdir(parents=True, exist_ok=False)
@@ -600,7 +622,7 @@ class DirectRunner:
             "detail": [],
             "key_only_options": [],
             "card_options": [],
-            "not_applicable": False,
+            "not_applicable": None,
             "failed_card": None,
             "decision_key": None,
             "historical_usage": None,
@@ -635,13 +657,12 @@ class DirectRunner:
                 try:
                     result = await pipeline.search([task.query], ToolCatalog(cards), context=task.query)
                 except CandidatesDoNotFit as unfit:
-                    # As in decision runs: raised before any ask without a card, two rounds cannot hold the list.
-                    # With a card, or after round one was asked, the search failed.
-                    record |= {
-                        "error": str(unfit),
-                        "not_applicable": unfit.card_id is None and counted.count() == 0,
-                        "failed_card": unfit.card_id,
-                    }
+                    # As in decision runs: raised before any ask without a card, the list does not fit the two-round
+                    # policy. With a card, or after round one was asked, the search failed.
+                    if unfit.card_id is None and counted.count() == 0:
+                        record["not_applicable"] = str(unfit)
+                    else:
+                        record |= {"error": str(unfit), "failed_card": unfit.card_id}
                 else:
                     assert result.decision is not None
                     decision = result.decision

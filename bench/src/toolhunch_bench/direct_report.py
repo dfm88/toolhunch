@@ -12,6 +12,7 @@ from toolhunch_bench import without_local_root
 from toolhunch_bench.deciders import report_caveats
 from toolhunch_bench.direct import DIRECT_ARMS, LUNA_ARMS, NOT_APPLICABLE, arm_decider, arm_searches
 from toolhunch_bench.metrics import Outcome, cluster_bootstrap_ci, percentile, selective_metrics
+from toolhunch_bench.retrieval import repo_path
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -70,7 +71,9 @@ def _row(
     catalog: str,
     baseline: dict[tuple[str, str], bool],
 ) -> dict[str, Any]:
-    positives = [r for r in records if r["variant"] == "positive"]
+    # A search with a card no question can show is counted as an error, and left out of the relevant-pick rate as a
+    # decision report leaves it out; a provider's failure stays a miss there.
+    positives = [r for r in records if r["variant"] == "positive" and r.get("failed_card") is None]
     parsed = [r for r in records if r["error"] is None and r["abstained"] is not None]
 
     def correct(r: dict[str, Any]) -> bool:
@@ -171,64 +174,92 @@ def _rounds(records: Sequence[dict[str, Any]]) -> dict[str, Any]:
 
 
 def _planning(records: Sequence[dict[str, Any]]) -> dict[str, Any]:
-    """What a decider arm's planner could not show in full, or not ask about at all.
+    """What a decider arm's planner could not show in full, and its searches that failed or were not applicable.
 
     - `key_only_option_share`: the share of the card options sent as their key alone, with an empty text; the
       reserved option is not a card. `None` when no card option was sent, or for a run from before key-only options
       were recorded.
-    - `failed_searches`: the failed searches, counted by their message: a card no question can show, a final question
-      that did not fit once round one was asked, or a provider's failure.
-    - `not_applicable_searches`: how many searches had candidates two rounds cannot hold, and the most common
-      reason; `None` when there is none.
-
-    Failed and not-applicable searches both count as errors in the row's figures.
+    - `failed_card_searches`: the searches with a card no question can show. They count as errors, and are left out of
+      the relevant-pick rate.
+    - `not_applicable_searches`: the searches whose candidates do not fit the two-round policy. One makes its arm and
+      catalog not applicable, so an applicable row has none.
+    - `provider_failures`: the other failed searches, which count as errors and misses: a provider's failure, or the
+      decider's guard against a final question that does not fit once round one was asked, which names no card.
+    - `failure_reasons`: the messages of the failed searches and how many each, by kind (`failed_card`, `provider`).
     """
     asked = [r for r in records if r["detail"]]
     recorded = all("key_only_options" in r for r in asked)
     sent = sum(sum(r["card_options"]) for r in asked) if recorded else 0
     key_only = sum(len(keys) for r in asked for keys in r["key_only_options"]) if recorded else 0
-    unfit = Counter[str](r["error"] for r in records if r.get("not_applicable"))
+    reasons: dict[str, Counter[str]] = {"failed_card": Counter(), "provider": Counter()}
+    for r in records:
+        if r["error"] is not None:
+            reasons["failed_card" if r.get("failed_card") is not None else "provider"][r["error"]] += 1
     return {
         "key_only_option_share": key_only / sent if sent else None,
-        "failed_searches": dict(
-            Counter[str](r["error"] for r in records if r["error"] is not None and not r.get("not_applicable"))
-        ),
-        "not_applicable_searches": {"searches": unfit.total(), "reason": unfit.most_common(1)[0][0]} if unfit else None,
+        "failed_card_searches": reasons["failed_card"].total(),
+        "not_applicable_searches": sum(r.get("not_applicable") is not None for r in records),
+        "provider_failures": reasons["provider"].total(),
+        "failure_reasons": {kind: dict(counts) for kind, counts in reasons.items()},
     }
 
 
 def _planning_caveats(rows: Sequence[dict[str, Any]]) -> list[str]:
-    """Per decider arm and catalog, the key-only options, failed searches and lists two rounds cannot hold.
+    """Per decider arm and catalog, the key-only options and the failed searches by kind.
 
-    Nothing when none of these occurred.
+    Nothing when none of these occurred. An arm and catalog with a search whose candidates do not fit the two-round
+    policy is listed with the non-applicable pairs instead.
     """
     items: list[str] = []
     for row in rows:
         if (
             row["status"] != "applicable"
             or row["catalog"] in ("pooled", "all_catalogs")
-            or "failed_searches" not in row
+            or "failure_reasons" not in row
         ):
             continue
-        share, failed, unfit = row["key_only_option_share"], row["failed_searches"], row["not_applicable_searches"]
+        share, reasons = row["key_only_option_share"], row["failure_reasons"]
         parts = [f"{share:.1%} of the card options sent as their key alone"] if share else []
-        if failed:
-            count = sum(failed.values())
-            listed = "; ".join(f"{reason} ({times:,})" for reason, times in failed.items())
-            parts.append(f"{count:,} failed {'search' if count == 1 else 'searches'}: {listed}")
-        if unfit is not None:
-            parts.append(f"{unfit['searches']:,} searches not applicable: {unfit['reason']}")
+        for kind, label in (("failed_card", "on a card no question can show"), ("provider", "otherwise")):
+            if counts := reasons[kind]:
+                count = sum(counts.values())
+                listed = "; ".join(f"{reason} ({times:,})" for reason, times in counts.items())
+                parts.append(f"{count:,} {'search' if count == 1 else 'searches'} failed {label}: {listed}")
         if parts:
             items.append(f"{row['arm']}, {row['catalog']}: {'; '.join(parts)}.")
     if not items:
         return []
     return [
-        "**Key-only options, failed searches and lists two rounds cannot hold.** A card whose name would take its "
-        "option past the model's per-option window is sent as its key alone, the name itself. A search with a card no "
-        "question can show fails, and so does one whose final question does not fit once round one was asked; a "
-        "search whose candidates two rounds cannot hold is not applicable. Both count as errors in their rows.",
+        "**Key-only options and failed searches.** A card whose name would take its option past the model's "
+        "per-option window is sent as its key alone, the name itself. A search with a card no question can show "
+        "fails: it counts as an error and is left out of the relevant-pick rate. A search that failed otherwise, at "
+        "the provider or once round one was asked, counts as an error and a miss.",
         *items,
     ]
+
+
+def _unfit_pairs(
+    run_dir: Path, manifest: dict[str, Any], records: Sequence[dict[str, Any]]
+) -> dict[tuple[str, str], dict[str, Any]]:
+    """The arms and catalogs of one run with a search whose candidates do not fit the two-round policy.
+
+    As in a decision report, such a pair gives no relevant-pick rate: its figures would describe only the candidate
+    lists that happened to fit. Its evidence is the most common reason, the run's records and date, and the count of
+    such searches.
+    """
+    found: dict[tuple[str, str], Counter[str]] = {}
+    for r in records:
+        if r.get("not_applicable") is not None:
+            found.setdefault((r["arm"], r["catalog"]), Counter())[r["not_applicable"]] += 1
+    return {
+        pair: {
+            "reason": reasons.most_common(1)[0][0],
+            "source": f"{repo_path(run_dir)}/run.jsonl",
+            "date": manifest["started"][:10],
+            "searches": reasons.total(),
+        }
+        for pair, reasons in found.items()
+    }
 
 
 def _label(row: dict[str, Any]) -> str:
@@ -260,6 +291,7 @@ def build_direct_report(run_dir: Path, *, out_dir: Path, added: Sequence[Path] =
     own_calls = list(calls)
     manifests = [manifest]
     search_ms = {run_dir.name: _search_ms(records)}
+    unfit = _unfit_pairs(run_dir, manifest, records)
     for path in added:
         extra = json.loads((path / "manifest.json").read_text())
         if extra["tasks_sha256"] != manifest["tasks_sha256"] or extra["dataset"] != manifest["dataset"]:
@@ -269,6 +301,7 @@ def build_direct_report(run_dir: Path, *, out_dir: Path, added: Sequence[Path] =
         manifests.append(extra)
         extra_records = _lines(path / "run.jsonl")
         search_ms[path.name] = _search_ms(extra_records)
+        unfit |= _unfit_pairs(path, extra, extra_records)
         records += extra_records
         calls += _lines(path / "calls.jsonl")
     not_applicable = dict(NOT_APPLICABLE)
@@ -276,6 +309,8 @@ def build_direct_report(run_dir: Path, *, out_dir: Path, added: Sequence[Path] =
         not_applicable[(exclusion["arm"], exclusion["catalog"])] = {
             field: exclusion[field] for field in ("reason", "source", "date")
         }
+    for pair, evidence in unfit.items():
+        not_applicable.setdefault(pair, evidence)
     added_arms = list(dict.fromkeys(r["arm"] for r in records if r["arm"] not in DIRECT_ARMS))
     arms = [*DIRECT_ARMS, *(arm for arm in LUNA_ARMS if arm in added_arms)]
     arms += [arm for arm in added_arms if arm not in LUNA_ARMS]
@@ -307,6 +342,7 @@ def build_direct_report(run_dir: Path, *, out_dir: Path, added: Sequence[Path] =
                         "status": "not applicable",
                         "reason": not_applicable[pair]["reason"],
                         "evidence": not_applicable[pair],
+                        "not_applicable_searches": not_applicable[pair].get("searches"),
                         "excluded_requests": len(rejected),
                         "excluded_rejected_attempts": sum(r["error"] is not None for r in rejected),
                         "rejection_diagnostics": sorted({r["error"] for r in rejected if r["error"] is not None}),
@@ -317,8 +353,11 @@ def build_direct_report(run_dir: Path, *, out_dir: Path, added: Sequence[Path] =
                         "none_option": None,
                         "positive_cost": None,
                         "negative_cost": None,
+                        # The rejected attempts alone: a pair found not applicable in a run also holds searches
+                        # that were answered.
                         "excluded_attempt_cost": {
-                            phase: _cost(rejected, phase=phase, arm=arm) for phase in ("cold", "warm", "negative")
+                            phase: _cost([r for r in rejected if r["error"] is not None], phase=phase, arm=arm)
+                            for phase in ("cold", "warm", "negative")
                         },
                     }
                 )
@@ -595,8 +634,10 @@ def _markdown(summary: dict[str, Any]) -> str:
     ]
     for row in summary["rows"]:
         if row["status"] == "not applicable":
+            searches = row["not_applicable_searches"]
+            picks = "n/a" if searches is None else f"not applicable ({searches:,})"
             lines.append(
-                f"| {row['arm']} | {row['catalog']} (not applicable) | n/a | n/a | n/a | n/a | "
+                f"| {row['arm']} | {row['catalog']} (not applicable) | {picks} | n/a | n/a | n/a | "
                 f"{row['excluded_rejected_attempts']} rejected attempts, excluded |"
             )
             continue

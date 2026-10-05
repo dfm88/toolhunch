@@ -915,24 +915,28 @@ async def test_direct_plans_not_applicable_catalogs_and_counts_key_only_options(
 ) -> None:
     # Four options per question and the reserved option: two rounds hold at most 4 x 3 = 12 candidates. Within a
     # 12-token option, a name of 5 to 8 heuristic tokens is sent as its key alone, and a longer one cannot be shown.
-    small, large = "webtools_spotify", "tooleyes"
-    sources = {small: "restgpt-spotify", large: "tooleyes"}
+    # `small` fits; `large` has 14 tools, 13 of them about the weather; `mixed` has a tool no question can show, which
+    # only its first task's query ("weather station") retrieves.
+    small, large, mixed = "webtools_spotify", "tooleyes", "apibank"
+    sources = {small: "restgpt-spotify", large: "tooleyes", mixed: "apibank"}
     original = data(sources=sources, count=2)
     extra = [
         ToolCard(id=f"{small}_long", name="horoscope reading", description="Daily horoscope.", source=small),
         *(
-            ToolCard(id=f"{large}_extra_{i}", name=f"extra_{i}", description="Unrelated utility.", source=large)
-            for i in range(9)
+            ToolCard(id=f"{large}_forecast_{i}", name=f"forecast_{i}", description="Weather outlook.", source=large)
+            for i in range(11)
         ),
         ToolCard(
-            id=f"{large}_unshowable",
-            name="weather station reading by identifier",
-            description="Weather station data.",
-            source=large,
+            id=f"{mixed}_unshowable",
+            name="barometric station reading by identifier",
+            description="Station data.",
+            source=mixed,
         ),
     ]
-    selected = direct_catalogs(replace(original, catalog=ToolCatalog([*original.catalog, *extra])), sources=sources)
-    assert [len(c.catalog) for c in selected] == [4, 13]
+    tasks = tuple(replace(task, query="weather station") if task.id == "apibank_0" else task for task in original.tasks)
+    catalog = ToolCatalog([*original.catalog, *extra])
+    selected = direct_catalogs(replace(original, catalog=catalog, tasks=tasks), sources=sources)
+    assert [len(c.catalog) for c in selected] == [4, 14, 4]
     limits = ModelLimits(
         max_options_per_choice=4,
         max_question_tokens=240,
@@ -945,14 +949,15 @@ async def test_direct_plans_not_applicable_catalogs_and_counts_key_only_options(
 
     # As the direct command does: planned before the estimate, then excluded from the estimate and the run alike.
     planned = planned_not_applicable(selected, arms=arms, models={"strands": model})
-    assert list(planned) == [("strands-all", large)]
-    assert planned[("strands-all", large)]["source"] == "planner"
+    assert list(planned) == [("strands-all", large), ("strands-all", mixed)]
+    assert {evidence["source"] for evidence in planned.values()} == {"planner"}
     assert "at most 12 candidates fit two rounds" in planned[("strands-all", large)]["reason"]
+    assert f"card '{mixed}_unshowable'" in planned[("strands-all", mixed)]["reason"]
     assert not model.asks
     estimate = await estimate_direct(
         selected, retriever=BM25Retriever(), models={"strands": model}, not_applicable=planned, arms=arms
     )
-    assert estimate.planned_requests_by_arm == {"hybrid@20+strands": 6, "strands-all": 3}
+    assert estimate.planned_requests_by_arm == {"hybrid@20+strands": 9, "strands-all": 3}
     guard = SpendGuard()
     directory = await DirectRunner(
         retriever=BM25Retriever(),
@@ -965,32 +970,49 @@ async def test_direct_plans_not_applicable_catalogs_and_counts_key_only_options(
 
     manifest = json.loads((directory / "manifest.json").read_text())
     records = [json.loads(line) for line in (directory / "run.jsonl").read_text().splitlines()]
-    assert manifest["not_applicable"] == [{"arm": "strands-all", "catalog": large, **planned[("strands-all", large)]}]
-    assert not any(r["arm"] == "strands-all" and r["catalog"] == large for r in records)
-    assert {r["catalog"] for r in records if r["arm"] == "hybrid@20+strands"} == {small, large}
+    assert manifest["not_applicable"] == [
+        {"arm": arm, "catalog": source, **planned[(arm, source)]} for arm, source in planned
+    ]
+    assert {r["catalog"] for r in records if r["arm"] == "strands-all"} == {small}
+    assert {r["catalog"] for r in records if r["arm"] == "hybrid@20+strands"} == {small, large, mixed}
     assert {key: manifest["deciders"]["strands"][key] for key in ("max_detail", "min_detail", "tokenizer")} == {
         "max_detail": "FULL",
         "min_detail": "NAME",
         "tokenizer": repr(HeuristicTokenizer()),
     }
-    # The searched weather tools include one no question can show: each of those searches fails on that card, is
-    # recorded, and does not stop the run, which stops on provider errors alone.
-    failed = [r for r in records if r["error"] is not None]
-    assert {(r["arm"], r["catalog"], r["failed_card"], r["not_applicable"]) for r in failed} == {
-        ("hybrid@20+strands", large, f"{large}_unshowable", False)
-    }
-    assert len(failed) == 3
+    # Recorded as decision runs record them. Searching `large`, each positive retrieves 13 tools: not applicable,
+    # with no error. Searching `mixed` for "weather station" retrieves the tool no question can show: failed. Neither
+    # stops the run, which stops on provider errors alone.
+    unfit = [r for r in records if r["not_applicable"] is not None]
+    assert {(r["catalog"], r["variant"], r["error"]) for r in unfit} == {(large, "positive", None)}
+    assert len(unfit) == 2
+    assert "at most 12 candidates fit two rounds" in unfit[0]["not_applicable"]
+    [failed] = [r for r in records if r["error"] is not None]
+    assert (failed["catalog"], failed["task"], failed["failed_card"]) == (mixed, "apibank_0", f"{mixed}_unshowable")
     assert manifest["completed"] is True
-    assert (manifest["errors"]["hybrid@20+strands"], manifest["provider_errors"]["hybrid@20+strands"]) == (3, 0)
+    assert (manifest["errors"]["hybrid@20+strands"], manifest["provider_errors"]["hybrid@20+strands"]) == (1, 0)
 
     summary = build_direct_report(directory, out_dir=tmp_path / "report")
     rows = {(row["arm"], row["catalog"]): row for row in summary["rows"]}
+    assert summary["applicability"]["common_catalogs"] == [small]
     assert rows[("strands-all", large)]["status"] == "not applicable"
     assert rows[("strands-all", large)]["evidence"]["source"] == "planner"
+    # One search that does not fit the two-round policy makes the cell not applicable, with its count and no P@1.
+    searched_large = rows[("hybrid@20+strands", large)]
+    assert (searched_large["status"], searched_large["not_applicable_searches"]) == ("not applicable", 2)
+    assert searched_large["relevant_pick_rate"] is None
+    # The failed card is counted and left out of P@1: the other positive picked a relevant tool.
+    searched_mixed = rows[("hybrid@20+strands", mixed)]
+    assert searched_mixed["relevant_pick_rate"]["value"] == 1
+    assert (searched_mixed["positives"], searched_mixed["none_option"]["errors"]) == (1, 1)
+    assert (searched_mixed["failed_card_searches"], searched_mixed["provider_failures"]) == (1, 0)
     # Each positive asks all four cards, the long name as its key alone, then its two finalists with the reserved
     # option; the negative asks the two cards left with the reserved option. 3 key-only of 2 x (4 + 2) + 2 options.
     assert rows[("strands-all", small)]["key_only_option_share"] == pytest.approx(3 / 14)
-    assert sum(rows[("hybrid@20+strands", large)]["failed_searches"].values()) == 3
     readme = (tmp_path / "report" / "README.md").read_text()
+    assert f"| hybrid@20+strands | {large} (not applicable) | not applicable (2) |" in readme
     assert f"- strands-all, {small}: 21.4% of the card options sent as their key alone." in readme
-    assert f"- hybrid@20+strands, {large}: 3 failed searches: card '{large}_unshowable'" in readme
+    assert (
+        f"- hybrid@20+strands, {mixed}: 1 search failed on a card no question can show: card '{mixed}_unshowable'"
+        in (readme)
+    )
