@@ -18,8 +18,8 @@ All notable changes to this project are documented here. The format follows
   state, collapsed options into one, answered with another checkpoint than the one asked for, or carries no
   `routing`.
 - `rizzo_flow()`: a local rizzo-flow server (`rizzo serve`), with `RIZZO_FLOW_LIMITS` (26 options, 8,000 characters
-  in each option's text, held as 2,666 tokens by the default tokenizer, and an 8,192-token context for each question
-  with its state, less the server's template). The default model id names the weights,
+  in each option, key and text together, held as 2,666 tokens by the default tokenizer, and an 8,192-token context
+  for each question with its state, less the server's template). The default model id names the weights,
   `rizzo-flow-4b-q8_0`.
 - `clef()`: Cloudflare's Clef and Clef-flash on Workers AI, with `CLEF_LIMITS` and `CLEF_FLASH_LIMITS`. The account
   ID goes into the URL only, never into `model_id` or `repr`.
@@ -47,7 +47,7 @@ All notable changes to this project are documented here. The format follows
   failure.
 - `ModelLimits.max_question_tokens` and `ModelLimits.max_option_tokens`: the tokens one question may take (its
   instructions and every option) and the tokens one option may take as the server renders it (key, framing and
-  text). The planner keeps every question within them.
+  text). The planner keeps every question within them, as the decider's tokenizer counts.
 - `ChoiceDecider(min_detail=...)`: a floor under the detail the cards are shown at. A question that fits only below
   it is split into groups instead of dropping descriptions. `render_within_budget`, `plan_question` and
   `plan_rounds` take it too, and `render_within_budget` accepts one text cap per card.
@@ -77,7 +77,8 @@ All notable changes to this project are documented here. The format follows
 - `Decision.shape`, and so `ThresholdKey.payload_shape`, gains `min_detail`, `budgets` (the limits the questions were
   planned under) and `tokenizer` (its class name), each only when it differs from the default: above `NAME`, when
   the model declares `max_question_tokens` or `max_option_tokens`, and when the tokenizer is not a
-  `HeuristicTokenizer`. Every existing key is unchanged.
+  `HeuristicTokenizer`. Every key computed with the default tokenizer is unchanged; a decider built with another
+  tokenizer now records its class name, so its key moves and its threshold must be chosen again.
 
 - Development status: alpha, from pre-alpha.
 

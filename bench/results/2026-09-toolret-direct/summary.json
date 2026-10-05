@@ -2100,7 +2100,8 @@
         "agent-luna-all"
       ],
       "replaced": [],
-      "verified_usd": 0.07478999
+      "verified_usd": 0.16999999,
+      "contributed_verified_usd": 0.07478999
     },
     {
       "manifest": {
@@ -3103,7 +3104,8 @@
           "run": "20260930T170103Z-direct-luna"
         }
       ],
-      "verified_usd": 0.09548
+      "verified_usd": 0.09548,
+      "contributed_verified_usd": 0.09548
     }
   ],
   "applicability": {

@@ -128,9 +128,10 @@ _LAYA_CHECKPOINTS = ("english", "multilingual", "typed-decisions")
 # request costs 149 tokens, rounded up to a multiple of 64.
 _RIZZO_FLOW_CONTEXT = 8192
 _RIZZO_FLOW_TEMPLATE_MARGIN = 192
-# The server refuses an option text over 8,000 characters (HTTP 422). The default `HeuristicTokenizer` counts at least
-# one token per 3 UTF-8 bytes, so an option it counts at 2,666 tokens or fewer, key and framing included, has a text
-# of at most 7,998 bytes. A tokenizer that counts fewer tokens per byte does not keep that promise.
+# The server refuses an option over 8,000 characters, its key and text together (HTTP 422). The default
+# `HeuristicTokenizer` counts at least one token per 3 UTF-8 bytes, so an option it counts at 2,666 tokens or fewer,
+# key and framing included, has at most 7,986 bytes of key and text. A tokenizer that counts fewer tokens per byte
+# does not keep that promise.
 _RIZZO_FLOW_OPTION_TOKENS = 8000 // 3
 RIZZO_FLOW_LIMITS = ModelLimits(
     max_options_per_choice=26,
@@ -141,13 +142,13 @@ RIZZO_FLOW_LIMITS = ModelLimits(
     price_output_per_mtok=0.0,
     source=(
         "Rizzo-AI-Academy/rizzo-flow @ b9ba007: schema.py MAX_SLOTS = 26 and Text max_length=8000 characters for "
-        "each option; --ctx 8192 bounds each question with its state (prompts.py compile_request); template margin "
-        "192 from a probe on 2026-10-05: a minimal request costs 149 tokens"
+        "each option, key and text together; --ctx 8192 bounds each question with its state (prompts.py "
+        "compile_request); template margin 192 from a probe on 2026-10-05: a minimal request costs 149 tokens"
     ),
     checked=date(2026, 10, 5),
 )
-"""rizzo-flow's limits: 26 options, 8,000 characters in each option's text (2,666 tokens by the default tokenizer),
-and an 8,192-token context for each question with its state, served locally."""
+"""rizzo-flow's limits: 26 options, 8,000 characters in each option (2,666 tokens by the default tokenizer), and an
+8,192-token context for each question with its state, served locally."""
 
 _CLEF_SOURCE = (
     "developers.cloudflare.com/workers-ai/models/{model}: 65,536-token context, 1-64 questions, "
@@ -546,7 +547,9 @@ def laya(
     refused, Laya routes it to a checkpoint of its own choosing), or carries no `routing` (a server run with
     `LAYA_JEV_STRICT` leaves out the fields `strict` reads). `strict` cannot see what Laya does not report: an
     option cut at 48 tokens, or shortened while still distinct from the others. `LAYA_LIMITS` declares that cap,
-    and the planner keeps within it. With `strict=False` such a reply is decoded as any other.
+    and the planner keeps within it as its tokenizer counts: the default heuristic can count fewer tokens than Laya
+    on identifier-like names, so plan with a tokenizer that reads Laya's own `tokenizer.json` for an exact fit. With
+    `strict=False` such a reply is decoded as any other.
 
     Raises:
         ValueError: `strict` is on and `model` is not one of the three checkpoint names (the server accepts aliases
@@ -638,7 +641,10 @@ def rizzo_flow(
     any `jev-*` id.
 
     The server takes at most 26 options per choice, and refuses a question whose state does not fit its context
-    (HTTP 422, no cutting); `limits` declares both, so such a request fails before anything is sent.
+    (HTTP 422, no cutting); `limits` declares both, so such a request fails before anything is sent. It also
+    refuses an option over 8,000 characters, its key and text together (HTTP 422): `limits` holds each option to
+    2,666 tokens, which keeps it under that as the default `HeuristicTokenizer` counts (at least one token per 3
+    bytes); a tokenizer that counts fewer tokens per byte does not.
     """
     return JevWireModel(
         model,

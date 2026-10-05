@@ -97,7 +97,7 @@ def test_cost_latency_marks_local_deciders(tmp_path: Path, monkeypatch: pytest.M
         }
 
     provenance = {"provenance": {"hardware": hardware}}
-    added = {"started": "2026-10-04T19:00:00+00:00", "deciders": {"strands": provenance, "rizzo-flow": provenance}}
+    added = {"started": "2026-10-04T19:00:00+00:00", "deciders": {"strands": provenance, "laya": provenance}}
     direct = {
         "manifest": {"started": "2026-09-30T05:00:00+00:00"},
         "added_runs": [{"manifest": added}],
@@ -110,7 +110,7 @@ def test_cost_latency_marks_local_deciders(tmp_path: Path, monkeypatch: pytest.M
             pick("clef-all", 0.80, 1430, 1.63),
             pick("hybrid@20+clef", 0.77, 612, 0.44),
             pick("hybrid@20+clm-local", 0.15, 55, None, local=True),
-            pick("rizzo-flow-all", 0.66, 1900, None, local=True),  # no label offset of its own
+            pick("laya-all", 0.36, 4200, None, local=True),  # no label offset of its own, slower than 3 s
         ],
     }
     f2a = {
@@ -143,7 +143,7 @@ def test_cost_latency_marks_local_deciders(tmp_path: Path, monkeypatch: pytest.M
     text = (tmp_path / "figures" / "cost-latency.svg").read_text()
     for point in ("jev-all", "hybrid-20-jev", "clef-all", "hybrid-20-clef", "hybrid-jev-20", "hybrid-clef-20"):
         assert f'id="point-{point}"' in text
-    for point in ("strands-all", "hybrid-20-strands", "hybrid-strands-20", "rizzo-flow-all"):
+    for point in ("strands-all", "hybrid-20-strands", "hybrid-strands-20", "laya-all"):
         assert f'id="point-{point}-local"' in text
     assert "clm" not in text
     assert "CLM" not in text

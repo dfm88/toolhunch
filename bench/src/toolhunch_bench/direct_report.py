@@ -286,8 +286,8 @@ def build_direct_report(run_dir: Path, *, out_dir: Path, added: Sequence[Path] =
     `added` runs contribute only their own arms, such as `LUNA_ARMS`, on the same catalogs and tasks; the run cost
     stays that of `run_dir`, and each added run's provenance and cost are listed under `added_runs`. An added run may
     measure an arm of an earlier added run again: the later run replaces that arm, its records and its calls, and
-    `added_runs` lists for each run the arms it contributes (`arms`), those it replaced (`replaced`) and the verified
-    cost of its contributed arms alone (`verified_usd`).
+    `added_runs` lists for each run the arms it contributes (`arms`), those it replaced (`replaced`), its whole
+    verified cost (`verified_usd`) and that of its contributed arms alone (`contributed_verified_usd`).
 
     Raises:
         ValueError: An added run ran other tasks or another dataset than `run_dir`, or repeats an arm of `run_dir`.
@@ -314,9 +314,12 @@ def build_direct_report(run_dir: Path, *, out_dir: Path, added: Sequence[Path] =
     unfit = _unfit_pairs(run_dir, manifest, records)
     exclusions = list(manifest.get("not_applicable", []))
     added_calls: list[list[dict[str, Any]]] = []
+    added_usd: list[float] = []
     for path, extra, arms_kept in zip(added, manifests[1:], contributed, strict=True):
         extra_records = [r for r in _lines(path / "run.jsonl") if r["arm"] in arms_kept]
-        added_calls.append([call for call in _lines(path / "calls.jsonl") if call["arm"] in arms_kept])
+        extra_calls = _lines(path / "calls.jsonl")
+        added_usd.append(sum(call["usd"] or 0 for call in extra_calls))
+        added_calls.append([call for call in extra_calls if call["arm"] in arms_kept])
         search_ms[path.name] = _search_ms(extra_records)
         unfit |= _unfit_pairs(path, extra, extra_records)
         # The applicability of an arm replaced here is the later run's to state.
@@ -430,10 +433,11 @@ def build_direct_report(run_dir: Path, *, out_dir: Path, added: Sequence[Path] =
                 "manifest": extra,
                 "arms": arms_kept,
                 "replaced": arms_replaced,
-                "verified_usd": sum(call["usd"] or 0 for call in extra_calls),
+                "verified_usd": run_usd,
+                "contributed_verified_usd": sum(call["usd"] or 0 for call in extra_calls),
             }
-            for extra, arms_kept, arms_replaced, extra_calls in zip(
-                manifests[1:], contributed, replaced, added_calls, strict=True
+            for extra, arms_kept, arms_replaced, extra_calls, run_usd in zip(
+                manifests[1:], contributed, replaced, added_calls, added_usd, strict=True
             )
         ],
         "applicability": {

@@ -115,10 +115,11 @@ class Decision:
         key: What any threshold applied to this decision holds for.
         shape: What `key.payload_shape` digests: the number of candidates, the option count of every question asked
             in each round, whether there was a reserved option, and the settings that shape the questions. A
-            setting that leaves the questions as they were before it existed is left out, so a key from before
-            it still holds: `"min_detail"` only above `NAME`, `"budgets"` (the limits the questions were planned
-            under) only when the model declares `max_question_tokens` or `max_option_tokens`, and `"tokenizer"`
-            (its class name, not its settings) only when it is not a `HeuristicTokenizer`.
+            setting that leaves the questions as they were before it existed is left out, so a key computed with
+            the default tokenizer before it still holds: `"min_detail"` only above `NAME`, `"budgets"` (the
+            limits the questions were planned under) only when the model declares `max_question_tokens` or
+            `max_option_tokens`, and `"tokenizer"` (its class name, not its settings) only when it is not a
+            `HeuristicTokenizer`, so a key computed with another tokenizer before it moves.
         state_cut: Whether the state was cut to fit the model.
         exchanges: Every call made: round one in chunk order, then the final question. Empty when nothing was asked.
     """
@@ -199,8 +200,10 @@ class ChoiceDecider:
     described to the model by `max_detail` at most and `min_detail` at least, lower when a limit demands it, and
     counted by `tokenizer` (`HeuristicTokenizer` by default). A question that fits only below `min_detail` is split
     into groups instead. These settings, the model's declared budgets and the tokenizer enter `Decision.shape` only
-    when they differ from the defaults, so a key from before they existed still holds. The tokenizer enters by its
-    class name alone: a `HeuristicTokenizer` with another `bytes_per_token` plans differently under the default key.
+    when they differ from the defaults, so a key computed with the default tokenizer before they existed still
+    holds; one computed with another tokenizer moves, and its threshold must be chosen again. The tokenizer enters
+    by its class name alone: a `HeuristicTokenizer` with another `bytes_per_token` plans differently under the
+    default key.
 
     A model failure is raised as it is, `DecisionError` for a call that failed or answered something that does not
     match the question, with no fallback to retrieval order.

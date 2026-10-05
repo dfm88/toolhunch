@@ -980,8 +980,9 @@ async def test_a_later_added_run_replaces_an_arm(tmp_path: Path, fake_decision_m
     ]
     calls = [json.loads(line) for line in (runs["luna"] / "calls.jsonl").read_text().splitlines()]
     kept = sum(call["usd"] for call in calls if call["arm"] == "agent-luna-all")
-    assert first["verified_usd"] == pytest.approx(kept)
-    assert 0 < kept < sum(call["usd"] for call in calls)
+    assert first["contributed_verified_usd"] == pytest.approx(kept)
+    assert first["verified_usd"] == pytest.approx(sum(call["usd"] for call in calls))  # the whole run, as before
+    assert 0 < kept < first["verified_usd"]
     readme = (tmp_path / "report" / "README.md").read_text()
     assert (
         "- **agent-luna@20 measured again.** Its rows come from `luna-again`, which replaced the records and calls of "

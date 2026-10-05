@@ -498,11 +498,11 @@ _P3_OFFSETS: dict[str, tuple[float, float]] = {
     "strands-all": (-94, 44),
     "hybrid@20+strands": (11, -58),
     "jev-all": (-13, 24),
-    "hybrid@20+jev": (16, -35),
+    "hybrid@20+jev": (8, -35),
     "hybrid@20+clef-flash": (-9, 44),
     "hybrid@20+clef": (-4, 44),
-    "clef-flash-all": (52, 52),
-    "clef-all": (64, 46),
+    "clef-flash-all": (44, 52),
+    "clef-all": (70, 46),
     "agent-luna@20": (-6, -66),
     "agent@20": (24, -80),
     "agent-all": (40, -125),
@@ -690,8 +690,10 @@ def _panel(
     values = [point.interval[0] for point in points] + [point.interval[1] for point in points] + [search]
     low, high = math.floor(min(values) * 10) / 10, math.ceil(max(values) * 10) / 10
     axes.set_xscale("log")
-    axes.set_xlim(0.05, 3)
-    ticks = [0.05, 0.1, 0.2, 0.5, 1, 2]
+    # Up to 3 s as P1 and P2 drew it; a slower point widens the axis, which would otherwise drop it unseen.
+    right = max(3.0, 1.3 * max(point.milliseconds for point in points) / 1000)
+    axes.set_xlim(0.05, right)
+    ticks = [tick for tick in (0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20) if tick < right]
     axes.set_xticks(ticks, [f"{tick:g} s" for tick in ticks])
     axes.minorticks_off()
     axes.set_ylim(low, high)
