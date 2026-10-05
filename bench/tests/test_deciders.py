@@ -38,6 +38,7 @@ def workers_ai(input_tokens: int, calls: list[httpx2.Request]) -> httpx2.AsyncCl
     return httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
 
 
+@pytest.mark.usefixtures("laya_word_tokenizer")
 async def test_registry_builds_and_guards_every_decider(monkeypatch: pytest.MonkeyPatch) -> None:
     for variable, value in {
         "CLOUDFLARE_ACCOUNT_ID": ACCOUNT,

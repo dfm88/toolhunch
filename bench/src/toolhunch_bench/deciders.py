@@ -18,14 +18,41 @@ from typing import TYPE_CHECKING, Any, Literal
 import anyio
 import httpx2
 
-from toolhunch.decision import OpenAILogprobModel, clef, clm, jev, strands_decider
+from toolhunch import DetailLevel
+from toolhunch.decision import (
+    ChoiceDecider,
+    OpenAILogprobModel,
+    clef,
+    clm,
+    jev,
+    laya,
+    rizzo_flow,
+    strands_decider,
+)
 from toolhunch_bench import without_local_root
+from toolhunch_bench.laya import (
+    LAYA_REVISION,
+    LAYA_TOKENIZER_SHA256,
+    LAYA_VERSION,
+    OPTION_CAP,
+    LayaCheckedModel,
+    LayaTokenizer,
+    laya_tokenizer_path,
+)
 from toolhunch_bench.structured import StructuredChoiceModel
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Mapping
 
-    from toolhunch.decision import DecisionModel, DecisionRequest, DecisionResponse, ModelLimits, QuestionKind
+    from toolhunch.decision import (
+        Abstention,
+        DecisionModel,
+        DecisionRequest,
+        DecisionResponse,
+        ModelLimits,
+        QuestionKind,
+    )
+    from toolhunch.tokens import Tokenizer
 
 __all__ = [
     "CLM_DEPLOYMENT",
@@ -38,6 +65,7 @@ __all__ = [
     "DeciderName",
     "DeciderSpec",
     "SerialDecisionModel",
+    "choice_decider",
     "decision_model",
     "local_provenance",
     "missing_env",
@@ -56,6 +84,9 @@ class DeciderName(StrEnum):
     STRANDS = "strands"
     CLEF = "clef"
     CLEF_FLASH = "clef-flash"
+    LAYA = "laya"
+    LAYA_WIDE = "laya-wide"
+    RIZZO_FLOW = "rizzo-flow"
 
 
 type Billing = Literal["tokens", "gpu-time", "local"]
@@ -83,6 +114,20 @@ _STRANDS_URL = ("STRANDS_BASE_URL", "http://127.0.0.1:8000")
 _CLM_LOCAL_URL = ("CLM_LOCAL_BASE_URL", "http://127.0.0.1:8700")
 _CLM_ENCODER_HEALTH = "http://127.0.0.1:8090/health"
 _CLOUDFLARE_ENV = ("CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_KEY")
+_LAYA_URL = ("LAYA_BASE_URL", "http://127.0.0.1:8010")
+_RIZZO_URL = ("RIZZO_FLOW_BASE_URL", "http://127.0.0.1:8017")
+_LAYA_PROVENANCE = {
+    "script": "bench/deploy/laya_local.sh",
+    "laya": LAYA_VERSION,
+    "checkpoint": f"convaiinnovations/laya english @ {LAYA_REVISION[:7]}",
+    "tokenizer": f"convaiinnovations/laya @ {LAYA_REVISION[:7]} tokenizer/tokenizer.json, from bench/models/hf",
+    "tokenizer_sha256": LAYA_TOKENIZER_SHA256,
+}
+_LAYA_CAVEAT = (
+    "Its authors describe the base checkpoints as a fast base to specialise, not a zero-shot decision engine; we "
+    "run the English one zero-shot. Its questions are planned with Laya's own tokenizer, and an option whose name "
+    f"would repeat its key past {OPTION_CAP} tokens is sent as its key alone."
+)
 # The P2 probe (20261004T170651Z): 265 billed tokens for 180 heuristic ones at 5 options, 6,638 for 1,829 at 255,
 # so about 19 more per option and none per request. Estimates only; the guard prices what each reply reports.
 _CLEF_OPTION_OVERHEAD = 19
@@ -110,6 +155,8 @@ class DeciderSpec:
         option_overhead_tokens: Tokens it bills beyond a request's text, per choice option, for estimates only.
         estimate_output_tokens: Output tokens per ask, for estimates only.
         caveat: What every report prints next to its figures, beyond the machine a local model ran on.
+        tokenizer: Builds what its planner counts tokens with; `None` for the planner's heuristic.
+        cache_namespace: Enters the decision cache key when set, for entries that ask one model id differently.
     """
 
     name: DeciderName
@@ -128,11 +175,18 @@ class DeciderSpec:
     option_overhead_tokens: int = 0
     estimate_output_tokens: int = 0
     caveat: str | None = None
+    tokenizer: Callable[[], Tokenizer] | None = None
+    cache_namespace: str | None = None
 
 
 def _url(variable: tuple[str, str]) -> str:
     name, default = variable
     return os.environ.get(name) or default
+
+
+def _laya_tokenizer() -> LayaTokenizer:
+    """Laya's pinned tokenizer, read when a Laya decider is built: the file comes with the checkpoint's download."""
+    return LayaTokenizer(laya_tokenizer_path(), sha256=LAYA_TOKENIZER_SHA256)
 
 
 DECIDERS: Mapping[DeciderName, DeciderSpec] = {
@@ -266,6 +320,62 @@ DECIDERS: Mapping[DeciderName, DeciderSpec] = {
             caveat="Workers AI serves the current Clef-flash behind `@cf/cloudflare/clef-flash`, and no version can be "
             "pinned: a later run may answer differently from the one reported here.",
         ),
+        DeciderSpec(
+            name=DeciderName.LAYA,
+            label="Laya",
+            provider="local",
+            model="english",
+            billing="local",
+            make=lambda retries: LayaCheckedModel(
+                laya(_url(_LAYA_URL), max_retries=retries), tokenizer=_laya_tokenizer(), head_max_len=192
+            ),
+            color="#4E8F2F",
+            provenance=_LAYA_PROVENANCE | {"head_max_len": 192, "max_len": 512},
+            serial=True,
+            local_url=_LAYA_URL,
+            caveat=_LAYA_CAVEAT,
+            tokenizer=_laya_tokenizer,
+            cache_namespace=DeciderName.LAYA.value,
+        ),
+        DeciderSpec(
+            name=DeciderName.LAYA_WIDE,
+            label="Laya wide",
+            provider="local",
+            model="english",
+            billing="local",
+            make=lambda retries: LayaCheckedModel(
+                laya(_url(_LAYA_URL), head_max_len=512, max_len=1024, max_retries=retries),
+                tokenizer=_laya_tokenizer(),
+                head_max_len=512,
+            ),
+            color="#9BC46A",
+            provenance=_LAYA_PROVENANCE | {"head_max_len": 512, "max_len": 1024},
+            serial=True,
+            local_url=_LAYA_URL,
+            caveat=f"{_LAYA_CAVEAT} It runs with a 512-token option budget in a 1,024-token window, beyond the 192 "
+            "and 512 the checkpoint ships with, as its model card advises for many options.",
+            tokenizer=_laya_tokenizer,
+            cache_namespace=DeciderName.LAYA_WIDE.value,
+        ),
+        DeciderSpec(
+            name=DeciderName.RIZZO_FLOW,
+            label="rizzo-flow",
+            provider="local",
+            model="rizzo-flow-4b-q8_0",
+            billing="local",
+            make=lambda retries: rizzo_flow(_url(_RIZZO_URL), max_retries=retries),
+            color="#C99A1C",
+            provenance={
+                "script": "bench/deploy/rizzo_local.sh",
+                "code": "Rizzo-AI-Academy/rizzo-flow @ b9ba007",
+                "weights": "rizzoaiacademy/rizzo-flow @ 55633c8, spark-x2.5-4b-rizzo-flow-lora-q8_0.gguf",
+                "llama_cpp": "b11081, Metal",
+            },
+            serial=True,
+            local_url=_RIZZO_URL,
+            caveat="The authors' fine-tune, 4B at q8_0 on llama.cpp with Metal; quantization and hardware change its "
+            "probabilities, by its authors' account.",
+        ),
     )
 }
 """Every decider, by name."""
@@ -319,6 +429,25 @@ def decision_model(name: DeciderName, *, max_retries: int = 3) -> DecisionModel:
     return SerialDecisionModel(model) if spec.serial else model
 
 
+def choice_decider(
+    name: str,
+    model: DecisionModel,
+    *,
+    abstention: Abstention | None,
+    max_detail: DetailLevel,
+    min_detail: DetailLevel = DetailLevel.NAME,
+) -> ChoiceDecider:
+    """The decider of the entry `name` over `model`, planning with the tokenizer the entry names.
+
+    A name outside the registry, or an entry that names no tokenizer, plans with the planner's heuristic.
+    """
+    spec = DECIDERS[DeciderName(name)] if name in DeciderName else None
+    tokenizer = spec.tokenizer() if spec is not None and spec.tokenizer is not None else None
+    return ChoiceDecider(
+        model, abstention=abstention, max_detail=max_detail, min_detail=min_detail, tokenizer=tokenizer
+    )
+
+
 def missing_env(names: Iterable[DeciderName]) -> list[str]:
     """The variables the deciders `names` need that are not set, by name only."""
     needed = dict.fromkeys(variable for name in names for variable in DECIDERS[name].required_env)
@@ -352,16 +481,20 @@ def report_caveats(deciders: Mapping[str, Mapping[str, Any]]) -> list[str]:
 async def local_provenance(name: DeciderName, *, client: httpx2.AsyncClient | None = None) -> dict[str, Any]:
     """What a run manifest records about `name`: its entry's provenance, and more for a local model.
 
-    For a local model it adds its servers' `/health` answers and the machine it runs on. A health endpoint that
-    does not answer is recorded as `None`: the run's first ask will fail if it is down.
+    For a local model it adds its servers' `/health` answers and the machine it runs on; for rizzo-flow, also its
+    `/v1/models`, which names the weights it loaded. An endpoint that does not answer is recorded as `None`: the
+    run's first ask will fail if the server is down.
     """
     spec = DECIDERS[name]
     record: dict[str, Any] = {"label": spec.label, "billing": spec.billing, **spec.provenance}
     if spec.local_url is None:
         return record
-    urls = [f"{_url(spec.local_url).rstrip('/')}/health"]
+    root = _url(spec.local_url).rstrip("/")
+    urls = [f"{root}/health"]
     if name is DeciderName.CLM_LOCAL:
         urls.append(_CLM_ENCODER_HEALTH)
+    if name is DeciderName.RIZZO_FLOW:
+        urls.append(f"{root}/v1/models")
     http = client if client is not None else httpx2.AsyncClient(timeout=10.0)
     health: list[dict[str, Any] | None] = []
     try:

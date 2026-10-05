@@ -12,6 +12,7 @@ dependencies = [
     "pydantic-ai-slim[openai]>=2.50",
     "python-dotenv>=1.2.3",
     "tiktoken>=0.14.0",
+    "tokenizers>=0.23.2",
     "toolhunch[pydantic-ai]",
     "typer>=0.27.2",
 ]

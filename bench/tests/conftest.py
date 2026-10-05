@@ -1,7 +1,9 @@
+import hashlib
 import json
 import re
 from collections.abc import Sequence
 from datetime import date
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -21,6 +23,7 @@ from toolhunch.decision import (
 )
 from toolhunch.decision.planner import NONE_KEY, NONE_TEXT
 from toolhunch.retrieval import EmbeddingBatch, EmbeddingKind
+from toolhunch_bench import deciders
 from toolhunch_bench.datasets.toolret import ToolRetData, ToolRetTask
 
 AXES = ("weather", "email", "calendar", "diary", "image", "user")
@@ -179,3 +182,30 @@ def toolret_data() -> ToolRetData:
 def fake_decision_model() -> type[FakeDecisionModel]:
     """The `FakeDecisionModel` class; under importlib import mode a test module cannot import it from here."""
     return FakeDecisionModel
+
+
+@pytest.fixture
+def laya_word_tokenizer(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, str]:
+    """A tokenizer file that takes one token per word and per run of punctuation, and its SHA-256.
+
+    The registry's Laya entries read it in place of the pinned checkpoint's, which no test reads.
+    """
+    # A WordLevel model behind a Whitespace pre-tokenizer, written as `tokenizers` saves one: its typed constructors
+    # resolve to an untyped module under pyright.
+    config: dict[str, Any] = {
+        "version": "1.0",
+        "truncation": None,
+        "padding": None,
+        "added_tokens": [],
+        "normalizer": None,
+        "pre_tokenizer": {"type": "Whitespace"},
+        "post_processor": None,
+        "decoder": None,
+        "model": {"type": "WordLevel", "vocab": {"[UNK]": 0}, "unk_token": "[UNK]"},
+    }
+    path = tmp_path / "tokenizer.json"
+    path.write_text(json.dumps(config), encoding="utf-8")
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    monkeypatch.setattr(deciders, "laya_tokenizer_path", lambda: path)
+    monkeypatch.setattr(deciders, "LAYA_TOKENIZER_SHA256", digest)
+    return path, digest

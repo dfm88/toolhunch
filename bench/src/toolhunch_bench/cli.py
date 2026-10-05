@@ -21,6 +21,7 @@ from pydantic_ai.usage import RunUsage
 
 from toolhunch import BM25Retriever, DetailLevel, Embedder, OpenAIEmbedder, default_search_text
 from toolhunch.decision import DecisionModel, jev
+from toolhunch.decision.planner import PROMPT_VERSION
 from toolhunch_bench import BENCH_DIR
 from toolhunch_bench.charts import build_decision_charts
 from toolhunch_bench.checks import check_bm25, check_tokens
@@ -90,6 +91,16 @@ from toolhunch_bench.embedding_cache import (
     TruncatingEmbedder,
     estimate_embedding_cost,
 )
+from toolhunch_bench.laya import (
+    LAYA_REVISION,
+    LAYA_VERSION,
+    OPTION_CAP,
+    LayaCalibration,
+    LayaCheckedModel,
+    LayaTokenizer,
+    PlanConfig,
+    recorded_searches,
+)
 from toolhunch_bench.ledger import (
     BUDGET,
     F2A_CAP_EUR,
@@ -109,6 +120,7 @@ from toolhunch_bench.retrieval import (
     QueryMode,
     build_arms,
     query_text,
+    repo_path,
     run_arms,
 )
 
@@ -900,6 +912,99 @@ def direct_report(
     """Report direct-choice outcomes and observed provider cache costs without paid calls."""
     build_direct_report(run_dir, out_dir=out, added=added or ())
     typer.echo(f"report written to {out}")
+
+
+@app.command("laya-calibrate")
+def laya_calibrate(
+    out: Annotated[Path, typer.Option(help="JSON file to write.", dir_okay=False)],
+    dev_run: Annotated[
+        Path,
+        typer.Option(help="Decision run whose plain searches are counted and planned.", exists=True, file_okay=False),
+    ] = RUNS_DIR / "20261004T172920Z",
+    heldout_run: Annotated[
+        Path, typer.Option(help="Decision run whose plain searches are counted.", exists=True, file_okay=False)
+    ] = RUNS_DIR / "20261004T191646Z",
+    probes: Annotated[
+        Path, typer.Option(help="Recorded Laya probes, one JSON object per line.", exists=True, dir_okay=False)
+    ] = RUNS_DIR / "p3-stop0" / "laya-probes.jsonl",
+) -> None:
+    """Count with Laya's own tokenizer what the planner sends Laya, offline: no server, no network.
+
+    It writes (a) the catalog's name-level options over Laya's 48-token option cap, and the planner's undercounts on
+    a sample; (b) the same per recorded search; (c) every question of the dev run's plain searches as the Laya
+    deciders plan them, checked as Laya builds them; (d) each recorded probe's count against Laya's own.
+    """
+    tokenizer = LayaTokenizer()
+    data = load_toolret(cache_dir=TOOLRET_CACHE)
+    cards = {card.id: card for card in data.catalog}
+    dev = recorded_searches(dev_run, cards=cards)
+    heldout = recorded_searches(heldout_run, cards=cards)
+    calibration = LayaCalibration(tokenizer)
+    result: dict[str, Any] = {
+        "laya": LAYA_VERSION,
+        "tokenizer": {"revision": LAYA_REVISION, "sha256": tokenizer.sha256},
+        "prompt_version": PROMPT_VERSION,
+        "toolret_revision": TOOLRET_REVISION,
+        "runs": {"dev": repo_path(dev_run), "heldout": repo_path(heldout_run)},
+        "probes_file": repo_path(probes),
+        "catalog": calibration.catalog(list(data.catalog)),
+        "searches": {"dev": calibration.searches(dev), "heldout": calibration.searches(heldout)},
+        "plans": [calibration.plans(dev, config=config) for config in _laya_plan_configs()],
+        "probes": calibration.probes(
+            json.loads(line) for line in probes.read_text(encoding="utf-8").splitlines() if line.strip()
+        ),
+    }
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+
+    catalog = result["catalog"]
+    typer.echo(
+        f"catalog: {catalog['name_options_over_cap']:,} of {catalog['cards']:,} name-level options over "
+        f"{OPTION_CAP} tokens, {catalog['keys_alone_over_cap']:,} keys alone"
+    )
+    for split, by_k in result["searches"].items():
+        for k, counts in by_k.items():
+            typer.echo(
+                f"{split} {k}: of {counts['searches']} searches, {counts['name_option_over_cap']} with a name-level "
+                f"option over {OPTION_CAP}, {counts['key_alone_over_cap']} with a key alone over it"
+            )
+    for plan in result["plans"]:
+        unfit = ", ".join(
+            f"{k} {kind} {count}"
+            for k, counts in plan["candidates_do_not_fit_by_k"].items()
+            for kind, count in counts.items()
+        )
+        typer.echo(
+            f"{plan['name']} (head {plan['head_max_len']}): {plan['refused']} of {plan['questions']} questions "
+            f"refused; largest shortfall per question {plan['question_shortfall']['largest']}, per option "
+            f"{plan['option_shortfall']['largest']}; CandidatesDoNotFit: {unfit or 'none'}"
+        )
+    parity = result["probes"]
+    typer.echo(f"probes: {parity['matched']} of {parity['probes']} match Laya's input_tokens and state_tokens")
+    typer.echo(f"calibration written to {out}")
+
+
+def _laya_plan_configs() -> list[PlanConfig]:
+    """How the bench plans Laya's questions: each Laya entry's limits and head budget, at each floor it runs with."""
+    configs: list[PlanConfig] = []
+    for name, floors in (
+        (DeciderName.LAYA, (DetailLevel.NAME,)),
+        (DeciderName.LAYA_WIDE, (DetailLevel.NAME, DetailLevel.BRIEF)),
+    ):
+        model = REGISTRY[name].make(0)  # builds offline: nothing is contacted before an ask
+        if not isinstance(model, LayaCheckedModel):
+            raise TypeError(f"the {name} entry builds a {type(model).__name__}, not a LayaCheckedModel")
+        configs.extend(
+            PlanConfig(
+                name=f"{name} floor {floor.name}",
+                limits=model.limits,
+                head_max_len=model.head_max_len,
+                max_detail=DetailLevel.BRIEF,
+                min_detail=floor,
+            )
+            for floor in floors
+        )
+    return configs
 
 
 @check_app.command("bm25")

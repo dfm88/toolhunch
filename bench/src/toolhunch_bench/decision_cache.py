@@ -31,7 +31,12 @@ DECISION_CACHE_PATH = BENCH_DIR / "runs" / "cache" / "decisions.sqlite"
 
 
 def request_key(
-    model_id: str, request: DecisionRequest, options: Mapping[str, Any], *, prompt_version: str | None
+    model_id: str,
+    request: DecisionRequest,
+    options: Mapping[str, Any],
+    *,
+    prompt_version: str | None,
+    namespace: str | None = None,
 ) -> str:
     """The cache key of one ask: the SHA-256 hex digest of a canonical JSON of what the model is asked.
 
@@ -41,24 +46,26 @@ def request_key(
     answers of the old one. A question is `[id, kind, instructions, payload]`; questions keep the order of
     the request, and the payload is `[[key, text], ...]` for a choice (options in presentation order), the
     levels for a score and `null` for a binary question. Only `options`, the keyword options of the call,
-    is sorted by key, at every depth.
+    is sorted by key, at every depth. A `namespace` that is not `None` follows as the member `namespace`, so two
+    configurations that ask one model id differently never replay each other's responses; without one the JSON
+    is what it was before namespaces existed.
 
     The key is a persistent format: building it differently orphans every response stored under the old one.
     """
-    canonical = json.dumps(
-        {
-            "model": model_id,
-            "prompt_version": prompt_version,
-            "state": request.state,
-            "questions": [
-                [question_id, question.kind, question.instructions, _payload(question)]
-                for question_id, question in request.questions.items()
-            ],
-            # A round trip through `sort_keys` orders nested mappings too; the outer dump then keeps that order.
-            "options": json.loads(json.dumps(dict(options), sort_keys=True)),
-        },
-        separators=(",", ":"),
-    )
+    content: dict[str, Any] = {
+        "model": model_id,
+        "prompt_version": prompt_version,
+        "state": request.state,
+        "questions": [
+            [question_id, question.kind, question.instructions, _payload(question)]
+            for question_id, question in request.questions.items()
+        ],
+        # A round trip through `sort_keys` orders nested mappings too; the outer dump then keeps that order.
+        "options": json.loads(json.dumps(dict(options), sort_keys=True)),
+    }
+    if namespace is not None:
+        content["namespace"] = namespace
+    canonical = json.dumps(content, separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()
 
 
@@ -136,10 +143,10 @@ class CachedDecisionModel:
     one, replays the stored response: the original `seconds`, `server_seconds`, usage and `raw`, at no cost.
     The wrapped model's `model_id`, `limits`, `question_kinds` and `prompt_version` are passed through.
 
-    The key covers the model id, the model's prompt version, the request and the options given to `ask`. What
-    else changes a model's answers, such as an `extra_body` set on the instance, is not in it: give each such
-    configuration its own `path`. Concurrent asks for the same request may all reach the wrapped model, and
-    the last response stored replaces the others.
+    The key covers the model id, the model's prompt version, the request, the options given to `ask` and the
+    `namespace`, when there is one. What else changes a model's answers, such as an `extra_body` set on the
+    instance, is not in it: give each such configuration its own `namespace` or its own `path`. Concurrent asks
+    for the same request may all reach the wrapped model, and the last response stored replaces the others.
 
     With `bypass` the database is never opened: nothing is read or written and every ask goes to the wrapped
     model, for checking that its answers hold still.
@@ -157,9 +164,17 @@ class CachedDecisionModel:
         """Whether every ask goes directly to the wrapped model without opening a database."""
         return self._db is None
 
-    def __init__(self, inner: DecisionModel, *, path: Path = DECISION_CACHE_PATH, bypass: bool = False) -> None:
+    def __init__(
+        self,
+        inner: DecisionModel,
+        *,
+        path: Path = DECISION_CACHE_PATH,
+        bypass: bool = False,
+        namespace: str | None = None,
+    ) -> None:
         """Open (or create) the cache at `path` in front of `inner`; with `bypass`, leave `path` alone."""
         self._inner = inner
+        self._namespace = namespace
         self._db: sqlite3.Connection | None = None
         if not bypass:
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -193,7 +208,8 @@ class CachedDecisionModel:
         return self._inner.prompt_version
 
     def __repr__(self) -> str:
-        return f"CachedDecisionModel({self._inner!r}, bypass={self._db is None})"
+        namespace = "" if self._namespace is None else f", namespace={self._namespace!r}"
+        return f"CachedDecisionModel({self._inner!r}, bypass={self._db is None}{namespace})"
 
     async def ask(self, request: DecisionRequest, /, **options: Any) -> DecisionResponse:
         """Answer `request` from the cache, or by asking the wrapped model and storing what it returns.
@@ -206,7 +222,9 @@ class CachedDecisionModel:
         """
         if self._db is None:
             return await self._forward(request, options)
-        key = request_key(self.model_id, request, options, prompt_version=self.prompt_version)
+        key = request_key(
+            self.model_id, request, options, prompt_version=self.prompt_version, namespace=self._namespace
+        )
         row = self._db.execute("SELECT response FROM decisions WHERE key = ?", (key,)).fetchone()
         if row is not None:
             self.hits += 1
