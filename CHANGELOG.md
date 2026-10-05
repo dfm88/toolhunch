@@ -29,6 +29,16 @@ All notable changes to this project are documented here. The format follows
   candidate-order tests (`bench/results/2026-10-toolret-{decision,direct,order}-p2/`). Deciders are registry
   entries keyed by name (`--deciders`); local models run from `bench/deploy/strands_local.sh` and
   `bench/deploy/clm_local/` with their files in the git-ignored `bench/models/`.
+- Benchmark: Laya, with a wider budget than its English checkpoint ships (`laya-wide`), and rizzo-flow on a Mac in
+  the held-out re-ranking, direct-choice and candidate-order tests, and GPT-6 Luna's searched arm asked again with
+  fresh query embeddings (`bench/results/2026-10-toolret-{decision,direct,order}-p3/`). The servers run from
+  `bench/deploy/laya_local.sh` and `bench/deploy/rizzo_local.sh`; Laya's questions are planned and checked with its
+  own tokenizer before they are sent. Reports count the options sent as their key alone, the searches a card made
+  fail, and the cells or catalogs two rounds cannot hold, and give the latency of a model asked one request at a
+  time as the sum of its calls.
+- `toolhunch-bench laya-calibrate`: the planner's token counts against Laya's tokenizer and its reported usage.
+  `decision --min-detail`, and `direct --fresh-query-embeddings`, `--arms` and `--agent-cache`, for a rerun that
+  replaces one arm of an earlier run.
 - `toolhunch-bench compare-runs`: one model's searches on two deployments, with top-card agreement, probability
   differences, P@1 per cell and answer-or-abstain agreement.
 - `toolhunch-bench cost-latency-chart`: precision against the decision's latency and cost for every published

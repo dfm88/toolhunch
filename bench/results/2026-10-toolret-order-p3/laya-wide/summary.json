@@ -1,0 +1,706 @@
+{
+  "manifest": {
+    "run_id": "20261005T134122Z-order",
+    "started": "2026-10-05T13:44:47+00:00",
+    "git": {
+      "commit": "8a39d2853dde319b53fdb12a3360abcd243b056b",
+      "dirty": false
+    },
+    "versions": {
+      "python": "3.14.3",
+      "toolhunch": "0.1.0",
+      "toolhunch-bench": "0.0.0",
+      "pydantic-ai-slim": "2.50.0",
+      "bm25s": "0.3.11",
+      "tiktoken": "0.14.0",
+      "genai-prices": "0.1.9"
+    },
+    "platform": {
+      "system": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+      "machine": "arm64"
+    },
+    "dataset": {
+      "name": "mteb/ToolRetrieval",
+      "revision": "76d45e560059754e289ea202462865a585679619",
+      "corpus_sha256": "774aa8c5263eed9870fb6eefc47491c67d3998e7eda1d897f9b359e20be67efb",
+      "tools": 44453,
+      "catalog_fingerprint": "sha256:7d56b70f34151288b0351d0764064e2d9852b9c2f1ef4e5ed076f1edb83debbf",
+      "mapping_stats": {
+        "name": 0.9999550086608328,
+        "description": 0.97766180010348,
+        "properties": 0.8109014014802151
+      }
+    },
+    "tasks": {
+      "file": "bench/tasks/toolret-heldout-200.json",
+      "sha256": "b632db8a5cb328b3d793a6491b0893e7fa62770dff1fd7285dc495e5adf8b3f3",
+      "count": 200
+    },
+    "seeds": {
+      "sample": 1
+    },
+    "split": "heldout",
+    "sources": [
+      "plain"
+    ],
+    "negatives": true,
+    "repeat": 1,
+    "model_queries": null,
+    "embedding_model": "text-embedding-3-small",
+    "retriever": {
+      "retriever": "HybridRetriever(bm25, dense)",
+      "rrf_k": 60,
+      "depth": 100,
+      "embedding_model": "text-embedding-3-small",
+      "embedder": "CachedEmbedder(<toolhunch_bench.direct_cost.GuardedEmbedder object at 0x11fe5bb60>)",
+      "text": "name, description and parameter names",
+      "instructed_format": "lexical for both halves",
+      "shared_depth": 100
+    },
+    "arms": {
+      "hybrid@20": {
+        "k": 20,
+        "decider": null,
+        "model_id": null,
+        "model": null,
+        "limits": null,
+        "prompt_version": null,
+        "max_detail": null,
+        "min_detail": null,
+        "tokenizer": null,
+        "reserved_option": null
+      },
+      "hybrid+laya-wide@20": {
+        "k": 20,
+        "decider": "laya-wide",
+        "model_id": "english@127.0.0.1:8010",
+        "model": "<toolhunch_bench.order.OrderDecisionModel object at 0x110d81a90>",
+        "limits": {
+          "max_options_per_choice": 100,
+          "max_request_tokens": null,
+          "max_state_plus_question_tokens": 1024,
+          "max_text_tokens": null,
+          "max_question_tokens": 512,
+          "max_option_tokens": 48,
+          "max_questions_per_request": 64,
+          "score_levels": null,
+          "price_input_per_mtok": 0.0,
+          "price_output_per_mtok": 0.0,
+          "source": "laya 0.3.27 serve.py (100 options, 64 questions) and common.py build_head/render_options (48-token option cap); convaiinnovations/laya @ 55cf4c4 rl_agent_config.json (max_len 512, head_max_len 192); sent with every request: head_max_len 512, max_len 1024",
+          "checked": "2026-10-05"
+        },
+        "prompt_version": "tool-choice-v1",
+        "max_detail": "BRIEF",
+        "min_detail": "BRIEF",
+        "tokenizer": "LayaTokenizer(revision='55cf4c4')",
+        "reserved_option": true
+      }
+    },
+    "orders": {
+      "version": "tool-order-v1",
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "identity_seed": 0,
+      "seed_derivation": "SHA256(tool-order-v1:<task_id>:<seed>), Python Random.shuffle",
+      "cache_bypass": true,
+      "reserved_position": "last"
+    },
+    "task_ids": [
+      "apibank_query_29",
+      "apibank_query_62",
+      "apibank_query_98",
+      "apigen_query_101",
+      "apigen_query_134",
+      "apigen_query_248",
+      "apigen_query_370",
+      "apigen_query_497",
+      "apigen_query_499",
+      "apigen_query_502",
+      "apigen_query_597",
+      "apigen_query_613",
+      "apigen_query_653",
+      "apigen_query_66",
+      "apigen_query_680",
+      "apigen_query_695",
+      "apigen_query_724",
+      "apigen_query_732",
+      "apigen_query_746",
+      "apigen_query_792",
+      "apigen_query_820",
+      "apigen_query_852",
+      "apigen_query_883",
+      "apigen_query_893",
+      "apigen_query_965",
+      "appbench_query_12",
+      "appbench_query_13",
+      "craft_Math_algebra_query_119",
+      "craft_Math_algebra_query_133",
+      "craft_Math_algebra_query_53",
+      "craft_Math_algebra_query_54",
+      "craft_Math_algebra_query_65",
+      "craft_Math_algebra_query_71",
+      "craft_Math_algebra_query_89",
+      "craft_Tabmwp_query_100",
+      "craft_Tabmwp_query_26",
+      "craft_Tabmwp_query_50",
+      "craft_Tabmwp_query_87",
+      "craft_Tabmwp_query_90",
+      "craft_Vqa_query_127",
+      "craft_Vqa_query_194",
+      "craft_Vqa_query_195",
+      "craft_Vqa_query_38",
+      "craft_Vqa_query_99",
+      "gorilla_huggingface_query_107",
+      "gorilla_huggingface_query_110",
+      "gorilla_huggingface_query_211",
+      "gorilla_huggingface_query_227",
+      "gorilla_huggingface_query_282",
+      "gorilla_huggingface_query_302",
+      "gorilla_huggingface_query_319",
+      "gorilla_huggingface_query_323",
+      "gorilla_huggingface_query_368",
+      "gorilla_huggingface_query_439",
+      "gorilla_huggingface_query_485",
+      "gorilla_pytorch_query_2",
+      "gorilla_pytorch_query_39",
+      "gorilla_tensor_query_25",
+      "gorilla_tensor_query_43",
+      "gpt4tools_query_21",
+      "gpt4tools_query_27",
+      "gta_query_13",
+      "metatool_which_query_11",
+      "metatool_which_query_134",
+      "metatool_which_query_42",
+      "metatool_which_query_82",
+      "metatool_which_query_95",
+      "mnms_query_0",
+      "mnms_query_1",
+      "reversechain_query_134",
+      "reversechain_query_14",
+      "reversechain_query_180",
+      "reversechain_query_34",
+      "reversechain_query_95",
+      "rotbench_query_155",
+      "rotbench_query_271",
+      "rotbench_query_275",
+      "rotbench_query_382",
+      "rotbench_query_386",
+      "rotbench_query_440",
+      "rotbench_query_466",
+      "rotbench_query_467",
+      "rotbench_query_481",
+      "rotbench_query_520",
+      "rotbench_query_55",
+      "rotbench_query_61",
+      "t_eval_dialog_query_3",
+      "t_eval_dialog_query_9",
+      "t_eval_step_query_10",
+      "t_eval_step_query_26",
+      "taskbench_daily_query_8",
+      "taskbench_daily_query_9",
+      "taskbench_huggingface_query_1",
+      "taskbench_multimedia_query_29",
+      "taskbench_multimedia_query_9",
+      "toolACE_query_134",
+      "toolACE_query_243",
+      "toolACE_query_314",
+      "toolACE_query_319",
+      "toolACE_query_371",
+      "toolACE_query_439",
+      "toolACE_query_474",
+      "toolACE_query_522",
+      "toolACE_query_595",
+      "toolACE_query_673",
+      "toolACE_query_709",
+      "toolACE_query_732",
+      "toolACE_query_759",
+      "toolACE_query_764",
+      "toolACE_query_777",
+      "toolACE_query_789",
+      "toolACE_query_88",
+      "toolACE_query_886",
+      "toolACE_query_888",
+      "toolACE_query_901",
+      "toolACE_query_952",
+      "toolACE_query_969",
+      "toolLens_query_158",
+      "toolLens_query_178",
+      "toolLens_query_196",
+      "toolLens_query_215",
+      "toolLens_query_219",
+      "toolLens_query_225",
+      "toolLens_query_55",
+      "toolLens_query_62",
+      "tool_be_honest_query_146",
+      "tool_be_honest_query_269",
+      "tool_be_honest_query_283",
+      "tool_be_honest_query_289",
+      "tool_be_honest_query_38",
+      "tool_be_honest_query_59",
+      "tool_be_honest_query_6",
+      "tool_be_honest_query_62",
+      "toolalpaca_query_42",
+      "toolalpaca_query_43",
+      "toolalpaca_query_80",
+      "toolbench_query_1083",
+      "toolbench_query_130",
+      "toolbench_query_210",
+      "toolbench_query_380",
+      "toolbench_query_384",
+      "toolbench_query_428",
+      "toolbench_query_441",
+      "toolbench_query_463",
+      "toolbench_query_472",
+      "toolbench_query_558",
+      "toolbench_query_565",
+      "toolbench_query_605",
+      "toolbench_query_641",
+      "toolbench_query_734",
+      "toolbench_query_74",
+      "toolbench_query_750",
+      "toolbench_query_754",
+      "toolbench_query_788",
+      "toolbench_query_789",
+      "toolbench_query_82",
+      "toolbench_query_900",
+      "toolbench_query_909",
+      "toolbench_query_93",
+      "toolbench_query_984",
+      "toolbench_sam_query_104",
+      "toolbench_sam_query_146",
+      "toolbench_sam_query_31",
+      "toolbench_sam_query_82",
+      "toolbench_sam_query_89",
+      "toolemu_query_26",
+      "toolemu_query_9",
+      "tooleyes_query_40",
+      "tooleyes_query_45",
+      "tooleyes_query_76",
+      "toolink_query_1",
+      "toolink_query_14",
+      "toolink_query_176",
+      "toolink_query_207",
+      "toolink_query_277",
+      "toolink_query_316",
+      "toolink_query_331",
+      "toolink_query_384",
+      "toolink_query_432",
+      "toolink_query_437",
+      "toolink_query_86",
+      "ultraTool_query_122",
+      "ultraTool_query_191",
+      "ultraTool_query_220",
+      "ultraTool_query_246",
+      "ultraTool_query_262",
+      "ultraTool_query_277",
+      "ultraTool_query_368",
+      "ultraTool_query_384",
+      "ultraTool_query_39",
+      "ultraTool_query_424",
+      "ultraTool_query_96",
+      "webtools_food_query_9",
+      "webtools_music_query_0",
+      "webtools_music_query_21",
+      "webtools_spotify_query_1",
+      "webtools_spotify_query_28",
+      "webtools_tmdb_query_21",
+      "webtools_tmdb_query_38",
+      "webtools_weather_query_10"
+    ],
+    "experiment": "order-sensitivity-v1",
+    "pilot": false,
+    "completed": true,
+    "estimate": {
+      "tasks": 200,
+      "searches": 4000,
+      "lines": [
+        {
+          "provider": "local",
+          "model": "english",
+          "calls": 5980,
+          "input_tokens": 2341121,
+          "usd": 0.0,
+          "note": "5,980 asks, 2,341,121 input tokens by the heuristic count, on this machine: no charge",
+          "not_applicable": 0,
+          "would_fail": 0
+        },
+        {
+          "provider": "openai",
+          "model": "text-embedding-3-small",
+          "calls": 0,
+          "input_tokens": 0,
+          "usd": 0.0,
+          "note": "0 query texts and 0 card texts not in the cache yet, 0 tokens by tiktoken cl100k_base, priced by genai-prices",
+          "not_applicable": 0,
+          "would_fail": 0
+        }
+      ],
+      "usd": 0
+    },
+    "prior_p1_usd": 0.0,
+    "budget": {
+      "prefix": "P3:",
+      "prior_usd": 0.0,
+      "cap_usd": 2.0
+    },
+    "target_usd": 1.0,
+    "cap_usd": 2.0,
+    "order_configuration": {
+      "hybrid+laya-wide@20": {
+        "model_id": "english@127.0.0.1:8010",
+        "limits": {
+          "max_options_per_choice": 100,
+          "max_request_tokens": null,
+          "max_state_plus_question_tokens": 1024,
+          "max_text_tokens": null,
+          "max_question_tokens": 512,
+          "max_option_tokens": 48,
+          "max_questions_per_request": 64,
+          "score_levels": null,
+          "price_input_per_mtok": 0.0,
+          "price_output_per_mtok": 0.0,
+          "source": "laya 0.3.27 serve.py (100 options, 64 questions) and common.py build_head/render_options (48-token option cap); convaiinnovations/laya @ 55cf4c4 rl_agent_config.json (max_len 512, head_max_len 192); sent with every request: head_max_len 512, max_len 1024",
+          "checked": "2026-10-05"
+        },
+        "prompt_version": "tool-choice-v1",
+        "max_detail": "BRIEF",
+        "reserved_option": true,
+        "k": 20,
+        "min_detail": "BRIEF"
+      }
+    },
+    "provider_retries": 0,
+    "pilot_run": "20261005T133743Z-order-pilot",
+    "scheduling": "arm-major, task, positive then negative, order seeds 0-4; physical asks serialized",
+    "task_mix": {
+      "positive": 200,
+      "negative": 200,
+      "negative_share": 0.5
+    }
+  },
+  "bootstrap": {
+    "resamples": 2000,
+    "seed": 0,
+    "unit": "task cluster",
+    "level": 0.95
+  },
+  "gates": {
+    "passed": true,
+    "complete": true,
+    "errors": 0,
+    "searches": 2000,
+    "expected_searches": 2000,
+    "five_different_orders": true,
+    "exchange_mappings_valid": true,
+    "physical_attempts_match": true,
+    "verified_cost": true,
+    "cost_gate": true,
+    "verified_usd": 0,
+    "budget_charge_usd": 0.0,
+    "estimate_usd": 0,
+    "actual_to_estimate": null
+  },
+  "excluded_incomplete_or_error_groups": 0,
+  "deciders": {
+    "laya-wide": {
+      "positive_tasks": 200,
+      "p_at_1": {
+        "0": {
+          "value": 0.2,
+          "ci95": [
+            0.15,
+            0.255
+          ],
+          "tasks": 200
+        },
+        "1": {
+          "value": 0.19,
+          "ci95": [
+            0.14,
+            0.245
+          ],
+          "tasks": 200
+        },
+        "2": {
+          "value": 0.17,
+          "ci95": [
+            0.12,
+            0.22
+          ],
+          "tasks": 200
+        },
+        "3": {
+          "value": 0.19,
+          "ci95": [
+            0.135,
+            0.24012500000000045
+          ],
+          "tasks": 200
+        },
+        "4": {
+          "value": 0.195,
+          "ci95": [
+            0.14,
+            0.25
+          ],
+          "tasks": 200
+        }
+      },
+      "shuffle_p_at_1": {
+        "mean": {
+          "value": 0.18625,
+          "ci95": [
+            0.13875,
+            0.2325
+          ],
+          "tasks": 200
+        },
+        "min": {
+          "value": 0.17,
+          "ci95": [
+            0.12,
+            0.215
+          ]
+        },
+        "max": {
+          "value": 0.195,
+          "ci95": [
+            0.155,
+            0.25512500000000043
+          ]
+        }
+      },
+      "top_card_stability": {
+        "value": 0.26,
+        "ci95": [
+          0.2,
+          0.32
+        ],
+        "tasks": 200
+      },
+      "pairwise_agreement": {
+        "value": 0.5225,
+        "ci95": [
+          0.477,
+          0.5665
+        ],
+        "tasks": 200
+      },
+      "chosen_slots_positive": {
+        "definition": "outer presented candidate slot of the top card; reserved option ignored",
+        "searches": 800,
+        "counts": {
+          "1": 69,
+          "2": 53,
+          "3": 54,
+          "4": 52,
+          "5": 51,
+          "6": 53,
+          "7": 47,
+          "8": 46,
+          "9": 35,
+          "10": 40,
+          "11": 36,
+          "12": 39,
+          "13": 29,
+          "14": 26,
+          "15": 30,
+          "16": 30,
+          "17": 27,
+          "18": 26,
+          "19": 27,
+          "20": 30
+        },
+        "slot_1": {
+          "value": 0.08625,
+          "ci95": [
+            0.0675,
+            0.1075
+          ],
+          "tasks": 200
+        },
+        "slots_1_to_3": {
+          "value": 0.22,
+          "ci95": [
+            0.1925,
+            0.25
+          ],
+          "tasks": 200
+        },
+        "uniform_slot_1": 0.05,
+        "uniform_slots_1_to_3": 0.15,
+        "chi_square": 72.95,
+        "degrees_of_freedom": 19,
+        "p_value": null,
+        "caveat": "Descriptive diagnostic only; repeated tasks are correlated. No causal uniform-position claim."
+      },
+      "chosen_slots_50_50_mix": {
+        "definition": "outer presented candidate slot of the top card; reserved option ignored",
+        "searches": 1600,
+        "counts": {
+          "1": 149,
+          "2": 101,
+          "3": 108,
+          "4": 107,
+          "5": 98,
+          "6": 101,
+          "7": 88,
+          "8": 88,
+          "9": 72,
+          "10": 80,
+          "11": 78,
+          "12": 70,
+          "13": 65,
+          "14": 61,
+          "15": 51,
+          "16": 62,
+          "17": 60,
+          "18": 48,
+          "19": 53,
+          "20": 60
+        },
+        "slot_1": {
+          "value": 0.093125,
+          "ci95": [
+            0.075,
+            0.111875
+          ],
+          "tasks": 200
+        },
+        "slots_1_to_3": {
+          "value": 0.22375,
+          "ci95": [
+            0.198125,
+            0.25
+          ],
+          "tasks": 200
+        },
+        "uniform_slot_1": 0.05,
+        "uniform_slots_1_to_3": 0.15,
+        "chi_square": 151.0,
+        "degrees_of_freedom": 19,
+        "p_value": null,
+        "caveat": "Descriptive diagnostic only; repeated tasks are correlated. No causal uniform-position claim."
+      },
+      "answer_abstain_stability": {
+        "value": 0.7225,
+        "ci95": [
+          0.6625,
+          0.775
+        ],
+        "tasks": 200
+      },
+      "abstention_by_order": {
+        "0": {
+          "correct": 39,
+          "wrong": 301,
+          "abstained": 60,
+          "searches": 400,
+          "negatives": 200,
+          "negative_share": 0.5
+        },
+        "1": {
+          "correct": 36,
+          "wrong": 303,
+          "abstained": 61,
+          "searches": 400,
+          "negatives": 200,
+          "negative_share": 0.5
+        },
+        "2": {
+          "correct": 33,
+          "wrong": 297,
+          "abstained": 70,
+          "searches": 400,
+          "negatives": 200,
+          "negative_share": 0.5
+        },
+        "3": {
+          "correct": 37,
+          "wrong": 302,
+          "abstained": 61,
+          "searches": 400,
+          "negatives": 200,
+          "negative_share": 0.5
+        },
+        "4": {
+          "correct": 38,
+          "wrong": 303,
+          "abstained": 59,
+          "searches": 400,
+          "negatives": 200,
+          "negative_share": 0.5
+        }
+      },
+      "permutation_averaging": {
+        "p_at_1": {
+          "value": 0.205,
+          "ci95": [
+            0.15,
+            0.26
+          ],
+          "tasks": 200
+        },
+        "abstention": {
+          "correct": 40,
+          "wrong": 285,
+          "abstained": 75,
+          "searches": 400,
+          "negatives": 200,
+          "negative_share": 0.5
+        },
+        "production_decisions_per_search": 5,
+        "decision_usd_per_1000_searches": 0.0,
+        "physical_attempts_per_search": 14.95,
+        "probabilities": "Average final distributions mapped to card ids; cards dropped in a logprob round get zero; identity breaks ties."
+      },
+      "physical_attempts": 5980,
+      "verified_decision_usd": 0,
+      "budget_charge_usd": 0.0,
+      "planner_lowered_exchanges": 0,
+      "identity_drift": {
+        "comparable": false,
+        "reason": "model, prompt, limits, or configuration differs"
+      }
+    }
+  },
+  "same_order_noise_baseline": {
+    "reference_run": "20260929T162701Z",
+    "reference_git": {
+      "commit": "57fd48a7ce7744bcacc08c6288790de42d03ecee",
+      "dirty": true
+    },
+    "reference_manifest_sha256": "2eace69b6851c935e9d25f3dcbf50038a471fd6a4d8be8792c2f373b92b527e1",
+    "reference_records_sha256": "d00139290d8ff4ee67e060d1f5b0bfe42e10341a01626a8f6f4e4284ae206180",
+    "reference_dataset": {
+      "name": "mteb/ToolRetrieval",
+      "revision": "76d45e560059754e289ea202462865a585679619",
+      "corpus_sha256": "774aa8c5263eed9870fb6eefc47491c67d3998e7eda1d897f9b359e20be67efb",
+      "tools": 44453,
+      "catalog_fingerprint": "sha256:7d56b70f34151288b0351d0764064e2d9852b9c2f1ef4e5ed076f1edb83debbf",
+      "mapping_stats": {
+        "name": 0.9999550086608328,
+        "description": 0.97766180010348,
+        "properties": 0.8109014014802151
+      }
+    },
+    "reference_tasks": {
+      "file": "bench/tasks/toolret-heldout-200.json",
+      "sha256": "b632db8a5cb328b3d793a6491b0893e7fa62770dff1fd7285dc495e5adf8b3f3",
+      "count": 200
+    },
+    "repeat_count": 3,
+    "deciders": {
+      "laya-wide": {
+        "comparable": false,
+        "reason": "model/config, population, repeat completeness, or identity payload differs"
+      }
+    },
+    "caveat": "Observed same-order run noise, not a causal order-effect experiment. Compare pairwise agreement; all-three-same and all-five-same are different statistics."
+  }
+}

@@ -16,7 +16,7 @@ from toolhunch_bench.deciders import DECIDERS, DeciderName, DeciderSpec
 from toolhunch_bench.direct import arm_decider
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
     from pathlib import Path
 
 __all__ = ["build_cost_latency", "build_readme_charts"]
@@ -492,6 +492,27 @@ _P2_OFFSETS: dict[str, tuple[float, float]] = {
 # Labels aligned against the side their offset points to: a long label placed in free space beyond the point.
 _P2_LEFT_ALIGNED = frozenset({"strands-all"})
 
+# The P3 figure's offsets, over the P2 ones when a P3 decider is drawn: Laya's low precision stretches the direct
+# panel down to 20%, and the P2 offsets, set for a 50-90% axis, crowd its upper half.
+_P3_OFFSETS: dict[str, tuple[float, float]] = {
+    "strands-all": (-94, 44),
+    "hybrid@20+strands": (11, -58),
+    "jev-all": (-13, 24),
+    "hybrid@20+jev": (16, -35),
+    "hybrid@20+clef-flash": (-9, 44),
+    "hybrid@20+clef": (-4, 44),
+    "clef-flash-all": (52, 52),
+    "clef-all": (64, 46),
+    "agent-luna@20": (-6, -66),
+    "agent@20": (24, -80),
+    "agent-all": (40, -125),
+    "hybrid@20+rizzo-flow": (12, 4),
+    "rizzo-flow-all": (-5, -61),
+    "hybrid+rizzo-flow@20": (-30, 80),
+}
+_P3_LEFT_ALIGNED = frozenset({"hybrid@20+clef", "agent-luna@20"})
+_P3_ARMS = re.compile(r"laya|rizzo")
+
 
 def _usd(usd: float | None, *, local: bool) -> str:
     if local:
@@ -605,7 +626,15 @@ def _hardware(direct: dict[str, Any]) -> str | None:
     return None
 
 
-def _panel(axes: Any, points: Sequence[_Point], *, head: str, search: float) -> None:
+def _panel(
+    axes: Any,
+    points: Sequence[_Point],
+    *,
+    head: str,
+    search: float,
+    offsets: Mapping[str, tuple[float, float]],
+    left_aligned: frozenset[str],
+) -> None:
     for point in points:
         x = point.milliseconds / 1000
         low, high = point.interval
@@ -622,8 +651,11 @@ def _panel(axes: Any, points: Sequence[_Point], *, head: str, search: float) -> 
             linewidths=2.5 if point.local else 1.5,
             gid=f"point-{_slug(point.key)}" + ("-local" if point.local else ""),
         )
-        dx, dy = _P2_OFFSETS.get(point.key) or _TRADEOFF_LABELS[point.key][2:]
-        align = "left" if dx > 0 or point.key in _P2_LEFT_ALIGNED else "right"
+        # The figure's offsets first, then the P1 figure's, then the default `_named` gives an arm with neither.
+        dx, dy = offsets.get(point.key) or (
+            _TRADEOFF_LABELS[point.key][2:] if point.key in _TRADEOFF_LABELS else (12, 0)
+        )
+        align = "left" if dx > 0 or point.key in left_aligned else "right"
         if abs(dy) > 20:
             axes.annotate(
                 "",
@@ -725,6 +757,9 @@ def build_cost_latency(
     if any(point.summed for point in points):
         notes.append("Local deciders are asked one request at a time: their latency adds every call of a search.")
     footer = "\n".join([*notes, f"toolhunch · ToolRet · runs of {', '.join(dates)}"])
+    p3 = any(_P3_ARMS.search(point.key) for point in points)
+    offsets = _P2_OFFSETS | (_P3_OFFSETS if p3 else {})
+    left_aligned = _P2_LEFT_ALIGNED | (_P3_LEFT_ALIGNED if p3 else frozenset[str]())
     out_dir.mkdir(parents=True, exist_ok=True)
     with cast("Any", matplotlib).rc_context(_STYLE):
         figure: Any = Figure(figsize=(16, 9), dpi=100)
@@ -743,12 +778,16 @@ def build_cost_latency(
             direct_points,
             head="Catalogs of 40–101 tools (290 requests)",  # noqa: RUF001
             search=direct_search["relevant_pick_rate"]["value"],
+            offsets=offsets,
+            left_aligned=left_aligned,
         )
         _panel(
             figure.add_axes((0.57, 0.19, 0.40, 0.57)),
             rerank_points,
             head="44,453 tools, 20 candidates (200 requests)",
             search=rerank_search,
+            offsets=offsets,
+            left_aligned=left_aligned,
         )
         path = out_dir / f"cost-latency.{fmt}"
         metadata = {"Date": None, "Description": footer} if fmt == "svg" else {"Software": None}

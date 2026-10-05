@@ -2096,7 +2096,1014 @@
         "prior_p1_usd": 2.5568847880000005,
         "purpose": "P1: direct choice luna full"
       },
-      "verified_usd": 0.16999999
+      "arms": [
+        "agent-luna-all"
+      ],
+      "replaced": [],
+      "verified_usd": 0.07478999
+    },
+    {
+      "manifest": {
+        "run_id": "20261005T142646Z-direct-luna",
+        "started": "2026-10-05T14:26:47+00:00",
+        "pilot": false,
+        "git": {
+          "commit": "8a39d2853dde319b53fdb12a3360abcd243b056b",
+          "dirty": true
+        },
+        "versions": {
+          "pydantic-ai-slim": "2.50.0",
+          "genai-prices": "0.1.9",
+          "toolhunch": "0.1.0"
+        },
+        "dataset": {
+          "name": "mteb/ToolRetrieval",
+          "revision": "76d45e560059754e289ea202462865a585679619",
+          "corpus_sha256": "774aa8c5263eed9870fb6eefc47491c67d3998e7eda1d897f9b359e20be67efb"
+        },
+        "catalogs": [
+          {
+            "source": "webtools_spotify",
+            "subtask": "restgpt-spotify",
+            "tools": 40,
+            "fingerprint": "sha256:78d9a19eae3ce2af1b83deca205e340ae55133be6530cf5792b5c1620dbda741",
+            "positives": 40,
+            "negatives": 20,
+            "dropped": 0
+          },
+          {
+            "source": "webtools_tmdb",
+            "subtask": "restgpt-tmdb",
+            "tools": 54,
+            "fingerprint": "sha256:4e34a18c0062e3558bcdb185634dcf55ed38733879130c4602eae84e50fd5839",
+            "positives": 54,
+            "negatives": 27,
+            "dropped": 0
+          },
+          {
+            "source": "tooleyes",
+            "subtask": "tooleyes",
+            "tools": 95,
+            "fingerprint": "sha256:74b4afe94d710fed05eb462c026c27f0da69b4800aeaa1ea4cf393cf767b760a",
+            "positives": 95,
+            "negatives": 48,
+            "dropped": 0
+          },
+          {
+            "source": "apibank",
+            "subtask": "apibank",
+            "tools": 101,
+            "fingerprint": "sha256:86e380c431e0c2b17b5ff4cfa19f93226a9e736928ef055376ef6548bdbc42ac",
+            "positives": 101,
+            "negatives": 50,
+            "dropped": 0
+          },
+          {
+            "source": "metatool_which",
+            "subtask": "metatool",
+            "tools": 200,
+            "fingerprint": "sha256:e206d08d679dbaed1191be294bc6c090ec02eca7b611e8fb29b5af3c3e708d4d",
+            "positives": 200,
+            "negatives": 100,
+            "dropped": 0
+          }
+        ],
+        "tasks": {
+          "webtools_spotify": {
+            "positive": [
+              "webtools_spotify_query_0",
+              "webtools_spotify_query_1",
+              "webtools_spotify_query_10",
+              "webtools_spotify_query_11",
+              "webtools_spotify_query_12",
+              "webtools_spotify_query_13",
+              "webtools_spotify_query_14",
+              "webtools_spotify_query_15",
+              "webtools_spotify_query_16",
+              "webtools_spotify_query_17",
+              "webtools_spotify_query_18",
+              "webtools_spotify_query_19",
+              "webtools_spotify_query_2",
+              "webtools_spotify_query_20",
+              "webtools_spotify_query_21",
+              "webtools_spotify_query_22",
+              "webtools_spotify_query_23",
+              "webtools_spotify_query_24",
+              "webtools_spotify_query_25",
+              "webtools_spotify_query_26",
+              "webtools_spotify_query_27",
+              "webtools_spotify_query_28",
+              "webtools_spotify_query_29",
+              "webtools_spotify_query_3",
+              "webtools_spotify_query_30",
+              "webtools_spotify_query_31",
+              "webtools_spotify_query_32",
+              "webtools_spotify_query_33",
+              "webtools_spotify_query_34",
+              "webtools_spotify_query_35",
+              "webtools_spotify_query_36",
+              "webtools_spotify_query_37",
+              "webtools_spotify_query_38",
+              "webtools_spotify_query_39",
+              "webtools_spotify_query_4",
+              "webtools_spotify_query_5",
+              "webtools_spotify_query_6",
+              "webtools_spotify_query_7",
+              "webtools_spotify_query_8",
+              "webtools_spotify_query_9"
+            ],
+            "negative": [
+              "webtools_spotify_query_30",
+              "webtools_spotify_query_32",
+              "webtools_spotify_query_10",
+              "webtools_spotify_query_23",
+              "webtools_spotify_query_38",
+              "webtools_spotify_query_37",
+              "webtools_spotify_query_31",
+              "webtools_spotify_query_26",
+              "webtools_spotify_query_36",
+              "webtools_spotify_query_19",
+              "webtools_spotify_query_25",
+              "webtools_spotify_query_34",
+              "webtools_spotify_query_14",
+              "webtools_spotify_query_6",
+              "webtools_spotify_query_12",
+              "webtools_spotify_query_17",
+              "webtools_spotify_query_39",
+              "webtools_spotify_query_11",
+              "webtools_spotify_query_5",
+              "webtools_spotify_query_16"
+            ]
+          },
+          "webtools_tmdb": {
+            "positive": [
+              "webtools_tmdb_query_0",
+              "webtools_tmdb_query_1",
+              "webtools_tmdb_query_10",
+              "webtools_tmdb_query_11",
+              "webtools_tmdb_query_12",
+              "webtools_tmdb_query_13",
+              "webtools_tmdb_query_14",
+              "webtools_tmdb_query_15",
+              "webtools_tmdb_query_16",
+              "webtools_tmdb_query_17",
+              "webtools_tmdb_query_18",
+              "webtools_tmdb_query_19",
+              "webtools_tmdb_query_2",
+              "webtools_tmdb_query_20",
+              "webtools_tmdb_query_21",
+              "webtools_tmdb_query_22",
+              "webtools_tmdb_query_23",
+              "webtools_tmdb_query_24",
+              "webtools_tmdb_query_25",
+              "webtools_tmdb_query_26",
+              "webtools_tmdb_query_27",
+              "webtools_tmdb_query_28",
+              "webtools_tmdb_query_29",
+              "webtools_tmdb_query_3",
+              "webtools_tmdb_query_30",
+              "webtools_tmdb_query_31",
+              "webtools_tmdb_query_32",
+              "webtools_tmdb_query_33",
+              "webtools_tmdb_query_34",
+              "webtools_tmdb_query_35",
+              "webtools_tmdb_query_36",
+              "webtools_tmdb_query_37",
+              "webtools_tmdb_query_38",
+              "webtools_tmdb_query_39",
+              "webtools_tmdb_query_4",
+              "webtools_tmdb_query_40",
+              "webtools_tmdb_query_41",
+              "webtools_tmdb_query_42",
+              "webtools_tmdb_query_43",
+              "webtools_tmdb_query_44",
+              "webtools_tmdb_query_45",
+              "webtools_tmdb_query_46",
+              "webtools_tmdb_query_47",
+              "webtools_tmdb_query_48",
+              "webtools_tmdb_query_49",
+              "webtools_tmdb_query_5",
+              "webtools_tmdb_query_50",
+              "webtools_tmdb_query_51",
+              "webtools_tmdb_query_52",
+              "webtools_tmdb_query_53",
+              "webtools_tmdb_query_6",
+              "webtools_tmdb_query_7",
+              "webtools_tmdb_query_8",
+              "webtools_tmdb_query_9"
+            ],
+            "negative": [
+              "webtools_tmdb_query_30",
+              "webtools_tmdb_query_52",
+              "webtools_tmdb_query_32",
+              "webtools_tmdb_query_10",
+              "webtools_tmdb_query_23",
+              "webtools_tmdb_query_38",
+              "webtools_tmdb_query_37",
+              "webtools_tmdb_query_31",
+              "webtools_tmdb_query_26",
+              "webtools_tmdb_query_36",
+              "webtools_tmdb_query_29",
+              "webtools_tmdb_query_42",
+              "webtools_tmdb_query_20",
+              "webtools_tmdb_query_8",
+              "webtools_tmdb_query_16",
+              "webtools_tmdb_query_25",
+              "webtools_tmdb_query_44",
+              "webtools_tmdb_query_14",
+              "webtools_tmdb_query_53",
+              "webtools_tmdb_query_4",
+              "webtools_tmdb_query_17",
+              "webtools_tmdb_query_5",
+              "webtools_tmdb_query_41",
+              "webtools_tmdb_query_3",
+              "webtools_tmdb_query_6",
+              "webtools_tmdb_query_34",
+              "webtools_tmdb_query_33"
+            ]
+          },
+          "tooleyes": {
+            "positive": [
+              "tooleyes_query_0",
+              "tooleyes_query_1",
+              "tooleyes_query_10",
+              "tooleyes_query_11",
+              "tooleyes_query_12",
+              "tooleyes_query_13",
+              "tooleyes_query_14",
+              "tooleyes_query_15",
+              "tooleyes_query_16",
+              "tooleyes_query_17",
+              "tooleyes_query_18",
+              "tooleyes_query_19",
+              "tooleyes_query_2",
+              "tooleyes_query_20",
+              "tooleyes_query_21",
+              "tooleyes_query_22",
+              "tooleyes_query_23",
+              "tooleyes_query_24",
+              "tooleyes_query_25",
+              "tooleyes_query_26",
+              "tooleyes_query_27",
+              "tooleyes_query_28",
+              "tooleyes_query_29",
+              "tooleyes_query_3",
+              "tooleyes_query_30",
+              "tooleyes_query_31",
+              "tooleyes_query_32",
+              "tooleyes_query_33",
+              "tooleyes_query_34",
+              "tooleyes_query_35",
+              "tooleyes_query_36",
+              "tooleyes_query_37",
+              "tooleyes_query_38",
+              "tooleyes_query_39",
+              "tooleyes_query_4",
+              "tooleyes_query_40",
+              "tooleyes_query_41",
+              "tooleyes_query_42",
+              "tooleyes_query_43",
+              "tooleyes_query_44",
+              "tooleyes_query_45",
+              "tooleyes_query_46",
+              "tooleyes_query_47",
+              "tooleyes_query_48",
+              "tooleyes_query_49",
+              "tooleyes_query_5",
+              "tooleyes_query_50",
+              "tooleyes_query_51",
+              "tooleyes_query_52",
+              "tooleyes_query_53",
+              "tooleyes_query_54",
+              "tooleyes_query_55",
+              "tooleyes_query_56",
+              "tooleyes_query_57",
+              "tooleyes_query_58",
+              "tooleyes_query_59",
+              "tooleyes_query_6",
+              "tooleyes_query_60",
+              "tooleyes_query_61",
+              "tooleyes_query_62",
+              "tooleyes_query_63",
+              "tooleyes_query_64",
+              "tooleyes_query_65",
+              "tooleyes_query_66",
+              "tooleyes_query_67",
+              "tooleyes_query_68",
+              "tooleyes_query_69",
+              "tooleyes_query_7",
+              "tooleyes_query_70",
+              "tooleyes_query_71",
+              "tooleyes_query_72",
+              "tooleyes_query_73",
+              "tooleyes_query_74",
+              "tooleyes_query_75",
+              "tooleyes_query_76",
+              "tooleyes_query_77",
+              "tooleyes_query_78",
+              "tooleyes_query_79",
+              "tooleyes_query_8",
+              "tooleyes_query_80",
+              "tooleyes_query_81",
+              "tooleyes_query_82",
+              "tooleyes_query_83",
+              "tooleyes_query_84",
+              "tooleyes_query_85",
+              "tooleyes_query_86",
+              "tooleyes_query_87",
+              "tooleyes_query_88",
+              "tooleyes_query_89",
+              "tooleyes_query_9",
+              "tooleyes_query_90",
+              "tooleyes_query_91",
+              "tooleyes_query_92",
+              "tooleyes_query_93",
+              "tooleyes_query_94"
+            ],
+            "negative": [
+              "tooleyes_query_53",
+              "tooleyes_query_57",
+              "tooleyes_query_13",
+              "tooleyes_query_39",
+              "tooleyes_query_68",
+              "tooleyes_query_65",
+              "tooleyes_query_55",
+              "tooleyes_query_43",
+              "tooleyes_query_64",
+              "tooleyes_query_5",
+              "tooleyes_query_76",
+              "tooleyes_query_33",
+              "tooleyes_query_67",
+              "tooleyes_query_24",
+              "tooleyes_query_41",
+              "tooleyes_query_82",
+              "tooleyes_query_2",
+              "tooleyes_query_38",
+              "tooleyes_query_70",
+              "tooleyes_query_25",
+              "tooleyes_query_44",
+              "tooleyes_query_8",
+              "tooleyes_query_17",
+              "tooleyes_query_47",
+              "tooleyes_query_63",
+              "tooleyes_query_75",
+              "tooleyes_query_86",
+              "tooleyes_query_59",
+              "tooleyes_query_45",
+              "tooleyes_query_32",
+              "tooleyes_query_87",
+              "tooleyes_query_6",
+              "tooleyes_query_7",
+              "tooleyes_query_91",
+              "tooleyes_query_23",
+              "tooleyes_query_11",
+              "tooleyes_query_89",
+              "tooleyes_query_40",
+              "tooleyes_query_0",
+              "tooleyes_query_92",
+              "tooleyes_query_50",
+              "tooleyes_query_93",
+              "tooleyes_query_31",
+              "tooleyes_query_78",
+              "tooleyes_query_54",
+              "tooleyes_query_73",
+              "tooleyes_query_69",
+              "tooleyes_query_66"
+            ]
+          },
+          "apibank": {
+            "positive": [
+              "apibank_query_0",
+              "apibank_query_1",
+              "apibank_query_10",
+              "apibank_query_100",
+              "apibank_query_11",
+              "apibank_query_12",
+              "apibank_query_13",
+              "apibank_query_14",
+              "apibank_query_15",
+              "apibank_query_16",
+              "apibank_query_17",
+              "apibank_query_18",
+              "apibank_query_19",
+              "apibank_query_2",
+              "apibank_query_20",
+              "apibank_query_21",
+              "apibank_query_22",
+              "apibank_query_23",
+              "apibank_query_24",
+              "apibank_query_25",
+              "apibank_query_26",
+              "apibank_query_27",
+              "apibank_query_28",
+              "apibank_query_29",
+              "apibank_query_3",
+              "apibank_query_30",
+              "apibank_query_31",
+              "apibank_query_32",
+              "apibank_query_33",
+              "apibank_query_34",
+              "apibank_query_35",
+              "apibank_query_36",
+              "apibank_query_37",
+              "apibank_query_38",
+              "apibank_query_39",
+              "apibank_query_4",
+              "apibank_query_40",
+              "apibank_query_41",
+              "apibank_query_42",
+              "apibank_query_43",
+              "apibank_query_44",
+              "apibank_query_45",
+              "apibank_query_46",
+              "apibank_query_47",
+              "apibank_query_48",
+              "apibank_query_49",
+              "apibank_query_5",
+              "apibank_query_50",
+              "apibank_query_51",
+              "apibank_query_52",
+              "apibank_query_53",
+              "apibank_query_54",
+              "apibank_query_55",
+              "apibank_query_56",
+              "apibank_query_57",
+              "apibank_query_58",
+              "apibank_query_59",
+              "apibank_query_6",
+              "apibank_query_60",
+              "apibank_query_61",
+              "apibank_query_62",
+              "apibank_query_63",
+              "apibank_query_64",
+              "apibank_query_65",
+              "apibank_query_66",
+              "apibank_query_67",
+              "apibank_query_68",
+              "apibank_query_69",
+              "apibank_query_7",
+              "apibank_query_70",
+              "apibank_query_71",
+              "apibank_query_72",
+              "apibank_query_73",
+              "apibank_query_74",
+              "apibank_query_75",
+              "apibank_query_76",
+              "apibank_query_77",
+              "apibank_query_78",
+              "apibank_query_79",
+              "apibank_query_8",
+              "apibank_query_80",
+              "apibank_query_81",
+              "apibank_query_82",
+              "apibank_query_83",
+              "apibank_query_84",
+              "apibank_query_85",
+              "apibank_query_86",
+              "apibank_query_87",
+              "apibank_query_88",
+              "apibank_query_89",
+              "apibank_query_9",
+              "apibank_query_90",
+              "apibank_query_91",
+              "apibank_query_92",
+              "apibank_query_93",
+              "apibank_query_94",
+              "apibank_query_95",
+              "apibank_query_96",
+              "apibank_query_97",
+              "apibank_query_98",
+              "apibank_query_99"
+            ],
+            "negative": [
+              "apibank_query_52",
+              "apibank_query_96",
+              "apibank_query_56",
+              "apibank_query_12",
+              "apibank_query_38",
+              "apibank_query_67",
+              "apibank_query_64",
+              "apibank_query_54",
+              "apibank_query_42",
+              "apibank_query_63",
+              "apibank_query_49",
+              "apibank_query_75",
+              "apibank_query_32",
+              "apibank_query_66",
+              "apibank_query_23",
+              "apibank_query_40",
+              "apibank_query_86",
+              "apibank_query_19",
+              "apibank_query_8",
+              "apibank_query_37",
+              "apibank_query_7",
+              "apibank_query_78",
+              "apibank_query_24",
+              "apibank_query_43",
+              "apibank_query_83",
+              "apibank_query_16",
+              "apibank_query_46",
+              "apibank_query_62",
+              "apibank_query_72",
+              "apibank_query_77",
+              "apibank_query_9",
+              "apibank_query_58",
+              "apibank_query_44",
+              "apibank_query_31",
+              "apibank_query_90",
+              "apibank_query_59",
+              "apibank_query_95",
+              "apibank_query_14",
+              "apibank_query_92",
+              "apibank_query_60",
+              "apibank_query_4",
+              "apibank_query_68",
+              "apibank_query_0",
+              "apibank_query_98",
+              "apibank_query_5",
+              "apibank_query_97",
+              "apibank_query_30",
+              "apibank_query_71",
+              "apibank_query_55",
+              "apibank_query_53"
+            ]
+          },
+          "metatool_which": {
+            "positive": [
+              "metatool_which_query_0",
+              "metatool_which_query_1",
+              "metatool_which_query_10",
+              "metatool_which_query_100",
+              "metatool_which_query_101",
+              "metatool_which_query_102",
+              "metatool_which_query_103",
+              "metatool_which_query_104",
+              "metatool_which_query_105",
+              "metatool_which_query_106",
+              "metatool_which_query_107",
+              "metatool_which_query_108",
+              "metatool_which_query_109",
+              "metatool_which_query_11",
+              "metatool_which_query_110",
+              "metatool_which_query_111",
+              "metatool_which_query_112",
+              "metatool_which_query_113",
+              "metatool_which_query_114",
+              "metatool_which_query_115",
+              "metatool_which_query_116",
+              "metatool_which_query_117",
+              "metatool_which_query_118",
+              "metatool_which_query_119",
+              "metatool_which_query_12",
+              "metatool_which_query_120",
+              "metatool_which_query_121",
+              "metatool_which_query_122",
+              "metatool_which_query_123",
+              "metatool_which_query_124",
+              "metatool_which_query_125",
+              "metatool_which_query_126",
+              "metatool_which_query_127",
+              "metatool_which_query_128",
+              "metatool_which_query_129",
+              "metatool_which_query_13",
+              "metatool_which_query_130",
+              "metatool_which_query_131",
+              "metatool_which_query_132",
+              "metatool_which_query_133",
+              "metatool_which_query_134",
+              "metatool_which_query_135",
+              "metatool_which_query_136",
+              "metatool_which_query_137",
+              "metatool_which_query_138",
+              "metatool_which_query_139",
+              "metatool_which_query_14",
+              "metatool_which_query_140",
+              "metatool_which_query_141",
+              "metatool_which_query_142",
+              "metatool_which_query_143",
+              "metatool_which_query_144",
+              "metatool_which_query_145",
+              "metatool_which_query_146",
+              "metatool_which_query_147",
+              "metatool_which_query_148",
+              "metatool_which_query_149",
+              "metatool_which_query_15",
+              "metatool_which_query_150",
+              "metatool_which_query_151",
+              "metatool_which_query_152",
+              "metatool_which_query_153",
+              "metatool_which_query_154",
+              "metatool_which_query_155",
+              "metatool_which_query_156",
+              "metatool_which_query_157",
+              "metatool_which_query_158",
+              "metatool_which_query_159",
+              "metatool_which_query_16",
+              "metatool_which_query_160",
+              "metatool_which_query_161",
+              "metatool_which_query_162",
+              "metatool_which_query_163",
+              "metatool_which_query_164",
+              "metatool_which_query_165",
+              "metatool_which_query_166",
+              "metatool_which_query_167",
+              "metatool_which_query_168",
+              "metatool_which_query_169",
+              "metatool_which_query_17",
+              "metatool_which_query_170",
+              "metatool_which_query_171",
+              "metatool_which_query_172",
+              "metatool_which_query_173",
+              "metatool_which_query_174",
+              "metatool_which_query_175",
+              "metatool_which_query_176",
+              "metatool_which_query_177",
+              "metatool_which_query_178",
+              "metatool_which_query_179",
+              "metatool_which_query_18",
+              "metatool_which_query_180",
+              "metatool_which_query_181",
+              "metatool_which_query_182",
+              "metatool_which_query_183",
+              "metatool_which_query_184",
+              "metatool_which_query_185",
+              "metatool_which_query_186",
+              "metatool_which_query_187",
+              "metatool_which_query_188",
+              "metatool_which_query_189",
+              "metatool_which_query_19",
+              "metatool_which_query_190",
+              "metatool_which_query_191",
+              "metatool_which_query_192",
+              "metatool_which_query_193",
+              "metatool_which_query_194",
+              "metatool_which_query_195",
+              "metatool_which_query_196",
+              "metatool_which_query_197",
+              "metatool_which_query_198",
+              "metatool_which_query_199",
+              "metatool_which_query_2",
+              "metatool_which_query_20",
+              "metatool_which_query_21",
+              "metatool_which_query_22",
+              "metatool_which_query_23",
+              "metatool_which_query_24",
+              "metatool_which_query_25",
+              "metatool_which_query_26",
+              "metatool_which_query_27",
+              "metatool_which_query_28",
+              "metatool_which_query_29",
+              "metatool_which_query_3",
+              "metatool_which_query_30",
+              "metatool_which_query_31",
+              "metatool_which_query_32",
+              "metatool_which_query_33",
+              "metatool_which_query_34",
+              "metatool_which_query_35",
+              "metatool_which_query_36",
+              "metatool_which_query_37",
+              "metatool_which_query_38",
+              "metatool_which_query_39",
+              "metatool_which_query_4",
+              "metatool_which_query_40",
+              "metatool_which_query_41",
+              "metatool_which_query_42",
+              "metatool_which_query_43",
+              "metatool_which_query_44",
+              "metatool_which_query_45",
+              "metatool_which_query_46",
+              "metatool_which_query_47",
+              "metatool_which_query_48",
+              "metatool_which_query_49",
+              "metatool_which_query_5",
+              "metatool_which_query_50",
+              "metatool_which_query_51",
+              "metatool_which_query_52",
+              "metatool_which_query_53",
+              "metatool_which_query_54",
+              "metatool_which_query_55",
+              "metatool_which_query_56",
+              "metatool_which_query_57",
+              "metatool_which_query_58",
+              "metatool_which_query_59",
+              "metatool_which_query_6",
+              "metatool_which_query_60",
+              "metatool_which_query_61",
+              "metatool_which_query_62",
+              "metatool_which_query_63",
+              "metatool_which_query_64",
+              "metatool_which_query_65",
+              "metatool_which_query_66",
+              "metatool_which_query_67",
+              "metatool_which_query_68",
+              "metatool_which_query_69",
+              "metatool_which_query_7",
+              "metatool_which_query_70",
+              "metatool_which_query_71",
+              "metatool_which_query_72",
+              "metatool_which_query_73",
+              "metatool_which_query_74",
+              "metatool_which_query_75",
+              "metatool_which_query_76",
+              "metatool_which_query_77",
+              "metatool_which_query_78",
+              "metatool_which_query_79",
+              "metatool_which_query_8",
+              "metatool_which_query_80",
+              "metatool_which_query_81",
+              "metatool_which_query_82",
+              "metatool_which_query_83",
+              "metatool_which_query_84",
+              "metatool_which_query_85",
+              "metatool_which_query_86",
+              "metatool_which_query_87",
+              "metatool_which_query_88",
+              "metatool_which_query_89",
+              "metatool_which_query_9",
+              "metatool_which_query_90",
+              "metatool_which_query_91",
+              "metatool_which_query_92",
+              "metatool_which_query_93",
+              "metatool_which_query_94",
+              "metatool_which_query_95",
+              "metatool_which_query_96",
+              "metatool_which_query_97",
+              "metatool_which_query_98",
+              "metatool_which_query_99"
+            ],
+            "negative": [
+              "metatool_which_query_187",
+              "metatool_which_query_94",
+              "metatool_which_query_195",
+              "metatool_which_query_107",
+              "metatool_which_query_158",
+              "metatool_which_query_36",
+              "metatool_which_query_30",
+              "metatool_which_query_191",
+              "metatool_which_query_168",
+              "metatool_which_query_29",
+              "metatool_which_query_180",
+              "metatool_which_query_53",
+              "metatool_which_query_148",
+              "metatool_which_query_35",
+              "metatool_which_query_13",
+              "metatool_which_query_163",
+              "metatool_which_query_86",
+              "metatool_which_query_12",
+              "metatool_which_query_61",
+              "metatool_which_query_156",
+              "metatool_which_query_41",
+              "metatool_which_query_58",
+              "metatool_which_query_131",
+              "metatool_which_query_17",
+              "metatool_which_query_120",
+              "metatool_which_query_114",
+              "metatool_which_query_174",
+              "metatool_which_query_27",
+              "metatool_which_query_48",
+              "metatool_which_query_77",
+              "metatool_which_query_18",
+              "metatool_which_query_199",
+              "metatool_which_query_170",
+              "metatool_which_query_6",
+              "metatool_which_query_66",
+              "metatool_which_query_145",
+              "metatool_which_query_46",
+              "metatool_which_query_90",
+              "metatool_which_query_20",
+              "metatool_which_query_39",
+              "metatool_which_query_95",
+              "metatool_which_query_111",
+              "metatool_which_query_45",
+              "metatool_which_query_100",
+              "metatool_which_query_119",
+              "metatool_which_query_190",
+              "metatool_which_query_0",
+              "metatool_which_query_32",
+              "metatool_which_query_175",
+              "metatool_which_query_154",
+              "metatool_which_query_173",
+              "metatool_which_query_112",
+              "metatool_which_query_141",
+              "metatool_which_query_5",
+              "metatool_which_query_149",
+              "metatool_which_query_153",
+              "metatool_which_query_130",
+              "metatool_which_query_44",
+              "metatool_which_query_21",
+              "metatool_which_query_59",
+              "metatool_which_query_116",
+              "metatool_which_query_171",
+              "metatool_which_query_98",
+              "metatool_which_query_31",
+              "metatool_which_query_122",
+              "metatool_which_query_91",
+              "metatool_which_query_165",
+              "metatool_which_query_126",
+              "metatool_which_query_55",
+              "metatool_which_query_67",
+              "metatool_which_query_164",
+              "metatool_which_query_64",
+              "metatool_which_query_60",
+              "metatool_which_query_167",
+              "metatool_which_query_8",
+              "metatool_which_query_142",
+              "metatool_which_query_134",
+              "metatool_which_query_87",
+              "metatool_which_query_125",
+              "metatool_which_query_79",
+              "metatool_which_query_33",
+              "metatool_which_query_83",
+              "metatool_which_query_193",
+              "metatool_which_query_26",
+              "metatool_which_query_101",
+              "metatool_which_query_169",
+              "metatool_which_query_75",
+              "metatool_which_query_128",
+              "metatool_which_query_152",
+              "metatool_which_query_105",
+              "metatool_which_query_108",
+              "metatool_which_query_176",
+              "metatool_which_query_185",
+              "metatool_which_query_52",
+              "metatool_which_query_115",
+              "metatool_which_query_22",
+              "metatool_which_query_96",
+              "metatool_which_query_179",
+              "metatool_which_query_160",
+              "metatool_which_query_177"
+            ]
+          }
+        },
+        "tasks_sha256": "4c667b98e6aabdeab50e36e56e89d4289f85d808deeece7b13542d7315e78d1b",
+        "arms": [
+          "agent-luna@20"
+        ],
+        "query_embeddings": "fresh",
+        "agent_cache": "agent-luna-rerun.sqlite",
+        "order": "catalog, arm, positives, negatives",
+        "decision_basis": "sum of calls",
+        "concurrency": 1,
+        "negative_seed": 0,
+        "negative_allocation": "largest remainder, stable source order",
+        "prompt_versions": {
+          "jev": "tool-choice-v1",
+          "agent": "direct-choice-v1"
+        },
+        "agent": {
+          "model": "gpt-6-luna",
+          "reasoning_effort": "none",
+          "api": "openai-chat-completions",
+          "endpoint": "api.openai.com",
+          "description_shape": "JSON object with original name and complete description",
+          "parameters": "names as string properties",
+          "max_output_tokens": 256,
+          "retry": 1,
+          "cache_key": "catalog source"
+        },
+        "estimate": {
+          "usd": 0.28785545999999984,
+          "requests_per_arm": 735,
+          "positives_per_arm": 490,
+          "negatives_per_arm": 245,
+          "lines": [
+            {
+              "provider": "openai",
+              "model": "gpt-6-luna",
+              "arm": "agent-luna@20",
+              "requests": 735,
+              "input_tokens": 1935573,
+              "output_tokens": 188160,
+              "usd": 0.2876372999999998
+            },
+            {
+              "provider": "openai",
+              "model": "text-embedding-3-small",
+              "requests": 490,
+              "input_tokens": 10908,
+              "output_tokens": 0,
+              "usd": 0.00021816
+            }
+          ],
+          "stand_in_searches": 490,
+          "planned_requests_by_arm": {
+            "agent-luna@20": 735
+          },
+          "candidate_bound_searches": {
+            "agent@20": 365
+          },
+          "candidate_bound_method": "Short/empty missing-dense BM25 stand-ins: min(K, applicable catalog size) longest FULL cards by Jev heuristic text or agent wire tokens; actual Jev planner limits/detail retained. Complete cached hybrid matches unchanged; other lexical stand-ins approximate, not a guaranteed bound."
+        },
+        "completed": true,
+        "not_applicable": [
+          {
+            "arm": "agent-all",
+            "catalog": "metatool_which",
+            "reason": "OpenAI Chat Completions rejected 200 function tools: HTTP 400 array_above_max_length, param tools (4/4 attempts); exact maximum not established",
+            "source": "bench/runs/20260929T221520Z-direct-pilot/run.jsonl",
+            "date": "2026-09-30"
+          },
+          {
+            "arm": "agent-luna-all",
+            "catalog": "metatool_which",
+            "reason": "OpenAI Chat Completions rejected 200 function tools for gpt-6-luna: HTTP 400 array_above_max_length, param tools (4/4 attempts)",
+            "source": "bench/runs/20260930T165646Z-direct-luna-pilot/run.jsonl",
+            "date": "2026-09-30"
+          }
+        ],
+        "planned_requests_by_arm": {
+          "agent-luna@20": 735
+        },
+        "deciders": {},
+        "stop_reason": null,
+        "counts": {
+          "agent-luna@20": 735
+        },
+        "errors": {
+          "agent-luna@20": 0
+        },
+        "provider_errors": {
+          "agent-luna@20": 0
+        },
+        "budget_charge_usd": 0.09548,
+        "full_estimate": {
+          "usd": 0.28785545999999984,
+          "requests_per_arm": 735,
+          "positives_per_arm": 490,
+          "negatives_per_arm": 245,
+          "lines": [
+            {
+              "provider": "openai",
+              "model": "gpt-6-luna",
+              "arm": "agent-luna@20",
+              "requests": 735,
+              "input_tokens": 1935573,
+              "output_tokens": 188160,
+              "usd": 0.2876372999999998
+            },
+            {
+              "provider": "openai",
+              "model": "text-embedding-3-small",
+              "requests": 490,
+              "input_tokens": 10908,
+              "output_tokens": 0,
+              "usd": 0.00021816
+            }
+          ],
+          "stand_in_searches": 490,
+          "planned_requests_by_arm": {
+            "agent-luna@20": 735
+          },
+          "candidate_bound_searches": {
+            "agent@20": 365
+          },
+          "candidate_bound_method": "Short/empty missing-dense BM25 stand-ins: min(K, applicable catalog size) longest FULL cards by Jev heuristic text or agent wire tokens; actual Jev planner limits/detail retained. Complete cached hybrid matches unchanged; other lexical stand-ins approximate, not a guaranteed bound."
+        },
+        "full_catalogs": [
+          {
+            "source": "webtools_spotify",
+            "positives": 40,
+            "negatives": 20
+          },
+          {
+            "source": "webtools_tmdb",
+            "positives": 54,
+            "negatives": 27
+          },
+          {
+            "source": "tooleyes",
+            "positives": 95,
+            "negatives": 48
+          },
+          {
+            "source": "apibank",
+            "positives": 101,
+            "negatives": 50
+          },
+          {
+            "source": "metatool_which",
+            "positives": 200,
+            "negatives": 100
+          }
+        ],
+        "prior_p1_usd": 0.0125107,
+        "budget": {
+          "prefix": "P3:",
+          "prior_usd": 0.0125107,
+          "cap_usd": 2.0
+        },
+        "purpose": "P3: direct choice luna full"
+      },
+      "arms": [
+        "agent-luna@20"
+      ],
+      "replaced": [
+        {
+          "arm": "agent-luna@20",
+          "run": "20260930T170103Z-direct-luna"
+        }
+      ],
+      "verified_usd": 0.09548
     }
   ],
   "applicability": {
@@ -2218,6 +3225,7 @@
           "list_usd_per_1000": 0.0,
           "latency_p50_ms": 3.671750077046454,
           "latency_p95_ms": 4.618448077235371,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -2235,6 +3243,7 @@
           "list_usd_per_1000": 0.0002497202797202797,
           "latency_p50_ms": 160.21764604374766,
           "latency_p95_ms": 252.80840625055134,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 7.142e-05,
           "known_list_subtotal_usd": 7.142e-05
@@ -2253,6 +3262,7 @@
         "list_usd_per_1000": 0.0,
         "latency_p50_ms": 2.781917108222842,
         "latency_p95_ms": 4.167008539661766,
+        "decision_latency_p50_ms": null,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0,
         "known_list_subtotal_usd": 0
@@ -2346,6 +3356,7 @@
           "list_usd_per_1000": 0.0,
           "latency_p50_ms": 3.8706250488758087,
           "latency_p95_ms": 5.32481693662703,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -2363,6 +3374,7 @@
           "list_usd_per_1000": 0.0003683711340206186,
           "latency_p50_ms": 162.53545903600752,
           "latency_p95_ms": 253.57065000571328,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.00017866,
           "known_list_subtotal_usd": 0.00017866
@@ -2381,6 +3393,7 @@
         "list_usd_per_1000": 0.0,
         "latency_p50_ms": 3.4441249445080757,
         "latency_p95_ms": 5.2692501340061435,
+        "decision_latency_p50_ms": null,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0,
         "known_list_subtotal_usd": 0
@@ -2470,6 +3483,7 @@
           "list_usd_per_1000": 0.0,
           "latency_p50_ms": 1.8522499594837427,
           "latency_p95_ms": 1.8522499594837427,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -2487,6 +3501,7 @@
           "list_usd_per_1000": 0.00013230769230769229,
           "latency_p50_ms": 154.43533286452293,
           "latency_p95_ms": 370.6284339306894,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 5.16e-06,
           "known_list_subtotal_usd": 5.16e-06
@@ -2505,6 +3520,7 @@
         "list_usd_per_1000": 0.0,
         "latency_p50_ms": 1.112916972488165,
         "latency_p95_ms": 1.8797006574459383,
+        "decision_latency_p50_ms": null,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0,
         "known_list_subtotal_usd": 0
@@ -2594,6 +3610,7 @@
           "list_usd_per_1000": 0.0,
           "latency_p50_ms": 3.472875105217099,
           "latency_p95_ms": 3.472875105217099,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -2611,6 +3628,7 @@
           "list_usd_per_1000": 0.0001890566037735849,
           "latency_p50_ms": 164.86195800825953,
           "latency_p95_ms": 345.2222830150276,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 1.0019999999999999e-05,
           "known_list_subtotal_usd": 1.0019999999999999e-05
@@ -2629,6 +3647,7 @@
         "list_usd_per_1000": 0.0,
         "latency_p50_ms": 2.003542147576809,
         "latency_p95_ms": 2.259062579832971,
+        "decision_latency_p50_ms": null,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0,
         "known_list_subtotal_usd": 0
@@ -2718,6 +3737,7 @@
           "list_usd_per_1000": 0.0,
           "latency_p50_ms": 4.750416846945882,
           "latency_p95_ms": 4.750416846945882,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -2735,6 +3755,7 @@
           "list_usd_per_1000": 0.0003146808510638298,
           "latency_p50_ms": 159.82212498784065,
           "latency_p95_ms": 219.60145225748417,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 2.9579999999999998e-05,
           "known_list_subtotal_usd": 2.9579999999999998e-05
@@ -2753,6 +3774,7 @@
         "list_usd_per_1000": 0.0,
         "latency_p50_ms": 2.8535204473882914,
         "latency_p95_ms": 4.753418720792978,
+        "decision_latency_p50_ms": null,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0,
         "known_list_subtotal_usd": 0
@@ -2842,6 +3864,7 @@
           "list_usd_per_1000": 0.0,
           "latency_p50_ms": 3.8706250488758087,
           "latency_p95_ms": 3.8706250488758087,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -2859,6 +3882,7 @@
           "list_usd_per_1000": 0.0002666,
           "latency_p50_ms": 160.7473335461691,
           "latency_p95_ms": 221.6482104267925,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 2.666e-05,
           "known_list_subtotal_usd": 2.666e-05
@@ -2877,6 +3901,7 @@
         "list_usd_per_1000": 0.0,
         "latency_p50_ms": 3.427271032705903,
         "latency_p95_ms": 3.6499372799880803,
+        "decision_latency_p50_ms": null,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0,
         "known_list_subtotal_usd": 0
@@ -2966,6 +3991,7 @@
           "list_usd_per_1000": 0.0,
           "latency_p50_ms": 5.4684169590473175,
           "latency_p95_ms": 5.4684169590473175,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -2983,6 +4009,7 @@
           "list_usd_per_1000": 0.000538894472361809,
           "latency_p50_ms": 166.2899157963693,
           "latency_p95_ms": 239.1947245225307,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.00010724,
           "known_list_subtotal_usd": 0.00010724
@@ -3001,6 +4028,7 @@
         "list_usd_per_1000": 0.0,
         "latency_p50_ms": 4.970582900568843,
         "latency_p95_ms": 5.586594331543893,
+        "decision_latency_p50_ms": null,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0,
         "known_list_subtotal_usd": 0
@@ -3088,6 +4116,20 @@
         "BRIEF": 0,
         "NAME": 0
       },
+      "rounds": {
+        "one_question": 435,
+        "two_rounds": 0
+      },
+      "lower_detail": 0,
+      "physical_requests": 435,
+      "key_only_option_share": null,
+      "failed_card_searches": 0,
+      "not_applicable_searches": 0,
+      "provider_failures": 0,
+      "failure_reasons": {
+        "failed_card": {},
+        "provider": {}
+      },
       "multi_calls": 0,
       "agent_text_none": 0,
       "agent_other_text_abstentions": 0,
@@ -3105,6 +4147,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -3122,6 +4165,7 @@
           "list_usd_per_1000": 0.082815008,
           "latency_p50_ms": 449.2291461210698,
           "latency_p95_ms": 630.5143413017504,
+          "decision_latency_p50_ms": 282.03768690582365,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.020703752,
           "known_list_subtotal_usd": 0.020703752
@@ -3140,6 +4184,7 @@
         "list_usd_per_1000": 0.0833197435897436,
         "latency_p50_ms": 287.7569170668721,
         "latency_p95_ms": 409.71685764379805,
+        "decision_latency_p50_ms": 285.85395915433764,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.00974841,
         "known_list_subtotal_usd": 0.00974841
@@ -3228,6 +4273,20 @@
         "BRIEF": 0,
         "NAME": 0
       },
+      "rounds": {
+        "one_question": 735,
+        "two_rounds": 0
+      },
+      "lower_detail": 0,
+      "physical_requests": 735,
+      "key_only_option_share": null,
+      "failed_card_searches": 0,
+      "not_applicable_searches": 0,
+      "provider_failures": 0,
+      "failure_reasons": {
+        "failed_card": {},
+        "provider": {}
+      },
       "multi_calls": 0,
       "agent_text_none": 0,
       "agent_other_text_abstentions": 0,
@@ -3245,6 +4304,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -3262,6 +4322,7 @@
           "list_usd_per_1000": 0.06753082727272727,
           "latency_p50_ms": 451.77810452878475,
           "latency_p95_ms": 629.8267573700286,
+          "decision_latency_p50_ms": 281.43839607946575,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.029713564,
           "known_list_subtotal_usd": 0.029713564
@@ -3280,6 +4341,7 @@
         "list_usd_per_1000": 0.06868356923076924,
         "latency_p50_ms": 287.8303749021143,
         "latency_p95_ms": 389.4272960955279,
+        "decision_latency_p50_ms": 285.46712500974536,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.013393296,
         "known_list_subtotal_usd": 0.013393296
@@ -3364,6 +4426,20 @@
         "BRIEF": 0,
         "NAME": 0
       },
+      "rounds": {
+        "one_question": 60,
+        "two_rounds": 0
+      },
+      "lower_detail": 0,
+      "physical_requests": 60,
+      "key_only_option_share": null,
+      "failed_card_searches": 0,
+      "not_applicable_searches": 0,
+      "provider_failures": 0,
+      "failure_reasons": {
+        "failed_card": {},
+        "provider": {}
+      },
       "multi_calls": 0,
       "agent_text_none": 0,
       "agent_other_text_abstentions": 0,
@@ -3381,6 +4457,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -3398,6 +4475,7 @@
           "list_usd_per_1000": 0.0603426,
           "latency_p50_ms": 471.1450623581186,
           "latency_p95_ms": 1257.9688931233259,
+          "decision_latency_p50_ms": 301.3991875341162,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.001810278,
           "known_list_subtotal_usd": 0.001810278
@@ -3416,6 +4494,7 @@
         "list_usd_per_1000": 0.06131160000000001,
         "latency_p50_ms": 286.1813341733068,
         "latency_p95_ms": 320.75270456261933,
+        "decision_latency_p50_ms": 285.59212503023446,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.0009196740000000001,
         "known_list_subtotal_usd": 0.0009196740000000001
@@ -3500,6 +4579,20 @@
         "BRIEF": 0,
         "NAME": 0
       },
+      "rounds": {
+        "one_question": 81,
+        "two_rounds": 0
+      },
+      "lower_detail": 0,
+      "physical_requests": 81,
+      "key_only_option_share": null,
+      "failed_card_searches": 0,
+      "not_applicable_searches": 0,
+      "provider_failures": 0,
+      "failure_reasons": {
+        "failed_card": {},
+        "provider": {}
+      },
       "multi_calls": 0,
       "agent_text_none": 0,
       "agent_other_text_abstentions": 0,
@@ -3517,6 +4610,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -3534,6 +4628,7 @@
           "list_usd_per_1000": 0.08808790909090909,
           "latency_p50_ms": 471.42543795052916,
           "latency_p95_ms": 701.8087373231539,
+          "decision_latency_p50_ms": 288.39412494562566,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.003875868,
           "known_list_subtotal_usd": 0.003875868
@@ -3552,6 +4647,7 @@
         "list_usd_per_1000": 0.08899418181818183,
         "latency_p50_ms": 302.5762705365196,
         "latency_p95_ms": 405.98663249984384,
+        "decision_latency_p50_ms": 300.6997500779107,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.0019578720000000003,
         "known_list_subtotal_usd": 0.0019578720000000003
@@ -3636,6 +4732,20 @@
         "BRIEF": 0,
         "NAME": 0
       },
+      "rounds": {
+        "one_question": 143,
+        "two_rounds": 0
+      },
+      "lower_detail": 0,
+      "physical_requests": 143,
+      "key_only_option_share": null,
+      "failed_card_searches": 0,
+      "not_applicable_searches": 0,
+      "provider_failures": 0,
+      "failure_reasons": {
+        "failed_card": {},
+        "provider": {}
+      },
       "multi_calls": 0,
       "agent_text_none": 0,
       "agent_other_text_abstentions": 0,
@@ -3653,6 +4763,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -3670,6 +4781,7 @@
           "list_usd_per_1000": 0.08218870588235296,
           "latency_p50_ms": 432.01333400793374,
           "latency_p95_ms": 575.1814923249183,
+          "decision_latency_p50_ms": 265.16991714015603,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.006986040000000001,
           "known_list_subtotal_usd": 0.006986040000000001
@@ -3688,6 +4800,7 @@
         "list_usd_per_1000": 0.08274960000000002,
         "latency_p50_ms": 270.0934577733278,
         "latency_p95_ms": 301.61690840031946,
+        "decision_latency_p50_ms": 267.21895788796246,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.0028962360000000004,
         "known_list_subtotal_usd": 0.0028962360000000004
@@ -3772,6 +4885,20 @@
         "BRIEF": 0,
         "NAME": 0
       },
+      "rounds": {
+        "one_question": 151,
+        "two_rounds": 0
+      },
+      "lower_detail": 0,
+      "physical_requests": 151,
+      "key_only_option_share": null,
+      "failed_card_searches": 0,
+      "not_applicable_searches": 0,
+      "provider_failures": 0,
+      "failure_reasons": {
+        "failed_card": {},
+        "provider": {}
+      },
       "multi_calls": 0,
       "agent_text_none": 0,
       "agent_other_text_abstentions": 0,
@@ -3789,6 +4916,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -3806,6 +4934,7 @@
           "list_usd_per_1000": 0.08825896703296703,
           "latency_p50_ms": 453.3021259121597,
           "latency_p95_ms": 597.469229483977,
+          "decision_latency_p50_ms": 287.05058293417096,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.008031566,
           "known_list_subtotal_usd": 0.008031566
@@ -3824,6 +4953,7 @@
         "list_usd_per_1000": 0.08832506666666667,
         "latency_p50_ms": 290.6298330053687,
         "latency_p95_ms": 476.9259330350904,
+        "decision_latency_p50_ms": 287.2922080568969,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.003974628,
         "known_list_subtotal_usd": 0.003974628
@@ -3908,6 +5038,20 @@
         "BRIEF": 0,
         "NAME": 0
       },
+      "rounds": {
+        "one_question": 300,
+        "two_rounds": 0
+      },
+      "lower_detail": 0,
+      "physical_requests": 300,
+      "key_only_option_share": null,
+      "failed_card_searches": 0,
+      "not_applicable_searches": 0,
+      "provider_failures": 0,
+      "failure_reasons": {
+        "failed_card": {},
+        "provider": {}
+      },
       "multi_calls": 0,
       "agent_text_none": 0,
       "agent_other_text_abstentions": 0,
@@ -3925,6 +5069,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -3942,6 +5087,7 @@
           "list_usd_per_1000": 0.04742006315789474,
           "latency_p50_ms": 457.83304201904684,
           "latency_p95_ms": 609.2064898693934,
+          "decision_latency_p50_ms": 280.5909994058311,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.009009812,
           "known_list_subtotal_usd": 0.009009812
@@ -3960,6 +5106,7 @@
         "list_usd_per_1000": 0.0467293076923077,
         "latency_p50_ms": 288.3294995408505,
         "latency_p95_ms": 353.54457498760894,
+        "decision_latency_p50_ms": 283.37356250267476,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.0036448860000000004,
         "known_list_subtotal_usd": 0.0036448860000000004
@@ -4047,6 +5194,20 @@
         "BRIEF": 0,
         "NAME": 0
       },
+      "rounds": {
+        "one_question": 435,
+        "two_rounds": 0
+      },
+      "lower_detail": 0,
+      "physical_requests": 435,
+      "key_only_option_share": null,
+      "failed_card_searches": 0,
+      "not_applicable_searches": 0,
+      "provider_failures": 0,
+      "failure_reasons": {
+        "failed_card": {},
+        "provider": {}
+      },
       "multi_calls": 0,
       "agent_text_none": 0,
       "agent_other_text_abstentions": 0,
@@ -4064,6 +5225,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -4081,6 +5243,7 @@
           "list_usd_per_1000": 0.280729512,
           "latency_p50_ms": 323.4264999628067,
           "latency_p95_ms": 439.3303231918253,
+          "decision_latency_p50_ms": 323.4264999628067,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.070182378,
           "known_list_subtotal_usd": 0.070182378
@@ -4099,6 +5262,7 @@
         "list_usd_per_1000": 0.27515880000000004,
         "latency_p50_ms": 322.17950001358986,
         "latency_p95_ms": 369.30430070497096,
+        "decision_latency_p50_ms": 322.17950001358986,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.034394850000000005,
         "known_list_subtotal_usd": 0.034394850000000005
@@ -4187,6 +5351,20 @@
         "BRIEF": 0,
         "NAME": 0
       },
+      "rounds": {
+        "one_question": 735,
+        "two_rounds": 0
+      },
+      "lower_detail": 0,
+      "physical_requests": 735,
+      "key_only_option_share": null,
+      "failed_card_searches": 0,
+      "not_applicable_searches": 0,
+      "provider_failures": 0,
+      "failure_reasons": {
+        "failed_card": {},
+        "provider": {}
+      },
       "multi_calls": 0,
       "agent_text_none": 0,
       "agent_other_text_abstentions": 0,
@@ -4204,6 +5382,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -4221,6 +5400,7 @@
           "list_usd_per_1000": 0.2986523590909091,
           "latency_p50_ms": 325.12789603788406,
           "latency_p95_ms": 421.84393083443865,
+          "decision_latency_p50_ms": 325.12789603788406,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.131407038,
           "known_list_subtotal_usd": 0.131407038
@@ -4239,6 +5419,7 @@
         "list_usd_per_1000": 0.29462828181818185,
         "latency_p50_ms": 322.81889603473246,
         "latency_p95_ms": 370.5567585537211,
+        "decision_latency_p50_ms": 322.81889603473246,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.06481822200000001,
         "known_list_subtotal_usd": 0.06481822200000001
@@ -4323,6 +5504,20 @@
         "BRIEF": 0,
         "NAME": 0
       },
+      "rounds": {
+        "one_question": 60,
+        "two_rounds": 0
+      },
+      "lower_detail": 0,
+      "physical_requests": 60,
+      "key_only_option_share": null,
+      "failed_card_searches": 0,
+      "not_applicable_searches": 0,
+      "provider_failures": 0,
+      "failure_reasons": {
+        "failed_card": {},
+        "provider": {}
+      },
       "multi_calls": 0,
       "agent_text_none": 0,
       "agent_other_text_abstentions": 0,
@@ -4340,6 +5535,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -4357,6 +5553,7 @@
           "list_usd_per_1000": 0.10908800000000002,
           "latency_p50_ms": 306.3566874479875,
           "latency_p95_ms": 461.2809939892031,
+          "decision_latency_p50_ms": 306.3566874479875,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.0032726400000000003,
           "known_list_subtotal_usd": 0.0032726400000000003
@@ -4375,6 +5572,7 @@
         "list_usd_per_1000": 0.102578,
         "latency_p50_ms": 292.62379207648337,
         "latency_p95_ms": 317.41581244859844,
+        "decision_latency_p50_ms": 292.62379207648337,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.00153867,
         "known_list_subtotal_usd": 0.00153867
@@ -4459,6 +5657,20 @@
         "BRIEF": 0,
         "NAME": 0
       },
+      "rounds": {
+        "one_question": 81,
+        "two_rounds": 0
+      },
+      "lower_detail": 0,
+      "physical_requests": 81,
+      "key_only_option_share": null,
+      "failed_card_searches": 0,
+      "not_applicable_searches": 0,
+      "provider_failures": 0,
+      "failure_reasons": {
+        "failed_card": {},
+        "provider": {}
+      },
       "multi_calls": 0,
       "agent_text_none": 0,
       "agent_other_text_abstentions": 0,
@@ -4476,6 +5688,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -4493,6 +5706,7 @@
           "list_usd_per_1000": 0.20036386363636363,
           "latency_p50_ms": 314.3318750662729,
           "latency_p95_ms": 349.9006517115049,
+          "decision_latency_p50_ms": 314.3318750662729,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.00881601,
           "known_list_subtotal_usd": 0.00881601
@@ -4511,6 +5725,7 @@
         "list_usd_per_1000": 0.19290600000000005,
         "latency_p50_ms": 326.02268748451024,
         "latency_p95_ms": 364.7638315684162,
+        "decision_latency_p50_ms": 326.02268748451024,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.004243932000000001,
         "known_list_subtotal_usd": 0.004243932000000001
@@ -4595,6 +5810,20 @@
         "BRIEF": 0,
         "NAME": 0
       },
+      "rounds": {
+        "one_question": 143,
+        "two_rounds": 0
+      },
+      "lower_detail": 0,
+      "physical_requests": 143,
+      "key_only_option_share": null,
+      "failed_card_searches": 0,
+      "not_applicable_searches": 0,
+      "provider_failures": 0,
+      "failure_reasons": {
+        "failed_card": {},
+        "provider": {}
+      },
       "multi_calls": 0,
       "agent_text_none": 0,
       "agent_other_text_abstentions": 0,
@@ -4612,6 +5841,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -4629,6 +5859,7 @@
           "list_usd_per_1000": 0.2958470117647059,
           "latency_p50_ms": 308.9679160621017,
           "latency_p95_ms": 362.90359236299986,
+          "decision_latency_p50_ms": 308.9679160621017,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.025146996,
           "known_list_subtotal_usd": 0.025146996
@@ -4647,6 +5878,7 @@
         "list_usd_per_1000": 0.2932664651162791,
         "latency_p50_ms": 303.99120785295963,
         "latency_p95_ms": 360.23950784001494,
+        "decision_latency_p50_ms": 303.99120785295963,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.012610458000000001,
         "known_list_subtotal_usd": 0.012610458000000001
@@ -4731,6 +5963,20 @@
         "BRIEF": 0,
         "NAME": 0
       },
+      "rounds": {
+        "one_question": 151,
+        "two_rounds": 0
+      },
+      "lower_detail": 0,
+      "physical_requests": 151,
+      "key_only_option_share": null,
+      "failed_card_searches": 0,
+      "not_applicable_searches": 0,
+      "provider_failures": 0,
+      "failure_reasons": {
+        "failed_card": {},
+        "provider": {}
+      },
       "multi_calls": 0,
       "agent_text_none": 0,
       "agent_other_text_abstentions": 0,
@@ -4748,6 +5994,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -4765,6 +6012,7 @@
           "list_usd_per_1000": 0.362052,
           "latency_p50_ms": 342.2952911350876,
           "latency_p95_ms": 457.7987084630877,
+          "decision_latency_p50_ms": 342.2952911350876,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.032946732,
           "known_list_subtotal_usd": 0.032946732
@@ -4783,6 +6031,7 @@
         "list_usd_per_1000": 0.35559533333333343,
         "latency_p50_ms": 338.43654207885265,
         "latency_p95_ms": 421.70698354020715,
+        "decision_latency_p50_ms": 338.43654207885265,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.016001790000000002,
         "known_list_subtotal_usd": 0.016001790000000002
@@ -4867,6 +6116,20 @@
         "BRIEF": 0,
         "NAME": 0
       },
+      "rounds": {
+        "one_question": 300,
+        "two_rounds": 0
+      },
+      "lower_detail": 0,
+      "physical_requests": 300,
+      "key_only_option_share": null,
+      "failed_card_searches": 0,
+      "not_applicable_searches": 0,
+      "provider_failures": 0,
+      "failure_reasons": {
+        "failed_card": {},
+        "provider": {}
+      },
       "multi_calls": 0,
       "agent_text_none": 0,
       "agent_other_text_abstentions": 0,
@@ -4884,6 +6147,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -4901,6 +6165,7 @@
           "list_usd_per_1000": 0.3222350526315789,
           "latency_p50_ms": 327.1755001042038,
           "latency_p95_ms": 389.1316752997229,
+          "decision_latency_p50_ms": 327.1755001042038,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.06122466,
           "known_list_subtotal_usd": 0.06122466
@@ -4919,6 +6184,7 @@
         "list_usd_per_1000": 0.32024602105263156,
         "latency_p50_ms": 322.8224590420723,
         "latency_p95_ms": 389.82551672961546,
+        "decision_latency_p50_ms": 322.8224590420723,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.030423372,
         "known_list_subtotal_usd": 0.030423372
@@ -5017,6 +6283,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -5034,6 +6301,7 @@
           "list_usd_per_1000": 0.68042808,
           "latency_p50_ms": 936.3491454860196,
           "latency_p95_ms": 1999.756910896396,
+          "decision_latency_p50_ms": 757.3099579894915,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.17010702,
           "known_list_subtotal_usd": 0.17010702
@@ -5052,6 +6320,7 @@
         "list_usd_per_1000": 0.6933762711864406,
         "latency_p50_ms": 750.0686864368618,
         "latency_p95_ms": 1695.3744607628328,
+        "decision_latency_p50_ms": 747.5672910222784,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.0818184,
         "known_list_subtotal_usd": 0.0818184
@@ -5151,6 +6420,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -5168,6 +6438,7 @@
           "list_usd_per_1000": 0.563070590909091,
           "latency_p50_ms": 903.8684170227498,
           "latency_p95_ms": 2232.453962566797,
+          "decision_latency_p50_ms": 724.5181879261509,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.24775106,
           "known_list_subtotal_usd": 0.24775106
@@ -5186,6 +6457,7 @@
         "list_usd_per_1000": 0.577018,
         "latency_p50_ms": 706.9787913933396,
         "latency_p95_ms": 2023.367418290582,
+        "decision_latency_p50_ms": 703.6256875144318,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.1154036,
         "known_list_subtotal_usd": 0.1154036
@@ -5281,6 +6553,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -5298,6 +6571,7 @@
           "list_usd_per_1000": 0.467852,
           "latency_p50_ms": 910.2284996770322,
           "latency_p95_ms": 2710.548814351205,
+          "decision_latency_p50_ms": 753.26454162132,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.01403556,
           "known_list_subtotal_usd": 0.01403556
@@ -5316,6 +6590,7 @@
         "list_usd_per_1000": 0.48157333333333335,
         "latency_p50_ms": 654.0390409063548,
         "latency_p95_ms": 1090.4219666728752,
+        "decision_latency_p50_ms": 652.9479578603059,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.0072236,
         "known_list_subtotal_usd": 0.0072236
@@ -5411,6 +6686,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -5428,6 +6704,7 @@
           "list_usd_per_1000": 0.7635731818181818,
           "latency_p50_ms": 853.9598755305633,
           "latency_p95_ms": 1610.7287731836554,
+          "decision_latency_p50_ms": 692.151291994378,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.03359722,
           "known_list_subtotal_usd": 0.03359722
@@ -5446,6 +6723,7 @@
         "list_usd_per_1000": 0.7768909090909091,
         "latency_p50_ms": 678.4261665306985,
         "latency_p95_ms": 1319.9795332155188,
+        "decision_latency_p50_ms": 676.4585210476071,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.0170916,
         "known_list_subtotal_usd": 0.0170916
@@ -5541,6 +6819,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -5558,6 +6837,7 @@
           "list_usd_per_1000": 0.6835621176470589,
           "latency_p50_ms": 951.7222919967026,
           "latency_p95_ms": 2023.5101000405841,
+          "decision_latency_p50_ms": 780.7937080506235,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.05810278,
           "known_list_subtotal_usd": 0.05810278
@@ -5576,6 +6856,7 @@
         "list_usd_per_1000": 0.6874777777777777,
         "latency_p50_ms": 754.2129784123972,
         "latency_p95_ms": 1812.7130836364813,
+        "decision_latency_p50_ms": 751.734436955303,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.0247492,
         "known_list_subtotal_usd": 0.0247492
@@ -5671,6 +6952,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -5688,6 +6970,7 @@
           "list_usd_per_1000": 0.7073786813186812,
           "latency_p50_ms": 947.3488749936223,
           "latency_p95_ms": 1834.3599170912057,
+          "decision_latency_p50_ms": 797.7396249771118,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.06437145999999999,
           "known_list_subtotal_usd": 0.06437145999999999
@@ -5706,6 +6989,7 @@
         "list_usd_per_1000": 0.7278666666666667,
         "latency_p50_ms": 786.5242920815945,
         "latency_p95_ms": 1890.5774245504285,
+        "decision_latency_p50_ms": 783.0320000648499,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.032754,
         "known_list_subtotal_usd": 0.032754
@@ -5801,6 +7085,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -5818,6 +7103,7 @@
           "list_usd_per_1000": 0.4086528421052632,
           "latency_p50_ms": 863.0298540228978,
           "latency_p95_ms": 2335.341510386206,
+          "decision_latency_p50_ms": 672.3236250691116,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.07764404,
           "known_list_subtotal_usd": 0.07764404
@@ -5836,6 +7122,7 @@
         "list_usd_per_1000": 0.4095756097560976,
         "latency_p50_ms": 647.788729518652,
         "latency_p95_ms": 2090.5867660418153,
+        "decision_latency_p50_ms": 642.7444794680923,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.0335852,
         "known_list_subtotal_usd": 0.0335852
@@ -5934,6 +7221,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -5951,6 +7239,7 @@
           "list_usd_per_1000": 2.4286208,
           "latency_p50_ms": 861.0484370728955,
           "latency_p95_ms": 1932.3095768108042,
+          "decision_latency_p50_ms": 861.0484370728955,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.1963904,
           "known_list_subtotal_usd": 0.6071552
@@ -5969,6 +7258,7 @@
         "list_usd_per_1000": 2.386112,
         "latency_p50_ms": 906.9583748932928,
         "latency_p95_ms": 2404.273250047117,
+        "decision_latency_p50_ms": 906.9583748932928,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.210712,
         "known_list_subtotal_usd": 0.298264
@@ -6064,6 +7354,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -6081,6 +7372,7 @@
           "list_usd_per_1000": 0.9130133333333333,
           "latency_p50_ms": 689.4295626552776,
           "latency_p95_ms": 846.5126519557089,
+          "decision_latency_p50_ms": 689.4295626552776,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.0101872,
           "known_list_subtotal_usd": 0.0273904
@@ -6099,6 +7391,7 @@
         "list_usd_per_1000": 0.8584533333333334,
         "latency_p50_ms": 687.7429170999676,
         "latency_p95_ms": 968.990591983311,
+        "decision_latency_p50_ms": 687.7429170999676,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.0123008,
         "known_list_subtotal_usd": 0.0128768
@@ -6194,6 +7487,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -6211,6 +7505,7 @@
           "list_usd_per_1000": 1.8527636363636366,
           "latency_p50_ms": 667.44697955437,
           "latency_p95_ms": 1069.0428081084974,
+          "decision_latency_p50_ms": 667.44697955437,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.027992,
           "known_list_subtotal_usd": 0.0815216
@@ -6229,6 +7524,7 @@
         "list_usd_per_1000": 1.7858363636363637,
         "latency_p50_ms": 661.5255420329049,
         "latency_p95_ms": 1131.4945714781059,
+        "decision_latency_p50_ms": 661.5255420329049,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.0340276,
         "known_list_subtotal_usd": 0.0392884
@@ -6324,6 +7620,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -6341,6 +7638,7 @@
           "list_usd_per_1000": 2.5855200000000003,
           "latency_p50_ms": 853.5958749707788,
           "latency_p95_ms": 2239.1450583003457,
+          "decision_latency_p50_ms": 853.5958749707788,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.0723516,
           "known_list_subtotal_usd": 0.2197692
@@ -6359,6 +7657,7 @@
         "list_usd_per_1000": 2.5777302325581397,
         "latency_p50_ms": 1018.7471669632941,
         "latency_p95_ms": 2589.785295934416,
+        "decision_latency_p50_ms": 1018.7471669632941,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.0704456,
         "known_list_subtotal_usd": 0.11084240000000001
@@ -6454,6 +7753,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -6471,6 +7771,7 @@
           "list_usd_per_1000": 3.0601538461538462,
           "latency_p50_ms": 999.4278328958899,
           "latency_p95_ms": 1632.8237289562821,
+          "decision_latency_p50_ms": 999.4278328958899,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.0858596,
           "known_list_subtotal_usd": 0.278474
@@ -6489,6 +7790,7 @@
         "list_usd_per_1000": 3.0056977777777774,
         "latency_p50_ms": 963.1859168875962,
         "latency_p95_ms": 1743.323950283229,
+        "decision_latency_p50_ms": 963.1859168875962,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.093938,
         "known_list_subtotal_usd": 0.1352564
@@ -6504,6 +7806,7 @@
         "source": "bench/runs/20260929T221520Z-direct-pilot/run.jsonl",
         "date": "2026-09-30"
       },
+      "not_applicable_searches": null,
       "excluded_requests": 0,
       "excluded_rejected_attempts": 0,
       "rejection_diagnostics": [],
@@ -6528,6 +7831,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -6545,6 +7849,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -6562,6 +7867,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -6583,14 +7889,14 @@
         "value": 0.7758620689655172,
         "ci95": [
           0.7241379310344828,
-          0.8207758620689658
+          0.8206896551724138
         ]
       },
       "delta_vs_hybrid": {
         "value": 0.23103448275862068,
         "ci95": [
-          0.17586206896551723,
-          0.2896551724137931
+          0.1724137931034483,
+          0.29310344827586204
         ]
       },
       "ranking_ignoring_abstention": null,
@@ -6605,15 +7911,15 @@
         "selective_accuracy": {
           "value": 0.5172413793103449,
           "ci95": [
-            0.4795431195516812,
-            0.5547687353629978
+            0.4795407631359466,
+            0.5540285458685752
           ]
         },
         "wrong_tool_rate": {
           "value": 0.4827586206896552,
           "ci95": [
-            0.4452312646370023,
-            0.5204568804483188
+            0.44597145413142486,
+            0.5204592368640535
           ]
         },
         "abstention_precision": null,
@@ -6655,6 +7961,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -6663,18 +7970,19 @@
           "observed_searches": 250,
           "provider_calls": 250,
           "replays": 36,
-          "input_tokens": 419421,
+          "input_tokens": 419448,
           "cache_read_tokens": 0,
           "cache_share": 0.0,
-          "billed_usd": 0.0449941,
-          "list_usd": 0.0449941,
-          "billed_usd_per_1000": 0.1799764,
-          "list_usd_per_1000": 0.1799764,
-          "latency_p50_ms": 1237.0976664824411,
-          "latency_p95_ms": 2697.6402900880216,
+          "billed_usd": 0.04504064,
+          "list_usd": 0.04504064,
+          "billed_usd_per_1000": 0.18016256000000003,
+          "list_usd_per_1000": 0.18016256000000003,
+          "latency_p50_ms": 1465.2679581195116,
+          "latency_p95_ms": 2389.4360704580326,
+          "decision_latency_p50_ms": 1275.6309165852144,
           "unpriced_attempts": 0,
-          "known_billed_subtotal_usd": 0.0449941,
-          "known_list_subtotal_usd": 0.0449941
+          "known_billed_subtotal_usd": 0.04504064,
+          "known_list_subtotal_usd": 0.04504064
         }
       },
       "negative_cost": {
@@ -6684,15 +7992,16 @@
         "input_tokens": 200098,
         "cache_read_tokens": 0,
         "cache_share": 0.0,
-        "billed_usd": 0.0214108,
-        "list_usd": 0.0214108,
-        "billed_usd_per_1000": 0.18144745762711867,
-        "list_usd_per_1000": 0.18144745762711867,
-        "latency_p50_ms": 1266.8793129269034,
-        "latency_p95_ms": 2339.488597202581,
+        "billed_usd": 0.0213923,
+        "list_usd": 0.0213923,
+        "billed_usd_per_1000": 0.18129067796610168,
+        "list_usd_per_1000": 0.18129067796610168,
+        "latency_p50_ms": 1222.0939785474911,
+        "latency_p95_ms": 1921.9835277064708,
+        "decision_latency_p50_ms": 1217.6373330876231,
         "unpriced_attempts": 0,
-        "known_billed_subtotal_usd": 0.0214108,
-        "known_list_subtotal_usd": 0.0214108
+        "known_billed_subtotal_usd": 0.0213923,
+        "known_list_subtotal_usd": 0.0213923
       }
     },
     {
@@ -6708,17 +8017,17 @@
       ],
       "positives": 490,
       "relevant_pick_rate": {
-        "value": 0.726530612244898,
+        "value": 0.7285714285714285,
         "ci95": [
           0.6877551020408164,
-          0.763265306122449
+          0.7653061224489796
         ]
       },
       "delta_vs_hybrid": {
-        "value": 0.20204081632653062,
+        "value": 0.20408163265306123,
         "ci95": [
           0.15918367346938775,
-          0.24489795918367346
+          0.24693877551020407
         ]
       },
       "ranking_ignoring_abstention": null,
@@ -6731,17 +8040,17 @@
           ]
         },
         "selective_accuracy": {
-          "value": 0.48501362397820164,
+          "value": 0.48637602179836514,
           "ci95": [
-            0.455013748647674,
-            0.5146036161335188
+            0.45574383709038224,
+            0.5161754475994982
           ]
         },
         "wrong_tool_rate": {
-          "value": 0.5142857142857142,
+          "value": 0.5129251700680272,
           "ci95": [
-            0.48418156808803303,
-            0.5433084202889273
+            0.4837376221173656,
+            0.5423985538439743
           ]
         },
         "abstention_precision": {
@@ -6758,8 +8067,8 @@
             0.010344827586206896
           ]
         },
-        "correct": 356,
-        "wrong": 378,
+        "correct": 357,
+        "wrong": 377,
         "abstained": 1,
         "requests": 735,
         "parsed_requests": 735,
@@ -6789,6 +8098,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -6797,36 +8107,38 @@
           "observed_searches": 440,
           "provider_calls": 440,
           "replays": 45,
-          "input_tokens": 606943,
+          "input_tokens": 606971,
           "cache_read_tokens": 0,
           "cache_share": 0.0,
-          "billed_usd": 0.0651513,
-          "list_usd": 0.0651513,
-          "billed_usd_per_1000": 0.14807113636363634,
-          "list_usd_per_1000": 0.14807113636363634,
-          "latency_p50_ms": 1119.107395876199,
-          "latency_p95_ms": 2460.5886974022724,
+          "billed_usd": 0.065312,
+          "list_usd": 0.065312,
+          "billed_usd_per_1000": 0.14843636363636364,
+          "list_usd_per_1000": 0.14843636363636364,
+          "latency_p50_ms": 1383.5623131599277,
+          "latency_p95_ms": 2334.716272482183,
+          "decision_latency_p50_ms": 1188.670334056951,
           "unpriced_attempts": 0,
-          "known_billed_subtotal_usd": 0.0651513,
-          "known_list_subtotal_usd": 0.0651513
+          "known_billed_subtotal_usd": 0.065312,
+          "known_list_subtotal_usd": 0.065312
         }
       },
       "negative_cost": {
-        "observed_searches": 200,
-        "provider_calls": 200,
-        "replays": 45,
-        "input_tokens": 280757,
+        "observed_searches": 201,
+        "provider_calls": 201,
+        "replays": 44,
+        "input_tokens": 281758,
         "cache_read_tokens": 0,
         "cache_share": 0.0,
-        "billed_usd": 0.0300587,
-        "list_usd": 0.0300587,
-        "billed_usd_per_1000": 0.1502935,
-        "list_usd_per_1000": 0.1502935,
-        "latency_p50_ms": 1140.5107914470136,
-        "latency_p95_ms": 2255.821758264211,
+        "billed_usd": 0.0301478,
+        "list_usd": 0.0301478,
+        "billed_usd_per_1000": 0.14998905472636817,
+        "list_usd_per_1000": 0.14998905472636817,
+        "latency_p50_ms": 1139.962665969506,
+        "latency_p95_ms": 1862.7467500045896,
+        "decision_latency_p50_ms": 1131.4404169097543,
         "unpriced_attempts": 0,
-        "known_billed_subtotal_usd": 0.0300587,
-        "known_list_subtotal_usd": 0.0300587
+        "known_billed_subtotal_usd": 0.0301478,
+        "known_list_subtotal_usd": 0.0301478
       }
     },
     {
@@ -6838,17 +8150,17 @@
       ],
       "positives": 40,
       "relevant_pick_rate": {
-        "value": 0.9,
+        "value": 0.875,
         "ci95": [
-          0.8,
+          0.75,
           0.975
         ]
       },
       "delta_vs_hybrid": {
-        "value": 0.25,
+        "value": 0.225,
         "ci95": [
-          0.075,
-          0.425
+          0.05,
+          0.4
         ]
       },
       "ranking_ignoring_abstention": null,
@@ -6861,17 +8173,17 @@
           ]
         },
         "selective_accuracy": {
-          "value": 0.6,
+          "value": 0.5833333333333334,
           "ci95": [
-            0.5081967213114754,
-            0.6923076923076923
+            0.484375,
+            0.6842105263157895
           ]
         },
         "wrong_tool_rate": {
-          "value": 0.4,
+          "value": 0.4166666666666667,
           "ci95": [
-            0.3076923076923077,
-            0.4918032786885246
+            0.3157894736842105,
+            0.515625
           ]
         },
         "abstention_precision": null,
@@ -6882,8 +8194,8 @@
             0.0
           ]
         },
-        "correct": 36,
-        "wrong": 24,
+        "correct": 35,
+        "wrong": 25,
         "abstained": 0,
         "requests": 60,
         "parsed_requests": 60,
@@ -6913,6 +8225,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -6924,15 +8237,16 @@
           "input_tokens": 35536,
           "cache_read_tokens": 0,
           "cache_share": 0.0,
-          "billed_usd": 0.0038761,
-          "list_usd": 0.0038761,
-          "billed_usd_per_1000": 0.12920333333333334,
-          "list_usd_per_1000": 0.12920333333333334,
-          "latency_p50_ms": 1123.515916406177,
-          "latency_p95_ms": 2046.5267522027716,
+          "billed_usd": 0.00388872,
+          "list_usd": 0.00388872,
+          "billed_usd_per_1000": 0.12962400000000002,
+          "list_usd_per_1000": 0.12962400000000002,
+          "latency_p50_ms": 1386.5313119022176,
+          "latency_p95_ms": 2470.140687120147,
+          "decision_latency_p50_ms": 1160.020437091589,
           "unpriced_attempts": 0,
-          "known_billed_subtotal_usd": 0.0038761,
-          "known_list_subtotal_usd": 0.0038761
+          "known_billed_subtotal_usd": 0.00388872,
+          "known_list_subtotal_usd": 0.00388872
         }
       },
       "negative_cost": {
@@ -6942,15 +8256,16 @@
         "input_tokens": 18063,
         "cache_read_tokens": 0,
         "cache_share": 0.0,
-        "billed_usd": 0.0019668,
-        "list_usd": 0.0019668,
-        "billed_usd_per_1000": 0.13112,
-        "list_usd_per_1000": 0.13112,
-        "latency_p50_ms": 1204.7892920672894,
-        "latency_p95_ms": 2041.7799964547162,
+        "billed_usd": 0.0019673,
+        "list_usd": 0.0019673,
+        "billed_usd_per_1000": 0.13115333333333334,
+        "list_usd_per_1000": 0.13115333333333334,
+        "latency_p50_ms": 1277.4542081169784,
+        "latency_p95_ms": 1709.4679626636207,
+        "decision_latency_p50_ms": 1272.433083038777,
         "unpriced_attempts": 0,
-        "known_billed_subtotal_usd": 0.0019668,
-        "known_list_subtotal_usd": 0.0019668
+        "known_billed_subtotal_usd": 0.0019673,
+        "known_list_subtotal_usd": 0.0019673
       }
     },
     {
@@ -7037,6 +8352,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -7048,15 +8364,16 @@
           "input_tokens": 84544,
           "cache_read_tokens": 0,
           "cache_share": 0.0,
-          "billed_usd": 0.0088844,
-          "list_usd": 0.0088844,
-          "billed_usd_per_1000": 0.20191818181818186,
-          "list_usd_per_1000": 0.20191818181818186,
-          "latency_p50_ms": 1184.2516044853255,
-          "latency_p95_ms": 4327.44546016911,
+          "billed_usd": 0.0088945,
+          "list_usd": 0.0088945,
+          "billed_usd_per_1000": 0.20214772727272726,
+          "list_usd_per_1000": 0.20214772727272726,
+          "latency_p50_ms": 1354.9314374104142,
+          "latency_p95_ms": 2021.3293623295613,
+          "decision_latency_p50_ms": 1162.8898539347574,
           "unpriced_attempts": 0,
-          "known_billed_subtotal_usd": 0.0088844,
-          "known_list_subtotal_usd": 0.0088844
+          "known_billed_subtotal_usd": 0.0088945,
+          "known_list_subtotal_usd": 0.0088945
         }
       },
       "negative_cost": {
@@ -7066,15 +8383,16 @@
         "input_tokens": 42901,
         "cache_read_tokens": 0,
         "cache_share": 0.0,
-        "billed_usd": 0.0045036,
-        "list_usd": 0.0045036,
-        "billed_usd_per_1000": 0.2047090909090909,
-        "list_usd_per_1000": 0.2047090909090909,
-        "latency_p50_ms": 1174.6444584568962,
-        "latency_p95_ms": 1915.8633957966229,
+        "billed_usd": 0.0045156,
+        "list_usd": 0.0045156,
+        "billed_usd_per_1000": 0.20525454545454547,
+        "list_usd_per_1000": 0.20525454545454547,
+        "latency_p50_ms": 1152.3926249938086,
+        "latency_p95_ms": 1896.2147277314214,
+        "decision_latency_p50_ms": 1147.611521068029,
         "unpriced_attempts": 0,
-        "known_billed_subtotal_usd": 0.0045036,
-        "known_list_subtotal_usd": 0.0045036
+        "known_billed_subtotal_usd": 0.0045156,
+        "known_list_subtotal_usd": 0.0045156
       }
     },
     {
@@ -7086,17 +8404,17 @@
       ],
       "positives": 95,
       "relevant_pick_rate": {
-        "value": 0.6842105263157895,
+        "value": 0.7052631578947368,
         "ci95": [
-          0.5894736842105263,
-          0.7789473684210526
+          0.6102631578947368,
+          0.8
         ]
       },
       "delta_vs_hybrid": {
-        "value": 0.23157894736842105,
+        "value": 0.25263157894736843,
         "ci95": [
-          0.14736842105263157,
-          0.3157894736842105
+          0.15789473684210525,
+          0.3473684210526316
         ]
       },
       "ranking_ignoring_abstention": null,
@@ -7109,17 +8427,17 @@
           ]
         },
         "selective_accuracy": {
-          "value": 0.45454545454545453,
+          "value": 0.46853146853146854,
           "ci95": [
-            0.38513513513513514,
-            0.5289961636828645
+            0.3971631205673759,
+            0.5422686116700203
           ]
         },
         "wrong_tool_rate": {
-          "value": 0.5454545454545454,
+          "value": 0.5314685314685315,
           "ci95": [
-            0.47100383631713555,
-            0.6148648648648649
+            0.4577313883299799,
+            0.6028368794326241
           ]
         },
         "abstention_precision": null,
@@ -7130,8 +8448,8 @@
             0.0
           ]
         },
-        "correct": 65,
-        "wrong": 78,
+        "correct": 67,
+        "wrong": 76,
         "abstained": 0,
         "requests": 143,
         "parsed_requests": 143,
@@ -7161,6 +8479,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -7169,18 +8488,19 @@
           "observed_searches": 85,
           "provider_calls": 85,
           "replays": 9,
-          "input_tokens": 140635,
+          "input_tokens": 140662,
           "cache_read_tokens": 0,
           "cache_share": 0.0,
-          "billed_usd": 0.015487,
-          "list_usd": 0.015487,
-          "billed_usd_per_1000": 0.1822,
-          "list_usd_per_1000": 0.1822,
-          "latency_p50_ms": 1414.7180828731507,
-          "latency_p95_ms": 2423.9623076748094,
+          "billed_usd": 0.01546648,
+          "list_usd": 0.01546648,
+          "billed_usd_per_1000": 0.1819585882352941,
+          "list_usd_per_1000": 0.1819585882352941,
+          "latency_p50_ms": 1647.983290720731,
+          "latency_p95_ms": 2625.362516473978,
+          "decision_latency_p50_ms": 1452.1900832187384,
           "unpriced_attempts": 0,
-          "known_billed_subtotal_usd": 0.015487,
-          "known_list_subtotal_usd": 0.015487
+          "known_billed_subtotal_usd": 0.01546648,
+          "known_list_subtotal_usd": 0.01546648
         }
       },
       "negative_cost": {
@@ -7190,15 +8510,16 @@
         "input_tokens": 60201,
         "cache_read_tokens": 0,
         "cache_share": 0.0,
-        "billed_usd": 0.0065881,
-        "list_usd": 0.0065881,
-        "billed_usd_per_1000": 0.1830027777777778,
-        "list_usd_per_1000": 0.1830027777777778,
-        "latency_p50_ms": 1368.7598131364211,
-        "latency_p95_ms": 2219.8555621434934,
+        "billed_usd": 0.0065636,
+        "list_usd": 0.0065636,
+        "billed_usd_per_1000": 0.18232222222222222,
+        "list_usd_per_1000": 0.18232222222222222,
+        "latency_p50_ms": 1360.1130407769233,
+        "latency_p95_ms": 2059.1581868357025,
+        "decision_latency_p50_ms": 1356.5793329617009,
         "unpriced_attempts": 0,
-        "known_billed_subtotal_usd": 0.0065881,
-        "known_list_subtotal_usd": 0.0065881
+        "known_billed_subtotal_usd": 0.0065636,
+        "known_list_subtotal_usd": 0.0065636
       }
     },
     {
@@ -7210,17 +8531,17 @@
       ],
       "positives": 101,
       "relevant_pick_rate": {
-        "value": 0.801980198019802,
+        "value": 0.7920792079207921,
         "ci95": [
-          0.7227722772277227,
-          0.8811881188118812
+          0.7128712871287128,
+          0.8712871287128713
         ]
       },
       "delta_vs_hybrid": {
-        "value": 0.18811881188118812,
+        "value": 0.1782178217821782,
         "ci95": [
-          0.0891089108910891,
-          0.2871287128712871
+          0.07920792079207921,
+          0.27722772277227725
         ]
       },
       "ranking_ignoring_abstention": null,
@@ -7233,17 +8554,17 @@
           ]
         },
         "selective_accuracy": {
-          "value": 0.5364238410596026,
+          "value": 0.5298013245033113,
           "ci95": [
-            0.477124183006536,
-            0.5948325163398696
+            0.47096774193548385,
+            0.5918367346938775
           ]
         },
         "wrong_tool_rate": {
-          "value": 0.46357615894039733,
+          "value": 0.47019867549668876,
           "ci95": [
-            0.4051674836601307,
-            0.5228758169934641
+            0.40816326530612246,
+            0.5290322580645161
           ]
         },
         "abstention_precision": null,
@@ -7254,8 +8575,8 @@
             0.0
           ]
         },
-        "correct": 81,
-        "wrong": 70,
+        "correct": 80,
+        "wrong": 71,
         "abstained": 0,
         "requests": 151,
         "parsed_requests": 151,
@@ -7285,6 +8606,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -7296,15 +8618,16 @@
           "input_tokens": 158706,
           "cache_read_tokens": 0,
           "cache_share": 0.0,
-          "billed_usd": 0.0167466,
-          "list_usd": 0.0167466,
-          "billed_usd_per_1000": 0.18402857142857143,
-          "list_usd_per_1000": 0.18402857142857143,
-          "latency_p50_ms": 1154.574417276308,
-          "latency_p95_ms": 2583.5245420457795,
+          "billed_usd": 0.016790939999999997,
+          "list_usd": 0.016790939999999997,
+          "billed_usd_per_1000": 0.18451582417582413,
+          "list_usd_per_1000": 0.18451582417582413,
+          "latency_p50_ms": 1391.107790870592,
+          "latency_p95_ms": 2235.586020629853,
+          "decision_latency_p50_ms": 1186.8690829724073,
           "unpriced_attempts": 0,
-          "known_billed_subtotal_usd": 0.0167466,
-          "known_list_subtotal_usd": 0.0167466
+          "known_billed_subtotal_usd": 0.016790939999999997,
+          "known_list_subtotal_usd": 0.016790939999999997
         }
       },
       "negative_cost": {
@@ -7314,15 +8637,16 @@
         "input_tokens": 78933,
         "cache_read_tokens": 0,
         "cache_share": 0.0,
-        "billed_usd": 0.0083523,
-        "list_usd": 0.0083523,
-        "billed_usd_per_1000": 0.18560666666666667,
-        "list_usd_per_1000": 0.18560666666666667,
-        "latency_p50_ms": 1193.5701670590788,
-        "latency_p95_ms": 2463.386141136288,
+        "billed_usd": 0.0083458,
+        "list_usd": 0.0083458,
+        "billed_usd_per_1000": 0.18546222222222222,
+        "list_usd_per_1000": 0.18546222222222222,
+        "latency_p50_ms": 1146.9283329788595,
+        "latency_p95_ms": 1589.3267829436809,
+        "decision_latency_p50_ms": 1140.9516248386353,
         "unpriced_attempts": 0,
-        "known_billed_subtotal_usd": 0.0083523,
-        "known_list_subtotal_usd": 0.0083523
+        "known_billed_subtotal_usd": 0.0083458,
+        "known_list_subtotal_usd": 0.0083458
       }
     },
     {
@@ -7334,17 +8658,17 @@
       ],
       "positives": 200,
       "relevant_pick_rate": {
-        "value": 0.655,
+        "value": 0.66,
         "ci95": [
-          0.59,
-          0.72
+          0.595,
+          0.73
         ]
       },
       "delta_vs_hybrid": {
-        "value": 0.16,
+        "value": 0.165,
         "ci95": [
-          0.1,
-          0.22
+          0.105,
+          0.22512500000000046
         ]
       },
       "ranking_ignoring_abstention": null,
@@ -7357,17 +8681,17 @@
           ]
         },
         "selective_accuracy": {
-          "value": 0.43812709030100333,
+          "value": 0.4414715719063545,
           "ci95": [
-            0.3892612140005097,
-            0.4863036995620166
+            0.39248820866514983,
+            0.4882943143812709
           ]
         },
         "wrong_tool_rate": {
-          "value": 0.56,
+          "value": 0.5566666666666666,
           "ci95": [
-            0.5117805966643176,
-            0.6071458038661008
+            0.5099305285027919,
+            0.6031772053083528
           ]
         },
         "abstention_precision": {
@@ -7384,8 +8708,8 @@
             0.02273160999306039
           ]
         },
-        "correct": 131,
-        "wrong": 168,
+        "correct": 132,
+        "wrong": 167,
         "abstained": 1,
         "requests": 300,
         "parsed_requests": 300,
@@ -7415,6 +8739,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -7423,36 +8748,38 @@
           "observed_searches": 190,
           "provider_calls": 190,
           "replays": 9,
-          "input_tokens": 187522,
+          "input_tokens": 187523,
           "cache_read_tokens": 0,
           "cache_share": 0.0,
-          "billed_usd": 0.0201572,
-          "list_usd": 0.0201572,
-          "billed_usd_per_1000": 0.10609052631578947,
-          "list_usd_per_1000": 0.10609052631578947,
-          "latency_p50_ms": 991.9251042883843,
-          "latency_p95_ms": 1919.0774768823767,
+          "billed_usd": 0.020271360000000002,
+          "list_usd": 0.020271360000000002,
+          "billed_usd_per_1000": 0.10669136842105263,
+          "list_usd_per_1000": 0.10669136842105263,
+          "latency_p50_ms": 1277.6797924889252,
+          "latency_p95_ms": 2205.8849067660053,
+          "decision_latency_p50_ms": 1086.1482084728777,
           "unpriced_attempts": 0,
-          "known_billed_subtotal_usd": 0.0201572,
-          "known_list_subtotal_usd": 0.0201572
+          "known_billed_subtotal_usd": 0.020271360000000002,
+          "known_list_subtotal_usd": 0.020271360000000002
         }
       },
       "negative_cost": {
-        "observed_searches": 82,
-        "provider_calls": 82,
-        "replays": 18,
-        "input_tokens": 80659,
+        "observed_searches": 83,
+        "provider_calls": 83,
+        "replays": 17,
+        "input_tokens": 81660,
         "cache_read_tokens": 0,
         "cache_share": 0.0,
-        "billed_usd": 0.0086479,
-        "list_usd": 0.0086479,
-        "billed_usd_per_1000": 0.10546219512195122,
-        "list_usd_per_1000": 0.10546219512195122,
-        "latency_p50_ms": 997.2242504591122,
-        "latency_p95_ms": 1728.9537963224577,
+        "billed_usd": 0.0087555,
+        "list_usd": 0.0087555,
+        "billed_usd_per_1000": 0.1054879518072289,
+        "list_usd_per_1000": 0.1054879518072289,
+        "latency_p50_ms": 1032.3879579082131,
+        "latency_p95_ms": 1602.1521660964936,
+        "decision_latency_p50_ms": 1026.4752500224859,
         "unpriced_attempts": 0,
-        "known_billed_subtotal_usd": 0.0086479,
-        "known_list_subtotal_usd": 0.0086479
+        "known_billed_subtotal_usd": 0.0087555,
+        "known_list_subtotal_usd": 0.0087555
       }
     },
     {
@@ -7542,6 +8869,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -7559,6 +8887,7 @@
           "list_usd_per_1000": 0.6153048,
           "latency_p50_ms": 1452.467083116062,
           "latency_p95_ms": 2410.131320590154,
+          "decision_latency_p50_ms": 1452.467083116062,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.01865934,
           "known_list_subtotal_usd": 0.1538262
@@ -7577,6 +8906,7 @@
         "list_usd_per_1000": 0.6037912,
         "latency_p50_ms": 1470.0413329992443,
         "latency_p95_ms": 2759.9278086796403,
+        "decision_latency_p50_ms": 1470.0413329992443,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.05613065,
         "known_list_subtotal_usd": 0.0754739
@@ -7666,6 +8996,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -7683,6 +9014,7 @@
           "list_usd_per_1000": 0.24018666666666666,
           "latency_p50_ms": 1145.5744999693707,
           "latency_p95_ms": 2124.9203940504235,
+          "decision_latency_p50_ms": 1145.5744999693707,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.001055,
           "known_list_subtotal_usd": 0.0072055999999999995
@@ -7701,6 +9033,7 @@
         "list_usd_per_1000": 0.22568000000000002,
         "latency_p50_ms": 1131.1752919573337,
         "latency_p95_ms": 3433.5843998705977,
+        "decision_latency_p50_ms": 1131.1752919573337,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.00300675,
         "known_list_subtotal_usd": 0.0033852
@@ -7790,6 +9123,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -7807,6 +9141,7 @@
           "list_usd_per_1000": 0.47453636363636353,
           "latency_p50_ms": 1198.7546044401824,
           "latency_p95_ms": 2581.245451769793,
+          "decision_latency_p50_ms": 1198.7546044401824,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.00255272,
           "known_list_subtotal_usd": 0.020879599999999998
@@ -7825,6 +9160,7 @@
         "list_usd_per_1000": 0.45697272727272725,
         "latency_p50_ms": 1296.1331669939682,
         "latency_p95_ms": 2141.2816043826747,
+        "decision_latency_p50_ms": 1296.1331669939682,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.00964525,
         "known_list_subtotal_usd": 0.0100534
@@ -7914,6 +9250,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -7931,6 +9268,7 @@
           "list_usd_per_1000": 0.65428,
           "latency_p50_ms": 1668.443749891594,
           "latency_p95_ms": 2761.9325412437315,
+          "decision_latency_p50_ms": 1668.443749891594,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.007021,
           "known_list_subtotal_usd": 0.0556138
@@ -7949,6 +9287,7 @@
         "list_usd_per_1000": 0.6502232558139536,
         "latency_p50_ms": 1744.0284581389278,
         "latency_p95_ms": 2669.705375307239,
+        "decision_latency_p50_ms": 1744.0284581389278,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.01945955,
         "known_list_subtotal_usd": 0.0279596
@@ -8038,6 +9377,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -8055,6 +9395,7 @@
           "list_usd_per_1000": 0.7706285714285714,
           "latency_p50_ms": 1409.5008329022676,
           "latency_p95_ms": 2089.1724169487134,
+          "decision_latency_p50_ms": 1409.5008329022676,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0.00803062,
           "known_list_subtotal_usd": 0.0701272
@@ -8073,6 +9414,7 @@
         "list_usd_per_1000": 0.7572377777777777,
         "latency_p50_ms": 1441.114875022322,
         "latency_p95_ms": 2759.9278086796403,
+        "decision_latency_p50_ms": 1441.114875022322,
         "unpriced_attempts": 0,
         "known_billed_subtotal_usd": 0.024019099999999998,
         "known_list_subtotal_usd": 0.0340757
@@ -8088,6 +9430,7 @@
         "source": "bench/runs/20260930T165646Z-direct-luna-pilot/run.jsonl",
         "date": "2026-09-30"
       },
+      "not_applicable_searches": null,
       "excluded_requests": 0,
       "excluded_rejected_attempts": 0,
       "rejection_diagnostics": [],
@@ -8112,6 +9455,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -8129,6 +9473,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -8146,6 +9491,7 @@
           "list_usd_per_1000": null,
           "latency_p50_ms": null,
           "latency_p95_ms": null,
+          "decision_latency_p50_ms": null,
           "unpriced_attempts": 0,
           "known_billed_subtotal_usd": 0,
           "known_list_subtotal_usd": 0
@@ -8248,7 +9594,7 @@
       "planned_requests": 735,
       "raw_requests": 735,
       "raw_errors": 0,
-      "raw_provider_calls": 640,
+      "raw_provider_calls": 641,
       "excluded_requests": 0,
       "excluded_rejected_attempts": 0,
       "requests": 735,
@@ -8257,8 +9603,8 @@
       "classified_successful": 735,
       "successful_requests": 735,
       "classified_fraction": 1.0,
-      "provider_calls": 640,
-      "replayed_requests": 95,
+      "provider_calls": 641,
+      "replayed_requests": 94,
       "cache_fields_present": true,
       "cache_usage_received": true
     },
@@ -8311,6 +9657,7 @@
     "Replay outcomes are scored, but their historical usage, latency and cache reads are excluded.",
     "Search overhead is attributed to each strategy that searches; physical search calls are paid once.",
     "Cold is the first scored positive; a replay there provides no new cold measurement.",
-    "Caching reflects one provider's routing in one single-turn run and does not isolate a latency effect."
+    "Caching reflects one provider's routing in one single-turn run and does not isolate a latency effect.",
+    "**agent-luna@20 measured again.** Its rows come from `20261005T142646Z-direct-luna`, which replaced the records and calls of `20260930T170103Z-direct-luna` for this arm."
   ]
 }

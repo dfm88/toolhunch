@@ -44,13 +44,13 @@ Original run completed: True; original stop reason: none. Applicability does not
 | agent-all | tooleyes | 0.611 (0.516 to 0.705) | 0.158 (0.053 to 0.263) | 58 / 49 / 36 | 48/143 (33.6%) | 0 |
 | agent-all | apibank | 0.337 (0.248 to 0.426) | -0.277 (-0.416 to -0.129) | 34 / 22 / 95 | 50/151 (33.1%) | 0 |
 | agent-all | metatool_which (not applicable) | n/a | n/a | n/a | n/a | 0 rejected attempts, excluded |
-| agent-luna@20 | pooled | 0.776 (0.724 to 0.821) | 0.231 (0.176 to 0.290) | 225 / 210 / 0 | 145/435 (33.3%) | 0 |
-| agent-luna@20 | all_catalogs | 0.727 (0.688 to 0.763) | 0.202 (0.159 to 0.245) | 356 / 378 / 1 | 245/735 (33.3%) | 0 |
-| agent-luna@20 | webtools_spotify | 0.900 (0.800 to 0.975) | 0.250 (0.075 to 0.425) | 36 / 24 / 0 | 20/60 (33.3%) | 0 |
+| agent-luna@20 | pooled | 0.776 (0.724 to 0.821) | 0.231 (0.172 to 0.293) | 225 / 210 / 0 | 145/435 (33.3%) | 0 |
+| agent-luna@20 | all_catalogs | 0.729 (0.688 to 0.765) | 0.204 (0.159 to 0.247) | 357 / 377 / 1 | 245/735 (33.3%) | 0 |
+| agent-luna@20 | webtools_spotify | 0.875 (0.750 to 0.975) | 0.225 (0.050 to 0.400) | 35 / 25 / 0 | 20/60 (33.3%) | 0 |
 | agent-luna@20 | webtools_tmdb | 0.796 (0.685 to 0.889) | 0.296 (0.148 to 0.444) | 43 / 38 / 0 | 27/81 (33.3%) | 0 |
-| agent-luna@20 | tooleyes | 0.684 (0.589 to 0.779) | 0.232 (0.147 to 0.316) | 65 / 78 / 0 | 48/143 (33.6%) | 0 |
-| agent-luna@20 | apibank | 0.802 (0.723 to 0.881) | 0.188 (0.089 to 0.287) | 81 / 70 / 0 | 50/151 (33.1%) | 0 |
-| agent-luna@20 | metatool_which | 0.655 (0.590 to 0.720) | 0.160 (0.100 to 0.220) | 131 / 168 / 1 | 100/300 (33.3%) | 0 |
+| agent-luna@20 | tooleyes | 0.705 (0.610 to 0.800) | 0.253 (0.158 to 0.347) | 67 / 76 / 0 | 48/143 (33.6%) | 0 |
+| agent-luna@20 | apibank | 0.792 (0.713 to 0.871) | 0.178 (0.079 to 0.277) | 80 / 71 / 0 | 50/151 (33.1%) | 0 |
+| agent-luna@20 | metatool_which | 0.660 (0.595 to 0.730) | 0.165 (0.105 to 0.225) | 132 / 167 / 1 | 100/300 (33.3%) | 0 |
 | agent-luna-all | pooled | 0.797 (0.748 to 0.841) | 0.252 (0.193 to 0.310) | 231 / 204 / 0 | 145/435 (33.3%) | 0 |
 | agent-luna-all | webtools_spotify | 0.900 (0.800 to 0.975) | 0.250 (0.100 to 0.400) | 36 / 24 / 0 | 20/60 (33.3%) | 0 |
 | agent-luna-all | webtools_tmdb | 0.889 (0.796 to 0.963) | 0.389 (0.241 to 0.537) | 48 / 33 / 0 | 27/81 (33.3%) | 0 |
@@ -98,13 +98,13 @@ Replay responses do not contribute usage or timing. Search cost and latency are 
 | agent-all | tooleyes | n/a | $0.8512 | $2.5855 | 91.8% | 853.6 / 2239.1 | $1.6383 |
 | agent-all | apibank | n/a | $0.9435 | $3.0602 | 93.8% | 999.4 / 1632.8 | $2.0875 |
 | agent-all | metatool_which (not applicable) | n/a | n/a | n/a | n/a | n/a | n/a |
-| agent-luna@20 | pooled | n/a | $0.1800 | $0.1800 | 0.0% | 1237.1 / 2697.6 | $0.1814 |
-| agent-luna@20 | all_catalogs | n/a | $0.1481 | $0.1481 | 0.0% | 1119.1 / 2460.6 | $0.1503 |
-| agent-luna@20 | webtools_spotify | n/a | $0.1292 | $0.1292 | 0.0% | 1123.5 / 2046.5 | $0.1311 |
-| agent-luna@20 | webtools_tmdb | n/a | $0.2019 | $0.2019 | 0.0% | 1184.3 / 4327.4 | $0.2047 |
-| agent-luna@20 | tooleyes | n/a | $0.1822 | $0.1822 | 0.0% | 1414.7 / 2424.0 | $0.1830 |
-| agent-luna@20 | apibank | n/a | $0.1840 | $0.1840 | 0.0% | 1154.6 / 2583.5 | $0.1856 |
-| agent-luna@20 | metatool_which | n/a | $0.1061 | $0.1061 | 0.0% | 991.9 / 1919.1 | $0.1055 |
+| agent-luna@20 | pooled | n/a | $0.1802 | $0.1802 | 0.0% | 1465.3 / 2389.4 | $0.1813 |
+| agent-luna@20 | all_catalogs | n/a | $0.1484 | $0.1484 | 0.0% | 1383.6 / 2334.7 | $0.1500 |
+| agent-luna@20 | webtools_spotify | n/a | $0.1296 | $0.1296 | 0.0% | 1386.5 / 2470.1 | $0.1312 |
+| agent-luna@20 | webtools_tmdb | n/a | $0.2021 | $0.2021 | 0.0% | 1354.9 / 2021.3 | $0.2053 |
+| agent-luna@20 | tooleyes | n/a | $0.1820 | $0.1820 | 0.0% | 1648.0 / 2625.4 | $0.1823 |
+| agent-luna@20 | apibank | n/a | $0.1845 | $0.1845 | 0.0% | 1391.1 / 2235.6 | $0.1855 |
+| agent-luna@20 | metatool_which | n/a | $0.1067 | $0.1067 | 0.0% | 1277.7 / 2205.9 | $0.1055 |
 | agent-luna-all | pooled | n/a | $0.0746 | $0.6153 | 99.6% | 1452.5 / 2410.1 | $0.4490 |
 | agent-luna-all | webtools_spotify | n/a | $0.0352 | $0.2402 | 99.3% | 1145.6 / 2124.9 | $0.2004 |
 | agent-luna-all | webtools_tmdb | n/a | $0.0580 | $0.4745 | 99.6% | 1198.8 / 2581.2 | $0.4384 |
@@ -129,6 +129,7 @@ Replay responses do not contribute usage or timing. Search cost and latency are 
 - Search overhead is attributed to each strategy that searches; physical search calls are paid once.
 - Cold is the first scored positive; a replay there provides no new cold measurement.
 - Caching reflects one provider's routing in one single-turn run and does not isolate a latency effect.
+- **agent-luna@20 measured again.** Its rows come from `20261005T142646Z-direct-luna`, which replaced the records and calls of `20260930T170103Z-direct-luna` for this arm.
 
 ## Reproduce
 
