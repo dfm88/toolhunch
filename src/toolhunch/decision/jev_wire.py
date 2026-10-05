@@ -116,9 +116,13 @@ The question budget is the head (the question and every option), and the state b
 Laya cuts what exceeds them instead of refusing.
 """
 
-# The tokens that serve.py spends on the head and on the whole sequence when a request does not set them.
+# What the English checkpoint reads when a request does not set the budgets: `head_max_len` and `max_len` in its
+# rl_agent_config.json. `LAYA_LIMITS` keeps its own margin below them.
 _LAYA_HEAD_MAX_LEN = 192
 _LAYA_MAX_LEN = 512
+# The checkpoint names Laya 0.3.27 reports in `routing.model` (`router.DEFAULT_MODELS`). Its server also accepts
+# aliases such as `laya` and `en`, and Hub repo ids, and answers with the canonical name.
+_LAYA_CHECKPOINTS = ("english", "multilingual", "typed-decisions")
 
 # The server's `--ctx` default, and what its prompt template takes beyond the state and the question: a minimal
 # request costs 149 tokens, rounded up to a multiple of 64.
@@ -397,12 +401,17 @@ class _StrictLayaModel(JevWireModel):
         usage = cast("dict[str, Any]", usage) if isinstance(usage, dict) else {}
         if usage.get("truncated"):
             dropped, total = usage.get("state_tokens_dropped", "?"), usage.get("state_tokens", "?")
-            raise self._error(f"Laya cut the state: {dropped} of {total} state tokens dropped")
+            named = (
+                f" (truncated_questions: {json.dumps(questions)[:200]})"
+                if (questions := usage.get("truncated_questions"))
+                else ""
+            )
+            raise self._error(f"Laya cut the state: {dropped} of {total} state tokens dropped{named}")
         if collapsed := usage.get("options"):
             raise self._error(f"Laya collapsed options that it renders identically: {json.dumps(collapsed)[:500]}")
         routing = body.get("routing")
         if not isinstance(routing, dict):
-            raise self._error("no routing in the reply: is LAYA_JEV_STRICT set?")
+            raise self._error("no routing in the reply: is LAYA_JEV_STRICT set? Unset it, or pass strict=False")
         # An unknown model id is not refused: Laya routes the request to a checkpoint of its own choosing.
         if (answered := cast("dict[str, Any]", routing).get("model")) != self._model:
             raise self._error(f"Laya answered with checkpoint {answered!r}, not {self._model!r}")
@@ -515,14 +524,16 @@ def laya(
 ) -> JevWireModel:
     """A Laya server: `laya-serve` from the laya package (convaiinnovations/laya), without auth.
 
-    `base_url` is the server root; `/v1` is appended. `model` is the checkpoint, `"english"` by default.
-    `server_seconds` comes from the `X-Inference-Time-Ms` header.
+    `base_url` is the server root; `/v1` is appended. `model` is the checkpoint: `"english"` (the default),
+    `"multilingual"` or `"typed-decisions"`. `server_seconds` comes from the `X-Inference-Time-Ms` header.
 
     Laya reads the question (its instructions and options) within `head_max_len` tokens and the question with the
-    state within `max_len`, and cuts what exceeds them. The server's defaults are 192 and 512 for the English
-    checkpoint. When `head_max_len` or `max_len` is given, it is sent with every request, and `limits` follow it
-    by the same margin that `LAYA_LIMITS` keeps below the defaults, so the planner shows the model more per
-    question; `extra_body` is merged after both. Pass `limits` to set everything yourself.
+    state within `max_len`, and cuts what exceeds them. The server's defaults, 192 and 512, are the English
+    checkpoint's, and so are the default `limits`: `LAYA_LIMITS`. Other checkpoints read more, so those limits are
+    safe for them but small. Whatever `head_max_len` and `max_len` the body ends up carrying, from these arguments
+    or from `extra_body` (which is merged after them and wins), is what the default `limits` follow, by the same
+    margin that `LAYA_LIMITS` keeps below the defaults, so the planner shows the model more per question. Pass
+    `limits` to set everything yourself.
 
     With `strict` (the default) a reply raises `DecisionError` when Laya reports that it cut the state, reports
     options it collapsed into one, answers with another checkpoint than `model` (an unknown model id is not
@@ -530,20 +541,32 @@ def laya(
     `LAYA_JEV_STRICT` leaves out the fields `strict` reads). `strict` cannot see what Laya does not report: an
     option cut at 48 tokens, or shortened while still distinct from the others. `LAYA_LIMITS` declares that cap,
     and the planner keeps within it. With `strict=False` such a reply is decoded as any other.
+
+    Raises:
+        ValueError: `strict` is on and `model` is not one of the three checkpoint names (the server accepts aliases
+            such as `laya` and Hub repo ids, but reports the canonical name, so a strict model cannot tell them from
+            another checkpoint: pass `strict=False` to use one). Or the budgets the body carries are not integers
+            of at least 1, or `head_max_len` is not smaller than `max_len`, where a budget that is not sent counts
+            as the server's default.
     """
-    sent: dict[str, Any] = {}
+    if strict and model not in _LAYA_CHECKPOINTS:
+        raise ValueError(
+            f"with strict=True, model must be one of {', '.join(_LAYA_CHECKPOINTS)}, got {model!r}: "
+            "Laya reports the canonical name for an alias, so pass strict=False to use an alias"
+        )
+    body: dict[str, Any] = {}
     if head_max_len is not None:
-        sent["head_max_len"] = head_max_len
+        body["head_max_len"] = head_max_len
     if max_len is not None:
-        sent["max_len"] = max_len
-    if limits is None:
-        limits = _laya_limits(**sent)
+        body["max_len"] = max_len
+    body |= dict(extra_body or {})
+    head, length = _laya_budgets(body)
     return (_StrictLayaModel if strict else JevWireModel)(
         model,
         base_url=f"{base_url.rstrip('/')}/v1",
         api_key_env=None,
-        limits=limits,
-        extra_body=sent | dict(extra_body or {}),
+        limits=_laya_limits(head, length) if limits is None else limits,
+        extra_body=body,
         latency_header="X-Inference-Time-Ms",
         http_client=http_client,
         timeout=timeout,
@@ -551,7 +574,26 @@ def laya(
     )
 
 
-def _laya_limits(*, head_max_len: int | None = None, max_len: int | None = None) -> ModelLimits:
+def _laya_budgets(body: Mapping[str, Any]) -> tuple[int | None, int | None]:
+    """The `head_max_len` and `max_len` that `body` sends, checked: `None` for one it leaves out."""
+    budgets: list[int | None] = []
+    for name in ("head_max_len", "max_len"):
+        value = body.get(name)
+        if value is not None and (isinstance(value, bool) or not isinstance(value, int) or value < 1):
+            raise ValueError(f"{name} must be an integer of at least 1, got {value!r}")
+        budgets.append(value)
+    head, length = budgets
+    effective_head = _LAYA_HEAD_MAX_LEN if head is None else head
+    effective_length = _LAYA_MAX_LEN if length is None else length
+    if effective_head >= effective_length:
+        raise ValueError(
+            f"head_max_len ({effective_head}) must be smaller than max_len ({effective_length}); "
+            f"the server's defaults are {_LAYA_HEAD_MAX_LEN} and {_LAYA_MAX_LEN} for a budget that is not sent"
+        )
+    return head, length
+
+
+def _laya_limits(head_max_len: int | None, max_len: int | None) -> ModelLimits:
     """`LAYA_LIMITS` for the budgets a request sends: the margin below the server's defaults stays what it is."""
     update: dict[str, Any] = {}
     sent: list[str] = []
@@ -565,7 +607,8 @@ def _laya_limits(*, head_max_len: int | None = None, max_len: int | None = None)
         sent.append(f"max_len {max_len}")
     if sent:
         update["source"] = f"{LAYA_LIMITS.source}; sent with every request: {', '.join(sent)}"
-    return LAYA_LIMITS.model_copy(update=update)
+    # Validated, unlike `model_copy(update=...)`: a margin that leaves nothing is an error, not a limit of 0.
+    return ModelLimits.model_validate({**LAYA_LIMITS.model_dump(), **update})
 
 
 def rizzo_flow(

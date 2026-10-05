@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx2
 import pytest
@@ -18,6 +18,9 @@ from toolhunch.decision import (
     laya,
     rizzo_flow,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 pytestmark = pytest.mark.anyio
 
@@ -80,8 +83,10 @@ async def test_laya_sends_its_budgets_and_refuses_what_it_cut() -> None:
     model = laya(head_max_len=512, max_len=1024, http_client=client)
     assert LAYA_LIMITS.max_question_tokens is not None
     assert LAYA_LIMITS.max_state_plus_question_tokens is not None
-    assert model.limits.max_question_tokens == 512 - (192 - LAYA_LIMITS.max_question_tokens)
-    assert model.limits.max_state_plus_question_tokens == 1024 - (512 - LAYA_LIMITS.max_state_plus_question_tokens)
+    question_margin = 192 - LAYA_LIMITS.max_question_tokens
+    window_margin = 512 - LAYA_LIMITS.max_state_plus_question_tokens
+    assert model.limits.max_question_tokens == 512 - question_margin
+    assert model.limits.max_state_plus_question_tokens == 1024 - window_margin
     assert repr(model) == "JevWireModel(model_id='english@127.0.0.1:8010')"
 
     response = await model.ask(REQUEST)
@@ -100,19 +105,39 @@ async def test_laya_sends_its_budgets_and_refuses_what_it_cut() -> None:
         body = json.loads(sent.content)
         assert (body["model"], body["head_max_len"], body["max_len"]) == ("english", 512, 1024)
 
-    # Without `strict` the same cut reply decodes, and the caller's body overrides the budgets it set.
+    # What is sent is what the limits follow: the caller's `extra_body` beats the arguments, and without `strict`
+    # the same cut reply decodes.
     lenient_requests: list[httpx2.Request] = []
     lenient = laya(
         strict=False,
         max_len=1024,
-        extra_body={"max_len": 768},
+        extra_body={"max_len": 768, "head_max_len": 256},
         http_client=serve([fixture("laya_state_cut")], lenient_requests),
     )
     cut = (await lenient.ask(REQUEST)).answers["tool"]
     assert isinstance(cut, ChoiceAnswer)
     assert cut.choice == "book_restaurant"
-    assert json.loads(lenient_requests[0].content)["max_len"] == 768
-    assert lenient.limits.max_question_tokens == LAYA_LIMITS.max_question_tokens
+    lenient_body = json.loads(lenient_requests[0].content)
+    assert (lenient_body["head_max_len"], lenient_body["max_len"]) == (256, 768)
+    assert lenient.limits.max_question_tokens == 256 - question_margin
+    assert lenient.limits.max_state_plus_question_tokens == 768 - window_margin
+
+    # The budgets are validated, and strict names only a checkpoint, not an alias that Laya answers under another name.
+    invalid: list[tuple[str, Callable[[], object]]] = [
+        ("head_max_len must be an integer of at least 1", lambda: laya(head_max_len=0)),
+        ("max_len must be an integer of at least 1", lambda: laya(max_len=-5)),
+        (r"head_max_len \(1024\) must be smaller than max_len \(512\)", lambda: laya(head_max_len=1024)),
+        ("must be smaller than max_len", lambda: laya(head_max_len=512, max_len=512)),
+        ("must be smaller than max_len", lambda: laya(max_len=100)),
+        ("max_len must be an integer", lambda: laya(extra_body={"max_len": 1.5})),
+    ]
+    for message, build in invalid:
+        with pytest.raises(ValueError, match=message):
+            build()
+    with pytest.raises(ValueError, match="pass strict=False to use an alias"):
+        laya(model="laya")
+    assert laya(model="laya", strict=False).model_id == "laya@127.0.0.1:8010"
+    assert laya(model="multilingual").model_id == "multilingual@127.0.0.1:8010"
 
 
 async def test_rizzo_flow_names_its_weights_and_holds_26_options() -> None:

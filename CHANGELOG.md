@@ -12,8 +12,10 @@ All notable changes to this project are documented here. The format follows
   `STRANDS_LIMITS` (255 options, a 4,096-token window).
 - `laya()`: a local Laya server (`laya-serve`, English checkpoint), with `LAYA_LIMITS` (100 options, a 192-token
   question, a 512-token question with its state, a 48-token option). `head_max_len` and `max_len` are sent with
-  every request and the limits follow them. By default (`strict=True`) a reply raises `DecisionError` when Laya cut
-  the state, collapsed options into one, answered with another checkpoint than the one asked for, or carries no
+  every request, from the arguments or from `extra_body`, and the limits follow what is sent; a budget that is not a
+  positive integer, or a head budget that is not below the sequence budget, raises `ValueError`. By default
+  (`strict=True`, which needs a checkpoint name, not an alias) a reply raises `DecisionError` when Laya cut the
+  state, collapsed options into one, answered with another checkpoint than the one asked for, or carries no
   `routing`.
 - `rizzo_flow()`: a local rizzo-flow server (`rizzo serve`), with `RIZZO_FLOW_LIMITS` (26 options and an 8,192-token
   context for each question with its state, less the server's template). The default model id names the weights,
