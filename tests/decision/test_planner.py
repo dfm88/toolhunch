@@ -346,10 +346,12 @@ def test_a_name_over_the_text_cap_is_an_error_and_not_a_misfit() -> None:
     cards = [long, card("ping"), card("get")]
     # Whatever the total budget says: this card can never be shown to the model as it is.
     for state_budget in (None, 1):
-        with pytest.raises(ValueError, match="srv/long"):
+        with pytest.raises(CandidatesDoNotFit, match="srv/long") as raised:
             question(cards, limits(text=4, state=state_budget))
-    with pytest.raises(ValueError, match="srv/long"):
+        assert raised.value.card_id == "srv/long"
+    with pytest.raises(CandidatesDoNotFit, match="srv/long") as raised:
         rounds(cards, limits(options=2, text=4), reserved=False)  # it lands in a chunk of two
+    assert raised.value.card_id == "srv/long"
 
 
 def test_two_rounds_deal_candidates_round_robin() -> None:
@@ -414,18 +416,34 @@ def test_more_candidates_than_two_rounds_hold() -> None:
 
 
 @pytest.mark.parametrize(
-    ("budget", "groups"),
+    ("budget", "sizes", "finalists"),
     [
-        # Five names take 4 + 11 + 5 x (1 + 4) + 5 = 45 tokens, six take 51, seven 57. Twenty options are
-        # allowed, yet the chunks hold five or six: more than the ceil(40 / 20) = 2 the cap alone gives.
-        pytest.param(45, 8, id="five-names"),
-        pytest.param(51, 7, id="six-names"),  # grown by one at a time: 7 chunks, not 8
+        # Fourteen names take 4 + 11 + 14 x (1 + 4) + 14 = 99 tokens. Twenty options are allowed, yet the chunks
+        # hold fourteen: more than the ceil(40 / 20) = 2 the cap alone gives. Two finalists from each of the
+        # three and the reserved option take 4 + 11 + 6 x 6 + 13 = 64.
+        pytest.param(99, [14, 13, 13], 2, id="fourteen-names"),
+        # Five names take 45 tokens, six 51, seven 57: the chunks hold five or six, and then not even one finalist
+        # from each fits the final question.
+        pytest.param(45, [5] * 8, None, id="five-names"),
+        pytest.param(51, [6, 6, 6, 6, 6, 5, 5], None, id="six-names"),  # grown by one at a time: 7 chunks, not 8
     ],
 )
-def test_the_token_budget_adds_chunks(budget: int, groups: int) -> None:
-    # These plans used to come back, and their final question (16 and 14 finalists) failed at runtime.
-    with pytest.raises(CandidatesDoNotFit, match=f"each of the {groups} groups"):
-        rounds(CARDS_50[:40], limits(options=20, state=budget))
+def test_the_token_budget_adds_chunks(budget: int, sizes: list[int], finalists: int | None) -> None:
+    model = limits(options=20, state=budget)
+    if finalists is None:
+        # These plans used to come back, and their final question (16 and 14 finalists) failed at runtime.
+        with pytest.raises(CandidatesDoNotFit, match=f"each of the {len(sizes)} groups"):
+            rounds(CARDS_50[:40], model)
+        return
+    plan = rounds(CARDS_50[:40], model)
+    assert plan.single is None
+    assert [len(chunk.cards) for chunk in plan.chunks] == sizes
+    assert plan.finalists_per_chunk == finalists
+    for chunk in plan.chunks:
+        assert chunk.question is not None
+        assert chunk.question.detail is DetailLevel.NAME
+        assert chunk.question.estimated_input_tokens <= budget
+    assert [c.id for c in plan.chunks[1].cards][:2] == ["c01", f"c{1 + len(sizes):02d}"]  # still round-robin
 
 
 def test_without_an_option_cap_the_candidates_are_the_cap() -> None:
@@ -522,11 +540,20 @@ def test_the_floor_splits_into_groups_instead_of_dropping_to_names() -> None:
 
 
 def test_the_final_is_planned_against_its_worst_case() -> None:
-    # No option cap and one-word names: a chunk of n names takes 4 + 11 + 6n tokens, and a final question of n
-    # finalists and the reserved option 4 + 11 + 6n + 13.
-    # At 75, four chunks of 13 do not fit (93) and five of ten do (75): ten finalists take 88, five take 58.
-    assert rounds(CARDS_50, limits(state=75)).finalists_per_chunk == 1
-    # At 63, six chunks of nine do not fit (69) and seven of eight or seven do: even seven finalists take 70.
-    with pytest.raises(CandidatesDoNotFit, match="even one finalist from each of the 7 groups") as raised:
-        rounds(CARDS_50, limits(state=63))
+    # No option cap. A one-word name takes 1 + 4 + 1 = 6 tokens an option, a three-word name 10. The eight cards
+    # do not fit one chunk (4 + 11 + 56 = 71); two groups, [s0, s2, l0, s4] and [s1, s3, l1, s5], take 43 each.
+    cards = [card(name) for name in ("s0", "s1", "s2", "s3", "l0 b c", "l1 b c", "s4", "s5")]
+    # The worst final holds each group's longest: two of each take 4 + 11 + 2 x 16 + 13 = 60, one of each 48.
+    # The first two of each would take 52, the first one 40: those budgets would wrongly pass.
+    assert rounds(cards, limits(state=52)).finalists_per_chunk == 1
+    with pytest.raises(CandidatesDoNotFit, match="even one finalist from each of the 2 groups") as raised:
+        rounds(cards, limits(state=47))
     assert raised.value.card_id is None
+    # Under the option cap the cost is the option's as planned, without the state. "x0 a b c d" is its key alone,
+    # 5 + 4 = 9 tokens; "y0 a b c" is its key and name, 4 + 4 + 4 = 12. Groups [x0, y0] and [x1, y1] take
+    # 11 + 9 + 12 = 32 each, all four 53. A final with the y cards takes 11 + 2 x 12 + 13 = 48, with the x
+    # cards 42: ranked by their names' length instead, the x cards would pass at 47.
+    capped = [card("x0 a b c d"), card("x1 a b c d"), card("y0 a b c"), card("y1 a b c")]
+    assert rounds(capped, LAYA_LIKE.model_copy(update={"max_question_tokens": 48})).finalists_per_chunk == 1
+    with pytest.raises(CandidatesDoNotFit, match="even one finalist from each of the 2 groups"):
+        rounds(capped, LAYA_LIKE.model_copy(update={"max_question_tokens": 47}))

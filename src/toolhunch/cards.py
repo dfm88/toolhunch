@@ -145,7 +145,7 @@ def render_within_budget(
 
     Raises:
         ValueError: A card's name alone is over its per-text cap; the message names the card's id. Or
-            `min_detail` is above `max_detail`, or `max_tokens_per_text` has not one cap per card.
+            `min_detail` is above `max_detail`, or `max_tokens_per_text` does not have one cap per card.
     """
     if min_detail > max_detail:
         raise ValueError(f"min_detail={min_detail.name} is above max_detail={max_detail.name}")
