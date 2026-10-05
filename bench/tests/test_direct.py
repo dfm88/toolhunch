@@ -1,12 +1,14 @@
 import hashlib
 import json
 import sqlite3
+import time
 from collections.abc import Sequence
 from dataclasses import asdict, replace
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
+import anyio
 import pytest
 import tiktoken
 from pydantic_ai.exceptions import ModelHTTPError
@@ -38,6 +40,7 @@ from toolhunch_bench.direct import (
     arm_decider,
     decider_arms,
     direct_catalogs,
+    direct_decision_model,
     estimate_direct,
     planned_not_applicable,
 )
@@ -959,14 +962,36 @@ async def test_direct_plans_not_applicable_catalogs_and_counts_key_only_options(
     )
     assert estimate.planned_requests_by_arm == {"hybrid@20+strands": 9, "strands-all": 3}
     guard = SpendGuard()
-    directory = await DirectRunner(
-        retriever=BM25Retriever(),
-        models={"strands": GuardedDecisionModel(model, guard=guard, provider="local")},
-        agent=None,
-        guard=guard,
-        not_applicable=planned,
-        arms=arms,
-    ).run(selected, out_dir=tmp_path / "runs", run_id="planned", pilot=False, estimate=estimate)
+    # Each ask takes 20 ms, timed by itself under the request it belongs to.
+    own_seconds: dict[tuple[str, ...], float] = {}
+
+    class Timed:
+        def __init__(self, inner: Any) -> None:
+            self.inner, self.model_id, self.limits = inner, inner.model_id, inner.limits
+            self.question_kinds, self.prompt_version = inner.question_kinds, inner.prompt_version
+
+        async def ask(self, request: DecisionRequest, /, **options: Any) -> Any:
+            key = tuple(guard.context[field] for field in ("arm", "catalog", "task", "variant"))
+            started = time.perf_counter()
+            try:
+                await anyio.sleep(0.02)
+                return await self.inner.ask(request, **options)
+            finally:
+                own_seconds[key] = own_seconds.get(key, 0.0) + time.perf_counter() - started
+
+    # Composed as the direct command composes it; strands is asked one request at a time.
+    asked = direct_decision_model("strands", Timed(model), guard=guard, path=tmp_path / "decisions.sqlite")
+    try:
+        directory = await DirectRunner(
+            retriever=BM25Retriever(),
+            models={"strands": asked},
+            agent=None,
+            guard=guard,
+            not_applicable=planned,
+            arms=arms,
+        ).run(selected, out_dir=tmp_path / "runs", run_id="planned", pilot=False, estimate=estimate)
+    finally:
+        asked.close()
 
     manifest = json.loads((directory / "manifest.json").read_text())
     records = [json.loads(line) for line in (directory / "run.jsonl").read_text().splitlines()]
@@ -991,6 +1016,13 @@ async def test_direct_plans_not_applicable_catalogs_and_counts_key_only_options(
     assert (failed["catalog"], failed["task"], failed["failed_card"]) == (mixed, "apibank_0", f"{mixed}_unshowable")
     assert manifest["completed"] is True
     assert (manifest["errors"]["hybrid@20+strands"], manifest["provider_errors"]["hybrid@20+strands"]) == (1, 0)
+    # A record's decision time is the sum of its asks, without the wait for the lock: the negative searching `large`
+    # asks three groups at the same time, then its final.
+    timed = [r for r in records if r["provider_calls"]]
+    assert [(r["catalog"], r["variant"]) for r in timed if len(r["detail"]) == 4] == [(large, "negative")]
+    for r in timed:
+        own = own_seconds[(r["arm"], r["catalog"], r["task"], r["variant"])]
+        assert r["decision_seconds"] == pytest.approx(own, abs=0.005)
 
     summary = build_direct_report(directory, out_dir=tmp_path / "report")
     rows = {(row["arm"], row["catalog"]): row for row in summary["rows"]}

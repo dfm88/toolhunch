@@ -74,6 +74,7 @@ from toolhunch_bench.direct import (
     DirectRunner,
     decider_arms,
     direct_catalogs,
+    direct_decision_model,
     estimate_direct,
     planned_not_applicable,
 )
@@ -789,8 +790,9 @@ def direct(
     )
     if names:  # building Clef reads the account ID, and a local server's URL may be set there; keys at call time
         load_dotenv(BENCH_DIR.parent / ".env", override=False)
+    # The bare adapters: `direct_decision_model` puts each serial entry's lock outside its guard.
     raw: dict[str, DecisionModel] = (
-        {name: decision_model(name, max_retries=0 if _guarded(name) else 3) for name in names}
+        {name: REGISTRY[name].make(0 if _guarded(name) else 3) for name in names}
         if names
         else {"jev": jev(model=JEV_MODEL, max_retries=0)}
     )
@@ -857,12 +859,9 @@ def direct(
         agent = CachedAgent(model, path=BENCH_DIR / "runs" / "cache" / "agent.sqlite", guard=guard)
         direct_cache = BENCH_DIR / "runs" / "cache" / "direct-decisions.sqlite"
         for name, model in raw.items():
-            spec = REGISTRY[DeciderName(name)]
             # A local model goes through the guard too, at no charge: every ask is then recorded and timed.
-            recorded = _guarded(name) or spec.billing == "local"
-            guarded = GuardedDecisionModel(model, guard=guard, provider=spec.provider) if recorded else model
-            # `laya` and `laya-wide` ask one model id with other budgets: the namespace keeps their answers apart.
-            models[name] = CachedDecisionModel(guarded, path=direct_cache, namespace=spec.cache_namespace)
+            recorded = _guarded(name) or REGISTRY[DeciderName(name)].billing == "local"
+            models[name] = direct_decision_model(name, model, guard=guard if recorded else None, path=direct_cache)
         provenance = {str(name): asyncio.run(local_provenance(name)) for name in names}
         runner = DirectRunner(
             retriever=hybrid.retriever,

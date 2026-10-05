@@ -19,8 +19,9 @@ from toolhunch.retrieval import Retrieval, ScoredCard
 from toolhunch.retrieval.base import clean_queries
 from toolhunch.tokens import HeuristicTokenizer
 from toolhunch_bench.datasets.toolret import TOOLRET_CORPUS_SHA256, TOOLRET_DATASET, TOOLRET_REVISION, ToolRetData
-from toolhunch_bench.deciders import choice_decider, planner_tokenizer
+from toolhunch_bench.deciders import DECIDERS, DeciderName, SerialDecisionModel, choice_decider, planner_tokenizer
 from toolhunch_bench.decision import LUNA_MODEL, CountedModel, DecisionArm, SharedRetrieval, estimate_decisions
+from toolhunch_bench.decision_cache import CachedDecisionModel
 from toolhunch_bench.direct_agent import (
     AGENT_MAX_OUTPUT_TOKENS,
     AGENT_PROMPT_VERSION,
@@ -31,6 +32,7 @@ from toolhunch_bench.direct_agent import (
 from toolhunch_bench.direct_cost import (
     AGENT_MODEL,
     EMBEDDING_MODEL,
+    GuardedDecisionModel,
     ProviderFailure,
     RunStopped,
     SpendGuard,
@@ -230,6 +232,22 @@ def planned_not_applicable(
                     found[(arm, selected.source)] = {"reason": str(unfit), "source": "planner", "date": today}
                     break
     return found
+
+
+def direct_decision_model(
+    name: str, adapter: DecisionModel, *, guard: SpendGuard | None, path: Path
+) -> CachedDecisionModel:
+    """What a direct run asks for the decider `name`: `adapter`, through `guard` when given, under the decision cache.
+
+    The guard reserves, records and times every attempt. An entry asked one request at a time takes its lock outside
+    the guard, so each call is timed alone, without its wait for the lock: a first round's questions are asked at the
+    same time. The cache keys the entry's `cache_namespace`, which keeps apart entries that ask one model id.
+    """
+    spec = DECIDERS[DeciderName(name)]
+    model = adapter if guard is None else GuardedDecisionModel(adapter, guard=guard, provider=spec.provider)
+    return CachedDecisionModel(
+        SerialDecisionModel(model) if spec.serial else model, path=path, namespace=spec.cache_namespace
+    )
 
 
 class _CountOnce:
