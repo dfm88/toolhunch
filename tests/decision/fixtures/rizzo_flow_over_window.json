@@ -1,0 +1,9 @@
+{
+  "status": 422,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": {
+    "detail": "Question tool: 8827 tokens exceeds the context limit 8192 (--ctx); no truncation"
+  }
+}

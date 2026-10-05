@@ -1,0 +1,76 @@
+{
+  "status": 200,
+  "headers": {
+    "server-timing": "inference;dur=308.91",
+    "x-inference-time-ms": "308.91",
+    "content-type": "application/json"
+  },
+  "body": {
+    "model": "laya-rl-agent",
+    "answers": {
+      "tool": {
+        "type": "choice",
+        "choice": "shared words that make every one of these option keys start with the same long run of tokens 17",
+        "probabilities": {
+          "shared words that make every one of these option keys start with the same long run of tokens 01": 0.0106,
+          "shared words that make every one of these option keys start with the same long run of tokens 02": 0.01,
+          "shared words that make every one of these option keys start with the same long run of tokens 03": 0.0135,
+          "shared words that make every one of these option keys start with the same long run of tokens 04": 0.019,
+          "shared words that make every one of these option keys start with the same long run of tokens 05": 0.0244,
+          "shared words that make every one of these option keys start with the same long run of tokens 06": 0.0304,
+          "shared words that make every one of these option keys start with the same long run of tokens 07": 0.0271,
+          "shared words that make every one of these option keys start with the same long run of tokens 08": 0.0353,
+          "shared words that make every one of these option keys start with the same long run of tokens 09": 0.0313,
+          "shared words that make every one of these option keys start with the same long run of tokens 10": 0.0307,
+          "shared words that make every one of these option keys start with the same long run of tokens 11": 0.0354,
+          "shared words that make every one of these option keys start with the same long run of tokens 12": 0.0356,
+          "shared words that make every one of these option keys start with the same long run of tokens 13": 0.0919,
+          "shared words that make every one of these option keys start with the same long run of tokens 14": 0.1037,
+          "shared words that make every one of these option keys start with the same long run of tokens 15": 0.1087,
+          "shared words that make every one of these option keys start with the same long run of tokens 16": 0.1147,
+          "shared words that make every one of these option keys start with the same long run of tokens 17": 0.1178,
+          "shared words that make every one of these option keys start with the same long run of tokens 18": 0.0352,
+          "shared words that make every one of these option keys start with the same long run of tokens 19": 0.0226,
+          "shared words that make every one of these option keys start with the same long run of tokens 20": 0.0153,
+          "shared words that make every one of these option keys start with the same long run of tokens 21": 0.0151,
+          "shared words that make every one of these option keys start with the same long run of tokens 22": 0.0137,
+          "shared words that make every one of these option keys start with the same long run of tokens 23": 0.0156,
+          "shared words that make every one of these option keys start with the same long run of tokens 24": 0.0096,
+          "shared words that make every one of these option keys start with the same long run of tokens 25": 0.0056,
+          "shared words that make every one of these option keys start with the same long run of tokens 26": 0.0056,
+          "shared words that make every one of these option keys start with the same long run of tokens 27": 0.0072,
+          "shared words that make every one of these option keys start with the same long run of tokens 28": 0.0071,
+          "shared words that make every one of these option keys start with the same long run of tokens 29": 0.0027,
+          "shared words that make every one of these option keys start with the same long run of tokens 30": 0.0046
+        },
+        "confidence": 0.1306,
+        "answer_confidence": 0.1178,
+        "action": {
+          "act_probability": 1.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 185,
+      "output_tokens": 0,
+      "state_tokens": 16,
+      "state_tokens_dropped": 0,
+      "truncated": false,
+      "truncated_questions": [],
+      "options": {
+        "tool": {
+          "total": 30,
+          "distinct": 1,
+          "tokens_per_option": 5
+        }
+      }
+    },
+    "routing": {
+      "model": "english",
+      "repo": "convaiinnovations/laya",
+      "reason": "explicit model='english'",
+      "detection": null,
+      "workflow": null
+    }
+  }
+}

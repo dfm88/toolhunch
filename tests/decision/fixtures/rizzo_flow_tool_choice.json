@@ -1,0 +1,46 @@
+{
+  "status": 200,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": {
+    "model": "rizzo-flow-4b-q8_0",
+    "answers": {
+      "tool": {
+        "type": "choice",
+        "choice": "book_restaurant",
+        "probabilities": {
+          "get_weather": 0.000282678330959384,
+          "book_restaurant": 0.998351785822065,
+          "order_food_delivery": 0.0005434314808864971,
+          "send_email": 0.0002566266473389748,
+          "none": 0.0005654777187501107
+        },
+        "confidence": 0.9979397322775811
+      }
+    },
+    "usage": {
+      "input_tokens": 280,
+      "output_tokens": 0
+    },
+    "x_rizzo": {
+      "timing": {
+        "inference_seconds": 0.1425455000717193,
+        "prefill_seconds": 0.0,
+        "shared_prefix_tokens": 0,
+        "evaluated_tokens_including_padding": 280,
+        "logical_input_tokens": 280,
+        "batches": 1,
+        "generated_tokens": 0,
+        "peak_device_bytes": 6000787456,
+        "queue_seconds": 1.00000761449337e-06,
+        "compile_seconds": 0.007380791939795017,
+        "total_seconds": 0.15011783293448389
+      },
+      "probability_status": [
+        "uncalibrated_conditional_option_scores"
+      ],
+      "fingerprint": "4d3dff1e7ee996367036c82e9f306df9d969da2a0b769bda3236effae41aff8b"
+    }
+  }
+}

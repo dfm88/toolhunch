@@ -1,0 +1,46 @@
+{
+  "status": 200,
+  "headers": {
+    "server-timing": "inference;dur=224.81",
+    "x-inference-time-ms": "224.81",
+    "content-type": "application/json"
+  },
+  "body": {
+    "model": "laya-rl-agent",
+    "answers": {
+      "tool": {
+        "type": "choice",
+        "choice": "book_restaurant",
+        "probabilities": {
+          "get_weather": 0.0005,
+          "book_restaurant": 0.9967,
+          "order_food_delivery": 0.0006,
+          "send_email": 0.0005,
+          "none": 0.0017
+        },
+        "confidence": 0.9837,
+        "answer_confidence": 0.9967,
+        "action": {
+          "act_probability": 1.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 512,
+      "output_tokens": 0,
+      "state_tokens": 576,
+      "state_tokens_dropped": 189,
+      "truncated": true,
+      "truncated_questions": [
+        "tool"
+      ]
+    },
+    "routing": {
+      "model": "english",
+      "repo": "convaiinnovations/laya",
+      "reason": "explicit model='english'",
+      "detection": null,
+      "workflow": null
+    }
+  }
+}
