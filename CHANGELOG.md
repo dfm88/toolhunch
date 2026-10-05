@@ -10,6 +10,14 @@ All notable changes to this project are documented here. The format follows
 
 - `strands_decider()`: AWS Strands Labs' Strands Decider 2B served locally (`strands-decider serve`), with
   `STRANDS_LIMITS` (255 options, a 4,096-token window).
+- `laya()`: a local Laya server (`laya-serve`, English checkpoint), with `LAYA_LIMITS` (100 options, a 192-token
+  question, a 512-token question with its state, a 48-token option). `head_max_len` and `max_len` are sent with
+  every request and the limits follow them. By default (`strict=True`) a reply raises `DecisionError` when Laya cut
+  the state, collapsed options into one, answered with another checkpoint than the one asked for, or carries no
+  `routing`.
+- `rizzo_flow()`: a local rizzo-flow server (`rizzo serve`), with `RIZZO_FLOW_LIMITS` (26 options and an 8,192-token
+  context for each question with its state, less the server's template). The default model id names the weights,
+  `rizzo-flow-4b-q8_0`.
 - `clef()`: Cloudflare's Clef and Clef-flash on Workers AI, with `CLEF_LIMITS` and `CLEF_FLASH_LIMITS`. The account
   ID goes into the URL only, never into `model_id` or `repr`.
 - `JevWireModel(path=..., response_root=...)`: a Jev-shaped body at another endpoint path, and an answer wrapped in

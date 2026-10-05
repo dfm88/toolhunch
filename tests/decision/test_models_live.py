@@ -10,6 +10,8 @@ from toolhunch.decision import (
     clef,
     clm,
     jev,
+    laya,
+    rizzo_flow,
     strands_decider,
 )
 
@@ -81,6 +83,22 @@ async def test_clef_flash_answers_a_tool_choice(cloudflare_account: str) -> None
 
 async def test_strands_answers_a_tool_choice(strands_base_url: str) -> None:
     model = strands_decider(strands_base_url)
+    try:
+        await check_a_tool_choice(model)
+    finally:
+        await model.aclose()
+
+
+async def test_laya_answers_a_tool_choice(laya_base_url: str) -> None:
+    model = laya(laya_base_url)  # strict: the reply must carry routing and report no cut
+    try:
+        assert (await check_a_tool_choice(model)).server_seconds is not None
+    finally:
+        await model.aclose()
+
+
+async def test_rizzo_flow_answers_a_tool_choice(rizzo_flow_base_url: str) -> None:
+    model = rizzo_flow(rizzo_flow_base_url)
     try:
         await check_a_tool_choice(model)
     finally:

@@ -43,11 +43,15 @@ __all__ = [
     "CLEF_LIMITS",
     "CLM_LIMITS",
     "JEV_LIMITS",
+    "LAYA_LIMITS",
+    "RIZZO_FLOW_LIMITS",
     "STRANDS_LIMITS",
     "JevWireModel",
     "clef",
     "clm",
     "jev",
+    "laya",
+    "rizzo_flow",
     "strands_decider",
 ]
 
@@ -91,6 +95,49 @@ STRANDS_LIMITS = ModelLimits(
 
 Over the window its server cuts the state unless it runs with `--strict-window`, which refuses with HTTP 422.
 """
+
+LAYA_LIMITS = ModelLimits(
+    max_options_per_choice=100,
+    max_state_plus_question_tokens=512,
+    max_question_tokens=192,
+    max_option_tokens=48,
+    max_questions_per_request=64,
+    price_input_per_mtok=0.0,
+    price_output_per_mtok=0.0,
+    source=(
+        "laya 0.3.27 serve.py (100 options, 64 questions) and common.py build_head/render_options (48-token "
+        "option cap); convaiinnovations/laya @ 55cf4c4 rl_agent_config.json (max_len 512, head_max_len 192)"
+    ),
+    checked=date(2026, 10, 5),
+)
+"""Laya's limits as its English checkpoint ships them, served locally at no charge.
+
+The question budget is the head (the question and every option), and the state budget is the head plus the state.
+Laya cuts what exceeds them instead of refusing.
+"""
+
+# The tokens that serve.py spends on the head and on the whole sequence when a request does not set them.
+_LAYA_HEAD_MAX_LEN = 192
+_LAYA_MAX_LEN = 512
+
+# The server's `--ctx` default, and what its prompt template takes beyond the state and the question: a minimal
+# request costs 149 tokens, rounded up to a multiple of 64.
+_RIZZO_FLOW_CONTEXT = 8192
+_RIZZO_FLOW_TEMPLATE_MARGIN = 192
+RIZZO_FLOW_LIMITS = ModelLimits(
+    max_options_per_choice=26,
+    max_state_plus_question_tokens=_RIZZO_FLOW_CONTEXT - _RIZZO_FLOW_TEMPLATE_MARGIN,
+    max_questions_per_request=64,
+    price_input_per_mtok=0.0,
+    price_output_per_mtok=0.0,
+    source=(
+        "Rizzo-AI-Academy/rizzo-flow @ b9ba007: schema.py MAX_SLOTS = 26; --ctx 8192 bounds each question with its "
+        "state (prompts.py compile_request); template margin 192 from a probe on 2026-10-05: a minimal request "
+        "costs 149 tokens"
+    ),
+    checked=date(2026, 10, 5),
+)
+"""rizzo-flow's limits: 26 options, and an 8,192-token context for each question with its state, served locally."""
 
 _CLEF_SOURCE = (
     "developers.cloudflare.com/workers-ai/models/{model}: 65,536-token context, 1-64 questions, "
@@ -338,6 +385,29 @@ class JevWireModel:
         return float(value) if -sys.float_info.max <= value <= sys.float_info.max else None
 
 
+class _StrictLayaModel(JevWireModel):
+    """`JevWireModel` for Laya that refuses a reply in which Laya cut or swapped something and said so."""
+
+    def _decode(self, request: DecisionRequest, reply: JsonReply) -> DecisionResponse:
+        self._refuse_lossy(reply.body)
+        return super()._decode(request, reply)
+
+    def _refuse_lossy(self, body: Mapping[str, Any]) -> None:
+        usage = body.get("usage")
+        usage = cast("dict[str, Any]", usage) if isinstance(usage, dict) else {}
+        if usage.get("truncated"):
+            dropped, total = usage.get("state_tokens_dropped", "?"), usage.get("state_tokens", "?")
+            raise self._error(f"Laya cut the state: {dropped} of {total} state tokens dropped")
+        if collapsed := usage.get("options"):
+            raise self._error(f"Laya collapsed options that it renders identically: {json.dumps(collapsed)[:500]}")
+        routing = body.get("routing")
+        if not isinstance(routing, dict):
+            raise self._error("no routing in the reply: is LAYA_JEV_STRICT set?")
+        # An unknown model id is not refused: Laya routes the request to a checkpoint of its own choosing.
+        if (answered := cast("dict[str, Any]", routing).get("model")) != self._model:
+            raise self._error(f"Laya answered with checkpoint {answered!r}, not {self._model!r}")
+
+
 def jev(
     model: str = "jev-latest",
     *,
@@ -417,6 +487,109 @@ def strands_decider(
     4,096-token window fails instead of losing part of its state. The planner keeps requests within
     `STRANDS_LIMITS`: it renders the cards at the most detailed level that fits, and splits a choice into two
     rounds only when it does not fit even by name.
+    """
+    return JevWireModel(
+        model,
+        base_url=f"{base_url.rstrip('/')}/v1",
+        api_key_env=None,
+        limits=limits,
+        extra_body=extra_body,
+        http_client=http_client,
+        timeout=timeout,
+        max_retries=max_retries,
+    )
+
+
+def laya(
+    base_url: str = "http://127.0.0.1:8010",
+    *,
+    model: str = "english",
+    head_max_len: int | None = None,
+    max_len: int | None = None,
+    strict: bool = True,
+    limits: ModelLimits | None = None,
+    extra_body: Mapping[str, Any] | None = None,
+    http_client: httpx2.AsyncClient | None = None,
+    timeout: float = 30.0,
+    max_retries: int = 3,
+) -> JevWireModel:
+    """A Laya server: `laya-serve` from the laya package (convaiinnovations/laya), without auth.
+
+    `base_url` is the server root; `/v1` is appended. `model` is the checkpoint, `"english"` by default.
+    `server_seconds` comes from the `X-Inference-Time-Ms` header.
+
+    Laya reads the question (its instructions and options) within `head_max_len` tokens and the question with the
+    state within `max_len`, and cuts what exceeds them. The server's defaults are 192 and 512 for the English
+    checkpoint. When `head_max_len` or `max_len` is given, it is sent with every request, and `limits` follow it
+    by the same margin that `LAYA_LIMITS` keeps below the defaults, so the planner shows the model more per
+    question; `extra_body` is merged after both. Pass `limits` to set everything yourself.
+
+    With `strict` (the default) a reply raises `DecisionError` when Laya reports that it cut the state, reports
+    options it collapsed into one, answers with another checkpoint than `model` (an unknown model id is not
+    refused, Laya routes it to a checkpoint of its own choosing), or carries no `routing` (a server run with
+    `LAYA_JEV_STRICT` leaves out the fields `strict` reads). `strict` cannot see what Laya does not report: an
+    option cut at 48 tokens, or shortened while still distinct from the others. `LAYA_LIMITS` declares that cap,
+    and the planner keeps within it. With `strict=False` such a reply is decoded as any other.
+    """
+    sent: dict[str, Any] = {}
+    if head_max_len is not None:
+        sent["head_max_len"] = head_max_len
+    if max_len is not None:
+        sent["max_len"] = max_len
+    if limits is None:
+        limits = _laya_limits(**sent)
+    return (_StrictLayaModel if strict else JevWireModel)(
+        model,
+        base_url=f"{base_url.rstrip('/')}/v1",
+        api_key_env=None,
+        limits=limits,
+        extra_body=sent | dict(extra_body or {}),
+        latency_header="X-Inference-Time-Ms",
+        http_client=http_client,
+        timeout=timeout,
+        max_retries=max_retries,
+    )
+
+
+def _laya_limits(*, head_max_len: int | None = None, max_len: int | None = None) -> ModelLimits:
+    """`LAYA_LIMITS` for the budgets a request sends: the margin below the server's defaults stays what it is."""
+    update: dict[str, Any] = {}
+    sent: list[str] = []
+    if head_max_len is not None:
+        margin = _LAYA_HEAD_MAX_LEN - cast("int", LAYA_LIMITS.max_question_tokens)
+        update["max_question_tokens"] = head_max_len - margin
+        sent.append(f"head_max_len {head_max_len}")
+    if max_len is not None:
+        margin = _LAYA_MAX_LEN - cast("int", LAYA_LIMITS.max_state_plus_question_tokens)
+        update["max_state_plus_question_tokens"] = max_len - margin
+        sent.append(f"max_len {max_len}")
+    if sent:
+        update["source"] = f"{LAYA_LIMITS.source}; sent with every request: {', '.join(sent)}"
+    return LAYA_LIMITS.model_copy(update=update)
+
+
+def rizzo_flow(
+    base_url: str = "http://127.0.0.1:8017",
+    *,
+    model: str = "rizzo-flow-4b-q8_0",
+    limits: ModelLimits = RIZZO_FLOW_LIMITS,
+    extra_body: Mapping[str, Any] | None = None,
+    http_client: httpx2.AsyncClient | None = None,
+    timeout: float = 30.0,
+    max_retries: int = 3,
+) -> JevWireModel:
+    """A rizzo-flow server: `rizzo serve` from Rizzo-AI-Academy/rizzo-flow, without auth.
+
+    `base_url` is the server root; `/v1` is appended. The server sends no latency header, so `server_seconds` is
+    `None`; its own timing is in the reply's `x_rizzo.timing`, kept in `DecisionResponse.raw`.
+
+    The default `model` names the weights, a 4B model at q8_0 quantization. A server loaded with other weights
+    answers HTTP 400, so a run cannot silently use different weights under the same name. `rizzo-latest` is
+    accepted by every server, whatever it loaded, which is why it is not the default; the server also answers to
+    any `jev-*` id.
+
+    The server takes at most 26 options per choice, and refuses a question whose state does not fit its context
+    (HTTP 422, no cutting); `limits` declares both, so such a request fails before anything is sent.
     """
     return JevWireModel(
         model,

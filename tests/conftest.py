@@ -212,6 +212,22 @@ def strands_base_url() -> str:
 
 
 @pytest.fixture
+def laya_base_url() -> str:
+    """The root of a local Laya server (`LAYA_BASE_URL`); skips the test when it is not set."""
+    if not (base_url := _env("LAYA_BASE_URL")):
+        pytest.skip("LAYA_BASE_URL is not set")
+    return base_url
+
+
+@pytest.fixture
+def rizzo_flow_base_url() -> str:
+    """The root of a local rizzo-flow server (`RIZZO_FLOW_BASE_URL`); skips the test when it is not set."""
+    if not (base_url := _env("RIZZO_FLOW_BASE_URL")):
+        pytest.skip("RIZZO_FLOW_BASE_URL is not set")
+    return base_url
+
+
+@pytest.fixture
 def clm_base_url() -> str:
     """The CLM server root from the environment or the repository's .env; skips the test unless the key is set too."""
     base_url, key = _env("CLM_BASE_URL"), _env("CLM_API_KEY")
