@@ -279,6 +279,8 @@ class DecisionArm:
         decider: What decides; `None` for retrieval alone.
         config: What the run manifest records about the arm.
         model: The model the decider asks, which an estimate replaces with a stand-in.
+        asked: How many asks the decider has sent to `model` so far; `None` when they are not counted. A search tells
+            from it whether a `CandidatesDoNotFit` came before or after its first ask.
     """
 
     name: str
@@ -287,6 +289,41 @@ class DecisionArm:
     decider: Decider | None
     config: Mapping[str, Any]
     model: DecisionModel | None = None
+    asked: Callable[[], int] | None = None
+
+
+class _CountedModel:
+    """`inner`, with a count of the asks sent through it."""
+
+    def __init__(self, inner: DecisionModel) -> None:
+        self._inner = inner
+        self._asks = 0
+
+    @property
+    def model_id(self) -> str:
+        return self._inner.model_id
+
+    @property
+    def limits(self) -> ModelLimits:
+        return self._inner.limits
+
+    @property
+    def question_kinds(self) -> frozenset[QuestionKind]:
+        return self._inner.question_kinds
+
+    @property
+    def prompt_version(self) -> str | None:
+        return self._inner.prompt_version
+
+    def __repr__(self) -> str:
+        return repr(self._inner)
+
+    def count(self) -> int:
+        return self._asks
+
+    async def ask(self, request: DecisionRequest, /, **options: Any) -> DecisionResponse:
+        self._asks += 1
+        return await self._inner.ask(request, **options)
 
 
 def build_decision_arms(
@@ -348,8 +385,9 @@ def build_decision_arms(
                 "reserved_option": reserved_option,
             }
             abstention = Abstention(threshold=0.0, reserved_option=reserved_option)
-            decider = choice_decider(name, model, abstention=abstention, max_detail=detail, min_detail=floor)
-            arms.append(DecisionArm(f"hybrid+{name}@{k}", name, k, decider, config, model))
+            counted = _CountedModel(model)
+            decider = choice_decider(name, counted, abstention=abstention, max_detail=detail, min_detail=floor)
+            arms.append(DecisionArm(f"hybrid+{name}@{k}", name, k, decider, config, model, counted.count))
     return arms
 
 
@@ -491,10 +529,10 @@ async def estimate_decisions(
     - CLM on Modal: no dollars in the cap, 0.3 GPU seconds per ask in the note;
     - a local decider: no charge.
 
-    Every ask is counted, including those the decision cache would answer, so the estimate leans high. A search whose
-    plan raises `CandidatesDoNotFit` asks nothing: its line counts it as not applicable, or as one that would fail when
-    one card is the cause, as the run records it. With `embeddings`, one more line prices the query and card texts that
-    cache lacks.
+    Every ask is counted, including those the decision cache would answer, so the estimate leans high. A search that
+    raises `CandidatesDoNotFit` is counted in its line as the run records it: not applicable when the plan raised it
+    before any ask, and as one that would fail when it names a card or came after an ask. With `embeddings`, one more
+    line prices the query and card texts that cache lacks.
 
     Args:
         arms: The arms, from `build_decision_arms`; each decider arm's model is replaced by a stand-in.
@@ -512,7 +550,7 @@ async def estimate_decisions(
         ValueError: A decider arm has no model, or the `model` source has no queries.
     """
     counted: dict[str, list[_StandIn]] = {}
-    unfit: dict[str, list[CandidatesDoNotFit]] = {}
+    unfit: dict[str, list[bool]] = {}  # per decider, whether each unfit search is not applicable
     for arm in arms:
         if arm.decider_name is None:
             continue
@@ -537,10 +575,12 @@ async def estimate_decisions(
                     else OrderedRetrieval(search.retriever, task_id=search.task.id, seed=seed)
                 )
                 pipeline = ToolSearchPipeline(presented, decider=decider, k=arm.k)
+                calls = stand_in.calls
                 try:
                     await pipeline.search(list(search.queries), data.catalog, context=search.task.query)
                 except CandidatesDoNotFit as error:
-                    unfit.setdefault(arm.decider_name, []).append(error)
+                    inapplicable = error.card_id is None and stand_in.calls == calls
+                    unfit.setdefault(arm.decider_name, []).append(inapplicable)
         counted.setdefault(arm.decider_name, []).append(stand_in)
     lines = [
         replace(
@@ -551,8 +591,8 @@ async def estimate_decisions(
                 options=repeat * sum(stand_in.options for stand_in in stand_ins),
                 limits=stand_ins[0].limits,
             ),
-            not_applicable=repeat * sum(error.card_id is None for error in unfit.get(name, [])),
-            would_fail=repeat * sum(error.card_id is not None for error in unfit.get(name, [])),
+            not_applicable=repeat * sum(unfit.get(name, [])),
+            would_fail=repeat * sum(not inapplicable for inapplicable in unfit.get(name, [])),
         )
         for name, stand_ins in counted.items()
     ]
@@ -689,8 +729,10 @@ async def run_decisions(
     `negatives` is on) and repeat, and searches through a `ToolSearchPipeline` with the arm's decider over its K
     candidates, the task's request as the decider's context. A `DecisionError` is recorded in the search's `error` and
     the run goes on; the candidates of that search come from the shared retrieval. So is a `CandidatesDoNotFit` that
-    names a card no question can show. One without a card, candidates that two rounds cannot hold, is recorded in
-    `not_applicable` instead, with no error and no ranking: nothing was asked.
+    names a card no question can show, whose id goes in `failed_card`. One without a card, raised by the planner before
+    the first ask because two rounds cannot hold the candidates, is recorded in `not_applicable` instead, with no error
+    and no ranking. Raised after an ask, by the decider's guard against a final that does not fit after all, it is a
+    failed search: round one was asked, and its calls are not in the record.
 
     The directory gets `manifest.json` (provenance, written first) and `run.jsonl`: one `search` record per search,
     and after each arm's searches one `arm` record with its wall seconds, searches and errors, and, when the arm's
@@ -701,9 +743,9 @@ async def run_decisions(
     `gold_in_candidates`), the decision (`ranked`, `probabilities`, `none_probability`, `abstained`, `key`, `shape`,
     `state_cut`, `exchanges`, each with the `key_only_options` it sent with an empty text), its cost and timing
     (`usage`, `decision_seconds` on the critical path, `decision_sequential_seconds` with every call added,
-    `server_seconds`, `retrieval_seconds`, the first retrieval's measured time), `not_applicable` and `error`. The
-    retrieval-only arms rank by retrieval and have no probabilities and no decision; a search that failed or was not
-    applicable has no ranking.
+    `server_seconds`, `retrieval_seconds`, the first retrieval's measured time), `not_applicable`, `failed_card` and
+    `error`. The retrieval-only arms rank by retrieval and have no probabilities and no decision; a search that failed
+    or was not applicable has no ranking.
 
     Args:
         arms: What to run, from `build_decision_arms`.
@@ -861,15 +903,17 @@ async def _search_record(
     decision: Decision | None = None
     error: str | None = None
     not_applicable: str | None = None
+    failed_card: str | None = None
+    asks = None if arm.asked is None else arm.asked()
     try:
         decision = (await pipeline.search(queries, data.catalog, context=search.task.query)).decision
     except DecisionError as failure:
         error = str(failure)
     except CandidatesDoNotFit as unfit:
-        if unfit.card_id is None:
+        if unfit.card_id is None and (arm.asked is None or arm.asked() == asks):
             not_applicable = str(unfit)
         else:
-            error = str(unfit)
+            error, failed_card = str(unfit), unfit.card_id
     # The search's own retrieval again: the shared retrieval kept it, so it costs nothing and outlives an error.
     retrieval = await (search.retriever if presented is None else presented).retrieve(queries, data.catalog, k=arm.k)
     candidates = [match.card.id for match in retrieval.matches]
@@ -894,6 +938,7 @@ async def _search_record(
         ),
         "retrieval_seconds": shared.first_seconds(queries),
         "not_applicable": not_applicable,
+        "failed_card": failed_card,
         "error": error,
     }
 

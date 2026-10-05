@@ -30,6 +30,7 @@ from toolhunch.decision import (
     ModelLimits,
     clm,
 )
+from toolhunch.decision import decider as decider_module
 from toolhunch.decision.planner import NONE_KEY
 from toolhunch.retrieval import Retrieval
 from toolhunch_bench import decision as decision_module
@@ -44,6 +45,7 @@ from toolhunch_bench.decision import (
     EstimateLine,
     ExcludingRetriever,
     SharedRetrieval,
+    Split,
     build_decision_arms,
     estimate_decisions,
     run_decisions,
@@ -282,6 +284,7 @@ async def test_run_records_every_arm_source_variant_and_the_negatives_exclude_go
             "decision_sequential_seconds": 0.1,
             "server_seconds": 0.01,
             "not_applicable": None,
+            "failed_card": None,
             "error": None,
         }
     )
@@ -404,7 +407,7 @@ class GoldFirst:
 
 
 async def test_lists_two_rounds_cannot_hold_are_not_applicable_and_a_card_over_the_cap_fails(
-    tmp_path: Path, fake_decision_model: Any
+    tmp_path: Path, fake_decision_model: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # Ten tools whose names take 5 heuristic tokens, and one whose key alone takes 19: the gold tool of the last task.
     pdf = ToolCard(id="pdf", name="convert_a_portable_document_into_plain_text", description="PDF to text.")
@@ -418,8 +421,8 @@ async def test_lists_two_rounds_cannot_hold_are_not_applicable_and_a_card_over_t
     write_task_file(task_file, tasks, seed=0)
 
     async def run(
-        model: Any, *, k: int, searched: Sequence[ToolRetTask], run_id: str
-    ) -> tuple[list[dict[str, Any]], dict[str, Any], str]:
+        model: Any, *, k: int, searched: Sequence[ToolRetTask], run_id: str, split: Split = "heldout"
+    ) -> tuple[Path, list[dict[str, Any]]]:
         arms = build_decision_arms(["strands"], ks=[k], models={"strands": model}, max_detail={})
         retriever = GoldFirst(tasks, hidden="pdf")
         [line] = await estimate_decisions(
@@ -430,7 +433,7 @@ async def test_lists_two_rounds_cannot_hold_are_not_applicable_and_a_card_over_t
             data,
             searched,
             retriever=SharedRetrieval(retriever),
-            split="heldout",
+            split=split,
             sources=("plain",),
             model_queries=None,
             negatives=True,
@@ -440,41 +443,51 @@ async def test_lists_two_rounds_cannot_hold_are_not_applicable_and_a_card_over_t
             model_queries_file=None,
             run_id=run_id,
         )
-        build_decision_report([], run_dir, out_dir=tmp_path / run_id)
         _, records = read_run(run_dir)
         decided = [record for record in records if record["record"] == "search" and record["decider"] == "strands"]
-        summary = json.loads((tmp_path / run_id / "summary.json").read_text())
-        [row] = [row for row in summary["heldout"]["rows"] if row["arm"] == f"hybrid+strands@{k}"]
         assert (line.not_applicable, line.would_fail) == (
             sum(record["not_applicable"] is not None for record in decided),
             sum(record["error"] is not None for record in decided),
-        )  # the estimate counted them, and asked nothing for them
-        return decided, row, (tmp_path / run_id / "README.md").read_text()
+        )  # the estimate counted them as the run records them
+        return run_dir, decided
+
+    def report(heldout: Path, *, dev: Sequence[Path] = ()) -> tuple[dict[str, Any], str]:
+        build_decision_report(list(dev), heldout, out_dir=tmp_path / f"{heldout.name}-report")
+        summary = json.loads((tmp_path / f"{heldout.name}-report" / "summary.json").read_text())
+        return summary, (tmp_path / f"{heldout.name}-report" / "README.md").read_text()
 
     # Three options a question hold two rounds of at most 3 x 2 candidates, with the reserved option in the final:
-    # eight are not applicable, and nothing is asked.
+    # eight are not applicable, and nothing is asked. A dev run of the same searches is not applicable too.
     unasked = fake_decision_model(
         limits=ModelLimits(max_options_per_choice=3, source="test", checked=date(2026, 10, 5))
     )
-    decided, row, readme = await run(unasked, k=8, searched=tasks[:4], run_id="too-many")
+    dev, _ = await run(unasked, k=8, searched=tasks[:4], run_id="too-many-dev", split="dev")
+    heldout, decided = await run(unasked, k=8, searched=tasks[:4], run_id="too-many")
+    summary, readme = report(heldout, dev=[dev])
     assert len(decided) == 8
     reason = "at most 6 candidates fit two rounds for this model"
-    assert all(r["not_applicable"] == reason and r["error"] is None and r["ranked"] is None for r in decided)
+    assert all(r["not_applicable"] == reason and r["error"] is r["failed_card"] is r["ranked"] is None for r in decided)
     assert unasked.asks == []
-    assert (row["status"], row["not_applicable"], row["errors"]) == (
-        "not applicable",
-        {"searches": 8, "reason": reason},
-        0,
-    )
+    unfit = {"status": "not applicable", "not_applicable": {"searches": 8, "reason": reason}}
+    [row] = [row for row in summary["heldout"]["rows"] if row["arm"] == "hybrid+strands@8"]
+    assert ({key: row[key] for key in unfit}, row["errors"]) == (unfit, 0)
     assert row["p_at_1"] is row["p_at_1_ci95"] is row["delta_p_at_1"] is None
     assert set(row["rules"].values()) == {None}
-    assert "| not applicable (8) |" in readme
-    assert f"8 searches not applicable: {reason}" in readme
+    [curve] = summary["heldout"]["risk_coverage"]
+    assert ({key: curve[key] for key in unfit}, curve["grid"]) == (unfit, None)
+    [cell] = [entry for entry in summary["dev"]["precision"] if entry["arm"] == "hybrid+strands@8"]
+    assert ({key: cell[key] for key in unfit}, cell["p_at_1"]) == (unfit, None)
+    [errors] = [entry for entry in summary["dev"]["errors"] if entry["arm"] == "hybrid+strands@8"]
+    assert (errors["errors"], errors["not_applicable"]) == (0, unfit["not_applicable"])
+    held_out_part, dev_part = readme.split("## Dev")
+    assert "| not applicable (8) |" in held_out_part
+    assert "| hybrid+strands@8 | plain | not applicable (8) |" in dev_part  # never a P@1 of the lists that fit
+    assert f"8 searches not applicable: {reason}" in held_out_part
 
     # Under a 12-token option window every name would take its option past it, so each goes as its key alone; the PDF
     # tool's key alone is over it, so the one search that retrieves it fails. Four options a question split five
     # candidates into groups of three and two, asked in 0.3 and 0.1 s, and a final of the two winners and the reserved
-    # option, asked at once.
+    # option, asked at once. Each call takes 0.01 s by the server's clock.
     def seconds(request: DecisionRequest) -> float:
         [question] = request.questions.values()
         assert isinstance(question, ChoiceQuestion)
@@ -487,28 +500,52 @@ async def test_lists_two_rounds_cannot_hold_are_not_applicable_and_a_card_over_t
         source="test",
         checked=date(2026, 10, 5),
     )
-    decided, row, readme = await run(
+    heldout, decided = await run(
         fake_decision_model(limits=laya_like, seconds=seconds), k=5, searched=tasks, run_id="key-alone"
     )
+    summary, readme = report(heldout)
     [failed] = [record for record in decided if record["error"] is not None]
     assert (failed["task"], failed["variant"], failed["not_applicable"]) == ("q4", "positive", None)
+    assert failed["failed_card"] == "pdf"
     assert failed["error"].startswith("card 'pdf': its option key alone takes 19 tokens, over max_option_tokens=12")
     answered = [record for record in decided if record["error"] is None]
     assert all(
         [(exchange["round"], exchange["seconds"]) for exchange in record["exchanges"]] == [(1, 0.3), (1, 0.1), (2, 0.0)]
         and (record["decision_seconds"], record["decision_sequential_seconds"]) == (0.3, pytest.approx(0.4))
+        and record["failed_card"] is None
         for record in answered
     )
+    [row] = [row for row in summary["heldout"]["rows"] if row["arm"] == "hybrid+strands@5"]
     assert "status" not in row
-    assert (row["errors"], row["positives"], row["p_at_1"]) == (1, 4, 1.0)  # the other positives keep their P@1
+    assert (row["errors"], row["failed_card_searches"]) == (1, 1)
+    assert (row["positives"], row["p_at_1"]) == (4, 1.0)  # the other positives keep their P@1
     # All 7 card options of each search went as their key alone (3 + 2 in round one, 2 in the final); the reserved
     # option is not a card.
     assert row["key_only_option_share"] == 1.0
-    # Strands is asked one request at a time: a decision takes 0.3 + 0.1 + 0 s, not its critical path of 0.3.
-    assert row["latency_ms"]["decision"]["p50"] == pytest.approx(400.0)
+    # Strands is asked one request at a time, so every latency adds its calls: a decision takes 0.3 + 0.1 + 0 s, not
+    # its critical path of 0.3, and 3 x 0.01 s on the server; the arm's 9 decisions take 3.6 s.
     assert row["latency_ms"]["decision_basis"] == "sum of calls"
+    assert row["latency_ms"]["decision"]["p50"] == pytest.approx(400.0)
+    assert row["latency_ms"]["server"]["p50"] == pytest.approx(30.0)
+    [arm] = [arm for arm in summary["heldout"]["arms"] if arm["arm"] == "hybrid+strands@5"]
+    assert (arm["decision_seconds"], arm["decision_basis"]) == (pytest.approx(3.6), "sum of calls")
     assert "| sum of calls |" in readme
     assert "100.0% of the card options sent as their key alone; 1 failed search: card 'pdf'" in readme
+
+    # A final question that does not fit after round one, which the plan rules out, fails the search that asked it:
+    # it is not "not applicable", since round one's calls were made.
+    def no_final(*args: object, **kwargs: object) -> None:
+        return None
+
+    monkeypatch.setattr(decider_module, "plan_question", no_final)
+    late = fake_decision_model(limits=laya_like)
+    _, decided = await run(late, k=5, searched=tasks[:1], run_id="late")
+    assert len(late.asks) == 2 * 2  # two searches, each asking its two groups
+    assert all(
+        r["error"].startswith("the final question over the 2 finalists")
+        and r["not_applicable"] is r["failed_card"] is None
+        for r in decided
+    )
 
 
 class Clock:

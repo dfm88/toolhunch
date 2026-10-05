@@ -17,7 +17,6 @@ import contextlib
 import functools
 import json
 import math
-import re
 import statistics
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -60,8 +59,8 @@ SUM_OF_CALLS = "sum of calls"
 """The decision latency of a model asked one request at a time: every call of a search added."""
 CRITICAL_PATH = "critical path"
 """The decision latency of a model asked concurrently: within a round only the slowest call counts."""
-_CARD_NOT_SHOWN = re.compile(r"card .+: its (?:name alone is over|option key alone takes) ")
-"""The planner's message for a card that no question can show, the one failure whose message a report repeats."""
+_OTHER_FAILURE = "the decision failed; its message stays in the run's records"
+"""How a report names a failure other than a card no question can show: a provider's reply is never repeated."""
 
 type Record = dict[str, Any]
 
@@ -265,6 +264,24 @@ def _failed(records: Iterable[Record]) -> int:
     return sum(record["error"] is not None for record in records)
 
 
+def _failed_cards(records: Iterable[Record]) -> int:
+    """How many of `records` failed on a card no question can show; runs from before the field existed have none."""
+    return sum(record.get("failed_card") is not None for record in records)
+
+
+def _not_applicable(records: Iterable[Record]) -> dict[str, Any] | None:
+    """The searches of `records` whose candidates two rounds cannot hold: how many, and the most common reason.
+
+    `None` when there is none, as in every run from before such searches were recorded. A cell with one gives no P@1
+    and no rule: its figures would describe only the candidate lists that happened to fit.
+    """
+    found = [record for record in records if record.get("not_applicable") is not None]
+    if not found:
+        return None
+    reasons = collections.Counter[str](record["not_applicable"] for record in found)
+    return {"searches": _search_count(found), "reason": reasons.most_common(1)[0][0]}
+
+
 def _decided(records: Iterable[Record]) -> list[Record]:
     """The searches a decider answered, abstentions included."""
     return [record for record in _ok(records) if record["decider"] is not None]
@@ -357,29 +374,30 @@ def _grid(records: Sequence[Record]) -> list[dict[str, Any]]:
 
 
 def _dev_precision(runs: Sequence[_Run]) -> list[dict[str, Any]]:
-    """P@1 of every arm and source of each dev run that made each search once."""
+    """P@1 of every arm and source of each dev run that made each search once.
+
+    A cell with a search whose candidates two rounds cannot hold is not applicable: it has no P@1, and says how many.
+    """
     entries: list[dict[str, Any]] = []
     for run in runs:
         if run.manifest["repeat"] != 1:
             continue
         for arm in run.manifest["arms"]:
             for source in _sources(run.manifest):
-                positives = [
-                    record
-                    for record in _ok(run.searches)
-                    if record["arm"] == arm and record["variant"] == "positive" and _in_source(record, source)
-                ]
-                if positives:
-                    p_at_1 = _share([_first_right(record) for record in positives])
-                    entries.append(
-                        {
-                            "run_id": run.run_id,
-                            "arm": arm,
-                            "source": source,
-                            "positives": len(positives),
-                            "p_at_1": p_at_1,
-                        }
-                    )
+                cell = [record for record in run.searches if record["arm"] == arm and _in_source(record, source)]
+                positives = [record for record in _ok(cell) if record["variant"] == "positive"]
+                unfit = _not_applicable(cell)
+                if positives or unfit is not None:
+                    entry: dict[str, Any] = {
+                        "run_id": run.run_id,
+                        "arm": arm,
+                        "source": source,
+                        "positives": len(positives),
+                        "p_at_1": None if unfit is not None else _share([_first_right(r) for r in positives]),
+                    }
+                    if unfit is not None:
+                        entry |= {"status": NOT_APPLICABLE, "not_applicable": unfit}
+                    entries.append(entry)
     return entries
 
 
@@ -435,7 +453,14 @@ def _spread(values: Sequence[float]) -> float:
 
 def _errors(run: _Run, arm: str) -> dict[str, Any]:
     own = [record for record in run.searches if record["arm"] == arm]
-    return {"run_id": run.run_id, "arm": arm, "searches": len(own), "errors": _failed(own)}
+    entry = {
+        "run_id": run.run_id,
+        "arm": arm,
+        "searches": len(own),
+        "errors": _failed(own),
+        "failed_card_searches": _failed_cards(own),
+    }
+    return entry if (unfit := _not_applicable(own)) is None else entry | {"not_applicable": unfit}
 
 
 def _heldout(run: _Run, taus: dict[str, float], *, repeats: _Run | None) -> dict[str, Any]:
@@ -484,18 +509,23 @@ def _repeat_row(
     """The figures of one arm and query source, repeat by repeat; `None` when the arm made no search from it.
 
     `main` holds the P@1 of the main run by arm and source. A failed search is left out, so a repeat in which every
-    search of the arm failed has no entry.
+    search of the arm failed has no entry. A cell with a search whose candidates two rounds cannot hold is not
+    applicable: no repeat has a P@1 or a rule there.
     """
     records = [record for record in run.searches if record["arm"] == arm and _in_source(record, source)]
     if not records:
         return None
     config = run.manifest["arms"][arm]
+    unfit = _not_applicable(records)
     ok = _ok(records)
     by_repeat: dict[int, list[Record]] = {}
     for record in ok:
         by_repeat.setdefault(record["repeat"], []).append(record)
     per_repeat: list[dict[str, Any]] = []
     for index, found in sorted(by_repeat.items()):
+        if unfit is not None:
+            per_repeat.append({"repeat": index, "p_at_1": None, "reserved_and_dev_tau": None})
+            continue
         outcomes = [_outcome(record, tau=tau) for record, tau in zip(found, _dev_taus(found, taus), strict=True)]
         metrics = selective_metrics(outcomes)
         positives = [record for record in found if record["variant"] == "positive"]
@@ -520,7 +550,7 @@ def _repeat_row(
     if changes:
         largest, (task, variant) = max(changes, key=lambda item: item[0])
         at = {"task": task, "variant": variant}
-    return {
+    row: dict[str, Any] = {
         "arm": arm,
         "decider": config["decider"],
         "k": config["k"],
@@ -530,11 +560,14 @@ def _repeat_row(
         "errors": _failed(records),
         "per_repeat": per_repeat,
         "p_at_1_range": _range([entry["p_at_1"] for entry in per_repeat]),
-        "utility_range": _range([entry["reserved_and_dev_tau"]["utility"] for entry in per_repeat]),
+        "utility_range": _range(
+            [rule["utility"] if (rule := entry["reserved_and_dev_tau"]) else None for entry in per_repeat]
+        ),
         "largest_abs_dp": largest,
         "at": at,
         "main_p_at_1": main.get((arm, source)),
     }
+    return row if unfit is None else row | {"status": NOT_APPLICABLE, "not_applicable": unfit}
 
 
 def _range(values: Sequence[float | None]) -> list[float] | None:
@@ -554,8 +587,7 @@ def _row(run: _Run, *, arm: str, source: str, taus: dict[str, float]) -> dict[st
     if not records:
         return None
     config = run.manifest["arms"][arm]
-    spec = None if config["decider"] is None else REGISTRY[DeciderName(config["decider"])]
-    basis = None if spec is None else SUM_OF_CALLS if spec.serial else CRITICAL_PATH
+    basis = _basis(config)
     ok = _ok(records)
     positives = [record for record in ok if record["variant"] == "positive"]
     decided = [record for record in ok if record["decider"] is not None]
@@ -587,6 +619,7 @@ def _row(run: _Run, *, arm: str, source: str, taus: dict[str, float]) -> dict[st
         "detail_mix": {level: sent[level] for level in _DETAILS if sent[level]} if config["decider"] else None,
         "lower_detail_searches": lowered if config["decider"] else None,
         "key_only_option_share": _key_only_share(decided) if config["decider"] else None,
+        "failed_card_searches": _failed_cards(records),
         "rules": {
             "answer_always": _rule(ok, [0.0] * len(ok), answer_always=True),
             "reserved": _rule(ok, [0.0] * len(ok)),
@@ -598,21 +631,27 @@ def _row(run: _Run, *, arm: str, source: str, taus: dict[str, float]) -> dict[st
         "latency_ms": {
             "decision": _percentiles([_decision_seconds(record, basis=basis) for record in ok]),
             "decision_basis": basis,
-            "server": _percentiles([record["server_seconds"] for record in ok]),
+            "server": _percentiles([_server_seconds(record, basis=basis) for record in ok]),
             "retrieval": _percentiles([record["retrieval_seconds"] for record in ok]),
         },
-        "cost": _cost(ok, config=config, manifest=run.manifest),
+        "cost": _cost(ok, config=config, manifest=run.manifest, basis=basis),
     }
-    if inapplicable := [record for record in records if record.get("not_applicable") is not None]:
-        reasons = collections.Counter[str](record["not_applicable"] for record in inapplicable)
+    if (unfit := _not_applicable(records)) is not None:
         precision = ("p_at_1", "p_at_1_ci95", "hybrid_p_at_1", "delta_p_at_1", "delta_p_at_1_ci95")
         row |= dict.fromkeys(precision) | {
             "status": NOT_APPLICABLE,
-            "not_applicable": {"searches": _search_count(inapplicable), "reason": reasons.most_common(1)[0][0]},
+            "not_applicable": unfit,
             "rules": dict.fromkeys(row["rules"]),
             "risk_coverage": None,
         }
     return row
+
+
+def _basis(config: dict[str, Any]) -> str | None:
+    """The latency basis of an arm: the sum of calls for a model asked one request at a time; `None` without one."""
+    if config["decider"] is None:
+        return None
+    return SUM_OF_CALLS if REGISTRY[DeciderName(config["decider"])].serial else CRITICAL_PATH
 
 
 def _decision_seconds(record: Record, *, basis: str | None) -> float | None:
@@ -624,6 +663,19 @@ def _decision_seconds(record: Record, *, basis: str | None) -> float | None:
     if basis == SUM_OF_CALLS and "decision_sequential_seconds" in record:
         return record["decision_sequential_seconds"]
     return record["decision_seconds"]
+
+
+def _server_seconds(record: Record, *, basis: str | None) -> float | None:
+    """A search's decision latency by the servers' clocks, on `basis`.
+
+    On the sum of calls every exchange's server time is added, and it is `None` unless each exchange reports one, as
+    the library's own figure is; a search without exchanges keeps the figure it recorded.
+    """
+    exchanges: list[Record] | None = record["exchanges"]
+    if basis != SUM_OF_CALLS or exchanges is None:
+        return record["server_seconds"]
+    seconds = [exchange["server_seconds"] for exchange in exchanges]
+    return None if None in seconds else sum(seconds, 0.0)
 
 
 def _key_only_share(records: Sequence[Record]) -> float | None:
@@ -647,14 +699,14 @@ def _key_only_share(records: Sequence[Record]) -> float | None:
 def _failures(run: _Run) -> dict[tuple[str, str], dict[str, int]]:
     """The failed decider searches of `run` by arm and query source, counted by reason.
 
-    The reason of a card no question can show is the planner's message, which names the card. Any other failure is
-    the model's: its message, a provider's reply among them, stays in the run's records.
+    The reason of a search whose record names a `failed_card` is the planner's message, which names the card. Any
+    other failure gets one phrase: its message, a provider's reply among them, stays in the run's records.
     """
     failures: dict[tuple[str, str], collections.Counter[str]] = {}
     for record in run.searches:
         if record["decider"] is None or record["error"] is None:
             continue
-        reason = record["error"] if _CARD_NOT_SHOWN.match(record["error"]) else "the decision model's call failed"
+        reason = record["error"] if record.get("failed_card") is not None else _OTHER_FAILURE
         failures.setdefault((record["arm"], record["source"]), collections.Counter())[reason] += 1
     return {cell: dict(reasons) for cell, reasons in failures.items()}
 
@@ -707,7 +759,9 @@ def _percentiles(seconds: Sequence[float | None]) -> dict[str, float] | None:
     return {"p50": percentile(present, 50), "p95": percentile(present, 95)}
 
 
-def _cost(records: Sequence[Record], *, config: dict[str, Any], manifest: dict[str, Any]) -> dict[str, Any] | None:
+def _cost(
+    records: Sequence[Record], *, config: dict[str, Any], manifest: dict[str, Any], basis: str | None
+) -> dict[str, Any] | None:
     """What deciding 1,000 searches like `records` costs, and the asks and tokens per search.
 
     Jev is priced at the input and output prices its declared limits give, the logprob model by genai-prices from
@@ -733,7 +787,7 @@ def _cost(records: Sequence[Record], *, config: dict[str, Any], manifest: dict[s
         server = [record["server_seconds"] for record in records if record["server_seconds"] is not None]
         if server:
             busy = statistics.fmean(server) * per_second * 1000
-        wall = sum(record["decision_seconds"] for record in records) / count * per_second * 1000
+        wall = sum(_decision_seconds(record, basis=basis) or 0.0 for record in records) / count * per_second * 1000
     elif spec.billing == "local":
         # A local model costs no money; what it needs is the machine it ran on, which its latency depends on.
         deciders: dict[str, Any] = manifest.get("deciders") or {}
@@ -772,26 +826,38 @@ def _cost(records: Sequence[Record], *, config: dict[str, Any], manifest: dict[s
 def _arm_entry(run: _Run, arm: str) -> dict[str, Any]:
     """An arm's searches, records (one per repeat) and errors, the summed seconds of its decisions, clock and cache."""
     config = run.manifest["arms"][arm]
+    basis = _basis(config)
     own = [record for record in run.searches if record["arm"] == arm]
     decided = _decided(own)
     record = run.arms.get(arm, {})  # missing when the run stopped inside this arm
-    return {
+    seconds = [_decision_seconds(search, basis=basis) for search in decided]
+    entry = {
         "arm": arm,
         "decider": config["decider"],
         "k": config["k"],
         "searches": _search_count(own),
         "records": len(own),
         "errors": _failed(own),
-        "decision_seconds": sum(search["decision_seconds"] for search in decided) if decided else None,
+        "failed_card_searches": _failed_cards(own),
+        "decision_seconds": sum(second or 0.0 for second in seconds) if decided else None,
+        "decision_basis": basis,
         "wall_seconds": record.get("wall_seconds"),
         "cache_hits": record.get("cache_hits"),
         "cache_misses": record.get("cache_misses"),
     }
+    return entry if (unfit := _not_applicable(own)) is None else entry | {"not_applicable": unfit}
 
 
 def _curve(run: _Run, *, arm: str, taus: dict[str, float]) -> dict[str, Any] | None:
-    """The risk-coverage table of a decider arm over the grid, all its searches together, and the dev τ it got."""
-    decided = [record for record in _decided(run.searches) if record["arm"] == arm]
+    """The risk-coverage table of a decider arm over the grid, all its searches together, and the dev τ it got.
+
+    An arm with a search whose candidates two rounds cannot hold gets no table, only the count of those searches.
+    """
+    own = [record for record in run.searches if record["arm"] == arm]
+    if run.manifest["arms"][arm]["decider"] is not None and (unfit := _not_applicable(own)) is not None:
+        empty = {"dev_tau": None, "grid": None, "negative_share": None}
+        return {"arm": arm, **empty, "status": NOT_APPLICABLE, "not_applicable": unfit}
+    decided = _decided(own)
     if not decided:
         return None
     applied = {taus.get(record["key"]) for record in decided}
@@ -1080,12 +1146,14 @@ def _heldout_section(
     cost = [[row["arm"], row["source"], *_cost_cells(row["cost"])] for row in rows]
     header = ["arm", "source", "asks / search", "input tokens / search", "USD", "CLM busy USD", "CLM wall USD"]
     lines += ["### Cost per 1,000 searches", "", *_table(header, cost, align="llrrrrr"), ""]
-    header = ["arm", "searches", "errors", "decision s", "arm clock s", "cache hits", "cache misses"]
+    header = ["arm", "searches", "errors", "not applicable", "decision s", "latency basis", "arm clock s"]
+    header += ["cache hits", "cache misses"]
     lines += [
-        "Per arm, all sources together: the summed seconds of its decisions, which CLM's wall figure prices, next "
-        "to the arm's own clock time and the asks the decision cache replayed (hits) or sent (misses) during it.",
+        "Per arm, all sources together: the summed seconds of its decisions on its latency basis, which CLM's wall "
+        "figure prices, next to the arm's own clock time and the asks the decision cache replayed (hits) or sent "
+        "(misses) during it.",
         "",
-        *_table(header, [_arm_row(arm) for arm in heldout["arms"]], align="lrrrrrr"),
+        *_table(header, [_arm_row(arm) for arm in heldout["arms"]], align="lrrrrlrrr"),
         "",
     ]
     if any(arm["records"] != arm["searches"] for arm in heldout["arms"]):
@@ -1110,7 +1178,7 @@ def _planning_caveat(rows: Sequence[dict[str, Any]], *, failures: dict[tuple[str
             continue
         share, unfit = row["key_only_option_share"], row.get("not_applicable")
         reasons = failures.get((row["arm"], row["source"]), {})
-        if not share and unfit is None and not any(_CARD_NOT_SHOWN.match(reason) for reason in reasons):
+        if not share and unfit is None and not row["failed_card_searches"]:
             continue
         parts = [f"{share:.1%} of the card options sent as their key alone"] if share else []
         if reasons:
@@ -1142,9 +1210,16 @@ def _variation_section(repeats: dict[str, Any]) -> list[str]:
             row["arm"],
             row["source"],
             f"{row['searches']:,}",
-            " / ".join(_fixed(entry["p_at_1"]) for entry in row["per_repeat"]) or "n/a",
-            _fixed(row["main_p_at_1"]),
-            " / ".join(_fixed(entry["reserved_and_dev_tau"]["utility"]) for entry in row["per_repeat"]) or "n/a",
+            *(
+                [
+                    " / ".join(_fixed(entry["p_at_1"]) for entry in row["per_repeat"]) or "n/a",
+                    _fixed(row["main_p_at_1"]),
+                    " / ".join(_fixed(entry["reserved_and_dev_tau"]["utility"]) for entry in row["per_repeat"])
+                    or "n/a",
+                ]
+                if (unfit := row.get("not_applicable")) is None
+                else [f"not applicable ({unfit['searches']:,})", NOT_APPLICABLE, NOT_APPLICABLE]
+            ),
             _fixed(row["largest_abs_dp"], 4),
         ]
         for row in repeats["rows"]
@@ -1179,15 +1254,17 @@ def _precision_row(row: dict[str, Any]) -> list[str]:
 
 
 def _arm_row(arm: dict[str, Any]) -> list[str]:
-    counts = [f"{arm['searches']:,}", f"{arm['errors']:,}"]
-    seconds = [_fixed(arm["decision_seconds"], 1, missing="-"), _fixed(arm["wall_seconds"], 1)]
+    counts = [f"{arm['searches']:,}", f"{arm['errors']:,}", _unfit_count(arm)]
+    seconds = [_fixed(arm["decision_seconds"], 1, missing="-"), arm.get("decision_basis") or "-"]
+    seconds += [_fixed(arm["wall_seconds"], 1)]
     return [arm["arm"], *counts, *seconds, _whole(arm["cache_hits"]), _whole(arm["cache_misses"])]
 
 
 def _abstention_rows(row: dict[str, Any]) -> list[list[str]]:
     rules, first, counts = row["rules"], [row["arm"], row["source"]], [f"{row['searches']:,}", f"{row['errors']:,}"]
     if rules["reserved"] is None:
-        return [[*first, "-", "-", *counts, *["n/a"] * 9]]
+        missing = "n/a" if row.get("not_applicable") is None else NOT_APPLICABLE
+        return [[*first, "-", "-", *counts, *[missing] * 9]]
     share = f"{row['negatives'] / row['records']:.0%}"
     if row["decider"] is None:
         return [[*first, "answer always", "-", *counts, *_rule_cells(rules["answer_always"], negatives=share)]]
@@ -1267,10 +1344,27 @@ def _dev_section(dev: dict[str, Any]) -> list[str]:
     else:
         lines += ["No dev run repeats its searches, so determinism was not checked.", ""]
     lines += ["### Errors", ""]
-    if failed := [entry for entry in dev["errors"] if entry["errors"]]:
-        rows = [[f"`{e['run_id']}`", e["arm"], f"{e['errors']:,}", f"{e['searches']:,}"] for e in failed]
-        return [*lines, *_table(["run", "arm", "errors", "searches"], rows, align="llrr"), ""]
-    return [*lines, "No dev search failed.", ""]
+    if failed := [entry for entry in dev["errors"] if entry["errors"] or entry.get("not_applicable")]:
+        header = ["run", "arm", "errors", "of them, a card no question can show", "not applicable", "searches"]
+        rows = [
+            [
+                f"`{entry['run_id']}`",
+                entry["arm"],
+                f"{entry['errors']:,}",
+                f"{entry.get('failed_card_searches', 0):,}",
+                _unfit_count(entry),
+                f"{entry['searches']:,}",
+            ]
+            for entry in failed
+        ]
+        return [*lines, *_table(header, rows, align="llrrrr"), ""]
+    return [*lines, "No dev search failed, and none was not applicable.", ""]
+
+
+def _unfit_count(entry: dict[str, Any]) -> str:
+    """The not-applicable searches an entry counts, or `-` without any."""
+    unfit = entry.get("not_applicable")
+    return "-" if unfit is None else f"{unfit['searches']:,}"
 
 
 def _threshold_row(entry: dict[str, Any]) -> list[str]:
@@ -1293,7 +1387,11 @@ def _determinism_row(entry: dict[str, Any]) -> list[str]:
 
 
 def _precision_cell(entry: dict[str, Any] | None) -> str:
-    return "-" if entry is None else f"{entry['p_at_1']:.3f} ({entry['positives']:,})"
+    if entry is None:
+        return "-"
+    if (unfit := entry.get("not_applicable")) is not None:
+        return f"not applicable ({unfit['searches']:,})"
+    return f"{entry['p_at_1']:.3f} ({entry['positives']:,})"
 
 
 def _tokenizer_section(entries: Sequence[dict[str, Any]]) -> list[str]:
@@ -1359,16 +1457,17 @@ def _notes(*, fallbacks_in_tau: bool) -> list[str]:
         + "The held-out risk-coverage tables are there to read, never to choose.",
         f"- **Intervals.** 95% percentile bootstrap, {BOOTSTRAP_RESAMPLES:,} resamples with seed {BOOTSTRAP_SEED}, "
         "resampling tasks: a task's positive search, its negative and their repeats are drawn together.",
-        "- **Errors.** A search whose decider raised `DecisionError`, or whose candidates hold a card no question can "
-        "show, counts as an error and stays out of every rate, latency and cost figure. A search whose candidates two "
-        "rounds cannot hold is not applicable: it is counted apart, and its cell reports no P@1 and no rule.",
+        "- **Errors.** A search whose decider raised `DecisionError`, whose candidates hold a card no question can "
+        "show, or whose final question did not fit after round one, counts as an error and stays out of every rate, "
+        "latency and cost figure. A search whose candidates two rounds cannot hold is not applicable: it is counted "
+        "apart, and its cell reports no P@1 and no rule, in every table.",
         "- **Latency.** Decision: the decider's calls as the client timed them, network included; a call the "
         "decision cache replays keeps the time the original call took. Its basis is the critical path (within a "
         "round only the slowest call counts, as round one's calls run at the same time), or the sum of calls for a "
-        "model asked one request at a time, such as a local server. Server: the critical path by the "
-        "server's own clock, where it reports one. Retrieval: the first hybrid retrieval of the search's queries, "
-        "measured live; a query whose vector the embedding cache already held skips the embeddings call, so it "
-        "reads faster than a cold one.",
+        "model asked one request at a time, such as a local server. Server: the same by the server's own clock, "
+        "where it reports one. The per-arm decision seconds use the same basis. Retrieval: the first hybrid "
+        "retrieval of the search's queries, measured live; a query whose vector the embedding cache already held "
+        "skips the embeddings call, so it reads faster than a cold one.",
         "- **Cost.** Jev: reported input tokens at the price its declared limits give. Logprob: the reported usage, "
         "priced by genai-prices. CLM is paid in GPU time, at the list price in the run's manifest, two ways. Busy "
         "prices the server's own seconds per search, as if the GPU never sat idle: a lower bound. Wall prices the "
@@ -1394,9 +1493,15 @@ def _risk_coverage_section(summary: dict[str, Any]) -> list[str]:
         ]
     if summary["heldout"] is not None:
         for curve in summary["heldout"]["risk_coverage"]:
+            lines += [f"### Held-out: {curve['arm']}, for reading only", ""]
+            if (unfit := curve.get("not_applicable")) is not None:
+                lines += [
+                    f"Not applicable: two rounds cannot hold the candidates of {unfit['searches']:,} of its searches "
+                    f"({unfit['reason']}), so it has no curve.",
+                    "",
+                ]
+                continue
             lines += [
-                f"### Held-out: {curve['arm']}, for reading only",
-                "",
                 *_grid_table(curve["grid"], marked=curve["dev_tau"], negative_share=curve["negative_share"]),
                 "",
             ]
