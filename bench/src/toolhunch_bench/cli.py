@@ -70,10 +70,12 @@ from toolhunch_bench.decision_report import build_decision_report
 from toolhunch_bench.direct import (
     DIRECT_ARMS,
     LUNA_ARMS,
+    NOT_APPLICABLE,
     DirectRunner,
     decider_arms,
     direct_catalogs,
     estimate_direct,
+    planned_not_applicable,
 )
 from toolhunch_bench.direct_agent import CachedAgent
 from toolhunch_bench.direct_cost import (
@@ -726,11 +728,23 @@ def direct(
             f"budget; comma-separated, from: {', '.join(_DIRECT_DECIDERS)}."
         ),
     ] = "",
+    max_detail: Annotated[
+        str, typer.Option(help="With --deciders: most detail per decider, such as laya=brief; full when left out.")
+    ] = "",
+    min_detail: Annotated[
+        str,
+        typer.Option(
+            help="With --deciders: least detail per decider, such as laya-wide=brief: below it the planner splits the "
+            "candidates into groups instead; name when left out."
+        ),
+    ] = "",
 ) -> None:
     """Compare direct-choice strategies; every paid attempt shares one spend guard.
 
     Without options it runs the five P1 arms; `--luna` the agent arms with GPT-6 Luna; `--deciders` the decider arms
-    of the deciders named, merged later into the P1 report with `direct-report --add`.
+    of the deciders named, merged later into the P1 report with `direct-report --add`. Before the estimate, each
+    `<name>-all` arm plans every request of each catalog without asking anything: a catalog two rounds cannot hold is
+    not applicable for it, and neither estimated nor run.
     """
     from dataclasses import asdict
 
@@ -741,6 +755,13 @@ def direct(
     names = [DeciderName(name) for name in _listed(deciders, allowed=_DIRECT_DECIDERS, option="--deciders")]
     if names and luna:
         raise typer.BadParameter("--deciders and --luna run different arms; give one", param_hint="--deciders")
+    details = _details(max_detail, option="--max-detail")
+    floors = _details(min_detail, option="--min-detail")
+    if (details or floors) and not names:
+        raise typer.BadParameter(
+            "detail settings apply to the --deciders arms", param_hint="--max-detail, --min-detail"
+        )
+    _check_floors(floors, ceilings=details)
     data = load_toolret(cache_dir=TOOLRET_CACHE)
     full, small = direct_catalogs(data), direct_catalogs(data, pilot=True)
     prefix, cap = (BUDGET.prefix, BUDGET.cap_usd) if names else ("P1:", P1_CAP_USD)
@@ -779,12 +800,22 @@ def direct(
     try:
         [hybrid] = build_arms(["hybrid"], embedder=cache, raw_text=data.raw_text)
         free = CacheOnlyRetrieval(hybrid.retriever, stand_in=BM25Retriever(), embeddings=cache)
-        full_estimate = asyncio.run(
-            estimate_direct(full, retriever=SharedRetrieval(free), models=raw, embeddings=cache, arms=arms)
+        # Planned on the full requests, so that a pilot excludes what the full run will exclude.
+        planned = planned_not_applicable(full, arms=arms, models=raw, max_detail=details, min_detail=floors)
+        for (arm, source), evidence in planned.items():
+            typer.echo(f"Not applicable: {arm} on {source}, by the planner: {evidence['reason']}")
+        not_applicable = dict(NOT_APPLICABLE) | planned
+        estimate_of = functools.partial(
+            estimate_direct,
+            models=raw,
+            embeddings=cache,
+            not_applicable=not_applicable,
+            arms=arms,
+            max_detail=details,
+            min_detail=floors,
         )
-        pilot_estimate = asyncio.run(
-            estimate_direct(small, retriever=SharedRetrieval(free), models=raw, embeddings=cache, arms=arms)
-        )
+        full_estimate = asyncio.run(estimate_of(full, retriever=SharedRetrieval(free)))
+        pilot_estimate = asyncio.run(estimate_of(small, retriever=SharedRetrieval(free)))
         estimate = pilot_estimate if pilot else full_estimate
         estimates = {
             "full": asdict(full_estimate),
@@ -829,7 +860,8 @@ def direct(
             # A local model goes through the guard too, at no charge: every ask is then recorded and timed.
             recorded = _guarded(name) or spec.billing == "local"
             guarded = GuardedDecisionModel(model, guard=guard, provider=spec.provider) if recorded else model
-            models[name] = CachedDecisionModel(guarded, path=direct_cache)
+            # `laya` and `laya-wide` ask one model id with other budgets: the namespace keeps their answers apart.
+            models[name] = CachedDecisionModel(guarded, path=direct_cache, namespace=spec.cache_namespace)
         provenance = {str(name): asyncio.run(local_provenance(name)) for name in names}
         runner = DirectRunner(
             retriever=hybrid.retriever,
@@ -837,8 +869,11 @@ def direct(
             agent=None if luna or names else agent,
             luna_agent=agent if luna else None,
             guard=guard,
+            not_applicable=not_applicable,
             arms=arms,
             provenance=provenance,
+            max_detail=details,
+            min_detail=floors,
         )
 
         async def execute() -> Path:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import statistics
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import asdict
 from typing import TYPE_CHECKING, Any
 
@@ -145,6 +145,7 @@ def _row(
         "none_option": none,
         "detail_counts": {level: sum(level in r["detail"] for r in records) for level in ("FULL", "BRIEF", "NAME")},
         **(_rounds(records) if arm_decider(arm) is not None else {}),
+        **(_planning(records) if arm_decider(arm) is not None else {}),
         "multi_calls": sum(r["extra_calls"] > 0 for r in records),
         "agent_text_none": sum(r.get("text_is_none") is True for r in parsed),
         "agent_other_text_abstentions": sum(r["abstained"] and r.get("text_is_none") is False for r in parsed),
@@ -167,6 +168,67 @@ def _rounds(records: Sequence[dict[str, Any]]) -> dict[str, Any]:
         "lower_detail": sum(any(level != "FULL" for level in r["detail"]) for r in asked),
         "physical_requests": sum(len(r["detail"]) for r in asked),
     }
+
+
+def _planning(records: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    """What a decider arm's planner could not show in full, or not ask about at all.
+
+    - `key_only_option_share`: the share of the card options sent as their key alone, with an empty text; the
+      reserved option is not a card. `None` when no card option was sent, or for a run from before key-only options
+      were recorded.
+    - `failed_searches`: the failed searches, counted by their message: a card no question can show, a final question
+      that did not fit once round one was asked, or a provider's failure.
+    - `not_applicable_searches`: how many searches had candidates two rounds cannot hold, and the most common
+      reason; `None` when there is none.
+
+    Failed and not-applicable searches both count as errors in the row's figures.
+    """
+    asked = [r for r in records if r["detail"]]
+    recorded = all("key_only_options" in r for r in asked)
+    sent = sum(sum(r["card_options"]) for r in asked) if recorded else 0
+    key_only = sum(len(keys) for r in asked for keys in r["key_only_options"]) if recorded else 0
+    unfit = Counter[str](r["error"] for r in records if r.get("not_applicable"))
+    return {
+        "key_only_option_share": key_only / sent if sent else None,
+        "failed_searches": dict(
+            Counter[str](r["error"] for r in records if r["error"] is not None and not r.get("not_applicable"))
+        ),
+        "not_applicable_searches": {"searches": unfit.total(), "reason": unfit.most_common(1)[0][0]} if unfit else None,
+    }
+
+
+def _planning_caveats(rows: Sequence[dict[str, Any]]) -> list[str]:
+    """Per decider arm and catalog, the key-only options, failed searches and lists two rounds cannot hold.
+
+    Nothing when none of these occurred.
+    """
+    items: list[str] = []
+    for row in rows:
+        if (
+            row["status"] != "applicable"
+            or row["catalog"] in ("pooled", "all_catalogs")
+            or "failed_searches" not in row
+        ):
+            continue
+        share, failed, unfit = row["key_only_option_share"], row["failed_searches"], row["not_applicable_searches"]
+        parts = [f"{share:.1%} of the card options sent as their key alone"] if share else []
+        if failed:
+            count = sum(failed.values())
+            listed = "; ".join(f"{reason} ({times:,})" for reason, times in failed.items())
+            parts.append(f"{count:,} failed {'search' if count == 1 else 'searches'}: {listed}")
+        if unfit is not None:
+            parts.append(f"{unfit['searches']:,} searches not applicable: {unfit['reason']}")
+        if parts:
+            items.append(f"{row['arm']}, {row['catalog']}: {'; '.join(parts)}.")
+    if not items:
+        return []
+    return [
+        "**Key-only options, failed searches and lists two rounds cannot hold.** A card whose name would take its "
+        "option past the model's per-option window is sent as its key alone, the name itself. A search with a card no "
+        "question can show fails, and so does one whose final question does not fit once round one was asked; a "
+        "search whose candidates two rounds cannot hold is not applicable. Both count as errors in their rows.",
+        *items,
+    ]
 
 
 def _label(row: dict[str, Any]) -> str:
@@ -365,6 +427,7 @@ def build_direct_report(run_dir: Path, *, out_dir: Path, added: Sequence[Path] =
             "Cold is the first scored positive; a replay there provides no new cold measurement.",
             "Caching reflects one provider's routing in one single-turn run and does not isolate a latency effect.",
             *_added_caveats(manifests, search_ms),
+            *_planning_caveats(rows),
         ],
     }
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -384,11 +447,11 @@ def _search_ms(records: Sequence[dict[str, Any]]) -> float | None:
 
 
 def _added_caveats(manifests: Sequence[dict[str, Any]], search_ms: dict[str, float | None]) -> list[str]:
-    """The caveats of the deciders the runs recorded, and of search times that differ between the runs.
+    """The caveats of the deciders the runs recorded, of how their decisions were timed, and of search times.
 
-    A run that found its query embeddings cached by an earlier run searches without an embedding call, so its
-    searching arms' latency is lower by that call; the medians are stated when one is at least twice another and
-    the gap is 50 ms or more.
+    A run whose manifest states that its decision times are the sum of its calls gets that said. A run that found its
+    query embeddings cached by an earlier run searches without an embedding call, so its searching arms' latency is
+    lower by that call; the medians are stated when one is at least twice another and the gap is 50 ms or more.
     """
     recorded: dict[str, Any] = {}
     for manifest in manifests:
@@ -396,6 +459,12 @@ def _added_caveats(manifests: Sequence[dict[str, Any]], search_ms: dict[str, flo
         for name, entry in deciders.items():
             recorded[name] = entry.get("provenance") or {}
     caveats = report_caveats(recorded)
+    if any(manifest.get("decision_basis") == "sum of calls" and manifest.get("deciders") for manifest in manifests):
+        caveats.append(
+            "**Decision time is the sum of calls.** A direct record's decision time adds up the seconds of its calls: "
+            "first-round questions that a decider is asked at the same time are added, not overlapped, so its "
+            "searches asked in two rounds read slower here than on their critical path."
+        )
     timed = {run: ms for run, ms in search_ms.items() if ms is not None}
     if timed and max(timed.values()) >= 2 * min(timed.values()) and max(timed.values()) - min(timed.values()) >= 50:
         medians = ", ".join(f"`{run}` {ms:.0f} ms" for run, ms in timed.items())

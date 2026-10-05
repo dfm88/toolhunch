@@ -13,13 +13,14 @@ from importlib.metadata import version
 from typing import TYPE_CHECKING, Any
 
 from toolhunch import DetailLevel, ToolCatalog, ToolSearchPipeline, default_search_text
-from toolhunch.decision import Abstention, ChoiceDecider
-from toolhunch.decision.planner import PROMPT_VERSION
+from toolhunch.decision import Abstention, CandidatesDoNotFit, ChoiceQuestion
+from toolhunch.decision.planner import PROMPT_VERSION, build_state, fit_state, plan_rounds
 from toolhunch.retrieval import Retrieval, ScoredCard
 from toolhunch.retrieval.base import clean_queries
 from toolhunch.tokens import HeuristicTokenizer
 from toolhunch_bench.datasets.toolret import TOOLRET_CORPUS_SHA256, TOOLRET_DATASET, TOOLRET_REVISION, ToolRetData
-from toolhunch_bench.decision import LUNA_MODEL, DecisionArm, SharedRetrieval, estimate_decisions
+from toolhunch_bench.deciders import choice_decider, planner_tokenizer
+from toolhunch_bench.decision import LUNA_MODEL, CountedModel, DecisionArm, SharedRetrieval, estimate_decisions
 from toolhunch_bench.direct_agent import (
     AGENT_MAX_OUTPUT_TOKENS,
     AGENT_PROMPT_VERSION,
@@ -66,6 +67,8 @@ AGENT_MODELS: Mapping[str, str] = {
 SEARCHING_ARMS = frozenset({"hybrid@20", "hybrid@20+jev", "agent@20", "agent-luna@20"})
 _DECIDER_SEARCH = "hybrid@20+"
 _DECIDER_ALL = "-all"
+_ABSTENTION = Abstention()  # every decider of a direct run: the reserved option, threshold 0
+_FINALISTS_PER_CHUNK = 2  # `ChoiceDecider`'s default, which the deciders of a direct run keep
 
 
 def decider_arms(names: Sequence[str]) -> tuple[str, ...]:
@@ -168,6 +171,59 @@ def direct_catalogs(
     return selected
 
 
+def planned_not_applicable(
+    catalogs: Sequence[DirectCatalog],
+    *,
+    arms: Sequence[str],
+    models: Mapping[str, DecisionModel],
+    max_detail: Mapping[str, DetailLevel] | None = None,
+    min_detail: Mapping[str, DetailLevel] | None = None,
+) -> dict[tuple[str, str], dict[str, str]]:
+    """The `<name>-all` arms and catalogs whose requests two rounds cannot hold, found without asking anything.
+
+    Each request of each catalog is planned as the run would ask it: the state `ToolSearchPipeline` builds from the
+    request, cut by `fit_state`, then `plan_rounds` over the whole catalog with the reserved option, the decider's
+    declared limits and `planner_tokenizer`, and cards at `max_detail[name]` at most (`FULL` when left out) and
+    `min_detail[name]` at least (`NAME`). Every request of an `-all` arm shares its catalog, so the first
+    `CandidatesDoNotFit` makes the pair not applicable, with the planner's message as its reason, as `NOT_APPLICABLE`
+    records a pair. Searching arms are left out: their candidates are known only once searched.
+
+    Raises:
+        ValueError: A request's state does not fit its model's state budget even once cut (see `fit_state`).
+    """
+    today = datetime.now(UTC).date().isoformat()
+    found: dict[tuple[str, str], dict[str, str]] = {}
+    for arm in arms:
+        if (name := arm_decider(arm)) is None or arm_searches(arm):
+            continue
+        limits, tokenizer = models[name].limits, planner_tokenizer(name)
+        top = (max_detail or {}).get(name, DetailLevel.FULL)
+        floor = (min_detail or {}).get(name, DetailLevel.NAME)
+        for selected in catalogs:
+            for task, _variant, catalog, _phase in selected.requests():
+                cards = list(catalog)
+                if len(cards) + _ABSTENTION.reserved_option < 2:
+                    continue  # the decider asks nothing
+                state, _ = fit_state(
+                    build_state(task.query, clean_queries([task.query])), limits=limits, tokenizer=tokenizer
+                )
+                try:
+                    plan_rounds(
+                        state,
+                        cards,
+                        reserved=_ABSTENTION.reserved_option,
+                        limits=limits,
+                        tokenizer=tokenizer,
+                        max_detail=top,
+                        min_detail=floor,
+                        finalists_per_chunk=_FINALISTS_PER_CHUNK,
+                    )
+                except CandidatesDoNotFit as unfit:
+                    found[(arm, selected.source)] = {"reason": str(unfit), "source": "planner", "date": today}
+                    break
+    return found
+
+
 class CatalogOrderRetriever:
     """Return the entire catalog in its declared order, with no search or paid usage."""
 
@@ -220,15 +276,18 @@ async def estimate_direct(
     embeddings: CachedEmbedder | None = None,
     not_applicable: Mapping[tuple[str, str], Mapping[str, str]] = NOT_APPLICABLE,
     arms: Sequence[str] = DIRECT_ARMS,
+    max_detail: Mapping[str, DetailLevel] | None = None,
+    min_detail: Mapping[str, DetailLevel] | None = None,
 ) -> DirectEstimate:
     """Estimate identical planned requests without contacting a decision model or a missing embedding.
 
-    Each decider's planning uses the existing decision estimator, with its own declared limits. Agent input is
-    tokenized from prompt-bearing wire fields; output is bounded by its configured limit and cache savings are not
-    assumed. Replay savings are not assumed. Missing dense vectors with fewer than K lexical matches use the longest
-    applicable FULL cards, separately measured for Jev's heuristic text and the agent's function schema. The actual
-    Jev planner still applies limits and detail reduction. Full-length lexical stand-ins remain approximate, not a
-    guaranteed whole-run upper bound.
+    Each decider's planning uses the existing decision estimator, with its own declared limits, its tokenizer and
+    the run's detail ceiling and floor (`FULL` and `NAME` for a decider `max_detail` or `min_detail` leaves out).
+    Agent input is tokenized from prompt-bearing wire fields; output is bounded by its configured limit and cache
+    savings are not assumed. Replay savings are not assumed. Missing dense vectors with fewer than K lexical matches
+    use the longest applicable FULL cards, separately measured for Jev's heuristic text and the agent's function
+    schema. The actual Jev planner still applies limits and detail reduction. Full-length lexical stand-ins remain
+    approximate, not a guaranteed whole-run upper bound.
     """
     import tiktoken
 
@@ -269,7 +328,11 @@ async def estimate_direct(
                     decider_name=decider,
                     k=20 if name.startswith(_DECIDER_SEARCH) else len(catalog),
                     decider=None,
-                    config={"max_detail": "FULL", "reserved_option": True},
+                    config={
+                        "max_detail": (max_detail or {}).get(decider, DetailLevel.FULL).name,
+                        "min_detail": (min_detail or {}).get(decider, DetailLevel.NAME).name,
+                        "reserved_option": _ABSTENTION.reserved_option,
+                    },
                     model=models[decider],
                 )
                 for name in arms
@@ -373,7 +436,11 @@ async def estimate_direct(
 
 
 class DirectRunner:
-    """Run every catalog and arm in fixed order, sharing search but recording each strategy's search overhead."""
+    """Run every catalog and arm in fixed order, sharing search but recording each strategy's search overhead.
+
+    Each decider is the registry's `choice_decider`, planning with its entry's tokenizer, with cards at
+    `max_detail[name]` at most (`FULL` for a name it leaves out) and `min_detail[name]` at least (`NAME`).
+    """
 
     def __init__(
         self,
@@ -386,12 +453,15 @@ class DirectRunner:
         arms: Sequence[str] = DIRECT_ARMS,
         luna_agent: CachedAgent | None = None,
         provenance: Mapping[str, Mapping[str, Any]] | None = None,
+        max_detail: Mapping[str, DetailLevel] | None = None,
+        min_detail: Mapping[str, DetailLevel] | None = None,
     ) -> None:
         self.retriever = SharedRetrieval(retriever)
         self.models, self.agent, self.guard = models, agent, guard
         self.arms, self.luna_agent = tuple(arms), luna_agent
         self.not_applicable = not_applicable
         self.provenance = dict(provenance or {})
+        self.max_detail, self.min_detail = dict(max_detail or {}), dict(min_detail or {})
         self._searches: dict[tuple[str, str], tuple[Retrieval, float, float]] = {}
 
     async def run(
@@ -403,7 +473,11 @@ class DirectRunner:
         pilot: bool,
         estimate: DirectEstimate,
     ) -> Path:
-        """Write requests incrementally and stop on budget exhaustion, a crash, or more than 5% errors in an arm."""
+        """Write requests incrementally and stop on budget exhaustion, a crash, or more than 5% errors in an arm.
+
+        Only provider errors count towards the 5%: a search the planner could not ask about is recorded and reported,
+        and the run goes on.
+        """
         run_dir = out_dir / run_id
         run_dir.mkdir(parents=True, exist_ok=False)
         manifest = _manifest(catalogs, run_id=run_id, pilot=pilot, estimate=estimate, arms=self.arms)
@@ -424,7 +498,9 @@ class DirectRunner:
             name: {
                 "model": model.model_id,
                 "limits": model.limits.model_dump(mode="json"),
-                "max_detail": "FULL",
+                "max_detail": self.max_detail.get(name, DetailLevel.FULL).name,
+                "min_detail": self.min_detail.get(name, DetailLevel.NAME).name,
+                "tokenizer": repr(planner_tokenizer(name)),
                 "abstention": {"reserved_option": True, "threshold": 0},
                 "provenance": dict(self.provenance.get(name, {})),
             }
@@ -434,6 +510,7 @@ class DirectRunner:
         (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
         completed = False
         errors = dict.fromkeys(self.arms, 0)
+        provider_errors = dict.fromkeys(self.arms, 0)
         counts = dict.fromkeys(self.arms, 0)
         stop_reason: str | None = None
         try:
@@ -450,14 +527,15 @@ class DirectRunner:
                                 "variant": variant,
                                 "phase": phase,
                             }
-                            record = await self._request(
+                            record, provider_failed = await self._request(
                                 selected, arm=arm, task=task, variant=variant, catalog=catalog, phase=phase
                             )
                             output.write(json.dumps(record) + "\n")
                             output.flush()
                             counts[arm] += 1
                             errors[arm] += record["error"] is not None
-                            if errors[arm] / planned[arm] > 0.05:
+                            provider_errors[arm] += provider_failed
+                            if provider_errors[arm] / planned[arm] > 0.05:
                                 raise ProviderFailure(f"more than 5% errored requests in {arm}")
                 completed = True
         except (ProviderFailure, RunStopped) as error:
@@ -470,6 +548,7 @@ class DirectRunner:
                 "stop_reason": stop_reason,
                 "counts": counts,
                 "errors": errors,
+                "provider_errors": provider_errors,
                 "budget_charge_usd": self.guard.run_usd,
             }
             (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
@@ -497,7 +576,8 @@ class DirectRunner:
         variant: str,
         catalog: ToolCatalog,
         phase: str,
-    ) -> dict[str, Any]:
+    ) -> tuple[dict[str, Any], bool]:
+        """One request's record, and whether a provider failed it."""
         record: dict[str, Any] = {
             "catalog": selected.source,
             "arm": arm,
@@ -518,11 +598,16 @@ class DirectRunner:
             "extra_calls": 0,
             "text_is_none": None,
             "detail": [],
+            "key_only_options": [],
+            "card_options": [],
+            "not_applicable": False,
+            "failed_card": None,
             "decision_key": None,
             "historical_usage": None,
             "provider_calls": [],
         }
         before: int | None = None
+        provider_failed = False
         try:
             if arm_searches(arm):
                 retrieval, seconds, usd = await self._retrieval(task, catalog)
@@ -535,24 +620,54 @@ class DirectRunner:
             if arm == "hybrid@20":
                 record |= {"ranked": record["candidates"], "pick": cards[0].id if cards else None, "abstained": False}
             elif (decider := arm_decider(arm)) is not None:
+                counted = CountedModel(self.models[decider])
                 pipeline = ToolSearchPipeline(
                     CatalogOrderRetriever(),
                     k=max(1, len(cards)),
-                    decider=ChoiceDecider(self.models[decider], abstention=Abstention(), max_detail=DetailLevel.FULL),
+                    decider=choice_decider(
+                        decider,
+                        counted,
+                        abstention=_ABSTENTION,
+                        max_detail=self.max_detail.get(decider, DetailLevel.FULL),
+                        min_detail=self.min_detail.get(decider, DetailLevel.NAME),
+                    ),
                 )
-                result = await pipeline.search([task.query], ToolCatalog(cards), context=task.query)
-                assert result.decision is not None
-                decision = result.decision
-                record |= {
-                    "ranked": result.ids,
-                    "pick": None if result.abstained or not result.ids else result.ids[0],
-                    "abstained": result.abstained,
-                    "decision_key": str(decision.key),
-                    "detail": [exchange.detail.name for exchange in decision.exchanges],
-                    "state_cut": decision.state_cut,
-                }
-                record["replayed"] = len(self.guard.calls) == before and bool(decision.exchanges)
-                record["historical_usage"] = asdict(decision.usage)
+                try:
+                    result = await pipeline.search([task.query], ToolCatalog(cards), context=task.query)
+                except CandidatesDoNotFit as unfit:
+                    # As in decision runs: raised before any ask without a card, two rounds cannot hold the list.
+                    # With a card, or after round one was asked, the search failed.
+                    record |= {
+                        "error": str(unfit),
+                        "not_applicable": unfit.card_id is None and counted.count() == 0,
+                        "failed_card": unfit.card_id,
+                    }
+                else:
+                    assert result.decision is not None
+                    decision = result.decision
+                    record |= {
+                        "ranked": result.ids,
+                        "pick": None if result.abstained or not result.ids else result.ids[0],
+                        "abstained": result.abstained,
+                        "decision_key": str(decision.key),
+                        "detail": [exchange.detail.name for exchange in decision.exchanges],
+                        # Per exchange, like `detail`: the options sent as their key alone, with an empty text, and
+                        # the card options sent, the reserved option left out.
+                        "key_only_options": [
+                            [
+                                key
+                                for question in exchange.request.questions.values()
+                                if isinstance(question, ChoiceQuestion)
+                                for key, text in question.options.items()
+                                if text == ""
+                            ]
+                            for exchange in decision.exchanges
+                        ],
+                        "card_options": [len(exchange.option_card_ids) for exchange in decision.exchanges],
+                        "state_cut": decision.state_cut,
+                    }
+                    record["replayed"] = len(self.guard.calls) == before and bool(decision.exchanges)
+                    record["historical_usage"] = asdict(decision.usage)
             else:
                 agent = self.luna_agent if arm in LUNA_ARMS else self.agent
                 assert agent is not None, f"no agent for {arm}"
@@ -572,12 +687,13 @@ class DirectRunner:
                 }
         except ProviderFailure as error:
             record["error"] = str(error)
+            provider_failed = True
         finally:
             if before is not None:
                 own = self.guard.calls[before:]
                 record["provider_calls"] = own
                 record["decision_seconds"] = sum(call["seconds"] for call in own) if own else None
-        return record
+        return record, provider_failed
 
 
 def _manifest(
@@ -622,6 +738,7 @@ def _manifest(
         "tasks_sha256": hashlib.sha256(json.dumps(tasks, sort_keys=True).encode()).hexdigest(),
         "arms": list(arms),
         "order": "catalog, arm, positives, negatives",
+        "decision_basis": "sum of calls",
         "concurrency": 1,
         "negative_seed": 0,
         "negative_allocation": "largest remainder, stable source order",

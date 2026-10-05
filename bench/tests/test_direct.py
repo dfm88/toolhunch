@@ -3,7 +3,7 @@ import json
 import sqlite3
 from collections.abc import Sequence
 from dataclasses import asdict, replace
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -17,8 +17,15 @@ from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.usage import RequestUsage
 from typer.testing import CliRunner
 
-from toolhunch import BM25Retriever, OpenAIEmbedder, ToolCard, ToolCatalog
-from toolhunch.decision import CLEF_LIMITS, JEV_LIMITS, STRANDS_LIMITS, ChoiceQuestion, DecisionRequest
+from toolhunch import BM25Retriever, HeuristicTokenizer, OpenAIEmbedder, ToolCard, ToolCatalog
+from toolhunch.decision import (
+    CLEF_LIMITS,
+    JEV_LIMITS,
+    STRANDS_LIMITS,
+    ChoiceQuestion,
+    DecisionRequest,
+    ModelLimits,
+)
 from toolhunch_bench import cli
 from toolhunch_bench.datasets.toolret import ToolRetData, ToolRetTask
 from toolhunch_bench.decision import CacheOnlyRetrieval, SharedRetrieval
@@ -32,6 +39,7 @@ from toolhunch_bench.direct import (
     decider_arms,
     direct_catalogs,
     estimate_direct,
+    planned_not_applicable,
 )
 from toolhunch_bench.direct_agent import AGENT_SETTINGS, CachedAgent, agent_payload, function_cards, wire_request
 from toolhunch_bench.direct_cost import (
@@ -900,3 +908,89 @@ async def test_direct_report_discloses_added_deciders_and_search_time(tmp_path: 
     [row] = [r for r in summary["rows"] if r["arm"] == "hybrid@20+strands" and r["catalog"] == "pooled"]
     warm = row["positive_cost"]["warm"]
     assert 0 < warm["decision_latency_p50_ms"] < warm["latency_p50_ms"]
+
+
+async def test_direct_plans_not_applicable_catalogs_and_counts_key_only_options(
+    tmp_path: Path, fake_decision_model: Any
+) -> None:
+    # Four options per question and the reserved option: two rounds hold at most 4 x 3 = 12 candidates. Within a
+    # 12-token option, a name of 5 to 8 heuristic tokens is sent as its key alone, and a longer one cannot be shown.
+    small, large = "webtools_spotify", "tooleyes"
+    sources = {small: "restgpt-spotify", large: "tooleyes"}
+    original = data(sources=sources, count=2)
+    extra = [
+        ToolCard(id=f"{small}_long", name="horoscope reading", description="Daily horoscope.", source=small),
+        *(
+            ToolCard(id=f"{large}_extra_{i}", name=f"extra_{i}", description="Unrelated utility.", source=large)
+            for i in range(9)
+        ),
+        ToolCard(
+            id=f"{large}_unshowable",
+            name="weather station reading by identifier",
+            description="Weather station data.",
+            source=large,
+        ),
+    ]
+    selected = direct_catalogs(replace(original, catalog=ToolCatalog([*original.catalog, *extra])), sources=sources)
+    assert [len(c.catalog) for c in selected] == [4, 13]
+    limits = ModelLimits(
+        max_options_per_choice=4,
+        max_question_tokens=240,
+        max_option_tokens=12,
+        source="test",
+        checked=date(2026, 10, 5),
+    )
+    model = fake_decision_model(model_id="strands-fake@127.0.0.1:8000", limits=limits, favourite="weather tool")
+    arms = decider_arms(["strands"])
+
+    # As the direct command does: planned before the estimate, then excluded from the estimate and the run alike.
+    planned = planned_not_applicable(selected, arms=arms, models={"strands": model})
+    assert list(planned) == [("strands-all", large)]
+    assert planned[("strands-all", large)]["source"] == "planner"
+    assert "at most 12 candidates fit two rounds" in planned[("strands-all", large)]["reason"]
+    assert not model.asks
+    estimate = await estimate_direct(
+        selected, retriever=BM25Retriever(), models={"strands": model}, not_applicable=planned, arms=arms
+    )
+    assert estimate.planned_requests_by_arm == {"hybrid@20+strands": 6, "strands-all": 3}
+    guard = SpendGuard()
+    directory = await DirectRunner(
+        retriever=BM25Retriever(),
+        models={"strands": GuardedDecisionModel(model, guard=guard, provider="local")},
+        agent=None,
+        guard=guard,
+        not_applicable=planned,
+        arms=arms,
+    ).run(selected, out_dir=tmp_path / "runs", run_id="planned", pilot=False, estimate=estimate)
+
+    manifest = json.loads((directory / "manifest.json").read_text())
+    records = [json.loads(line) for line in (directory / "run.jsonl").read_text().splitlines()]
+    assert manifest["not_applicable"] == [{"arm": "strands-all", "catalog": large, **planned[("strands-all", large)]}]
+    assert not any(r["arm"] == "strands-all" and r["catalog"] == large for r in records)
+    assert {r["catalog"] for r in records if r["arm"] == "hybrid@20+strands"} == {small, large}
+    assert {key: manifest["deciders"]["strands"][key] for key in ("max_detail", "min_detail", "tokenizer")} == {
+        "max_detail": "FULL",
+        "min_detail": "NAME",
+        "tokenizer": repr(HeuristicTokenizer()),
+    }
+    # The searched weather tools include one no question can show: each of those searches fails on that card, is
+    # recorded, and does not stop the run, which stops on provider errors alone.
+    failed = [r for r in records if r["error"] is not None]
+    assert {(r["arm"], r["catalog"], r["failed_card"], r["not_applicable"]) for r in failed} == {
+        ("hybrid@20+strands", large, f"{large}_unshowable", False)
+    }
+    assert len(failed) == 3
+    assert manifest["completed"] is True
+    assert (manifest["errors"]["hybrid@20+strands"], manifest["provider_errors"]["hybrid@20+strands"]) == (3, 0)
+
+    summary = build_direct_report(directory, out_dir=tmp_path / "report")
+    rows = {(row["arm"], row["catalog"]): row for row in summary["rows"]}
+    assert rows[("strands-all", large)]["status"] == "not applicable"
+    assert rows[("strands-all", large)]["evidence"]["source"] == "planner"
+    # Each positive asks all four cards, the long name as its key alone, then its two finalists with the reserved
+    # option; the negative asks the two cards left with the reserved option. 3 key-only of 2 x (4 + 2) + 2 options.
+    assert rows[("strands-all", small)]["key_only_option_share"] == pytest.approx(3 / 14)
+    assert sum(rows[("hybrid@20+strands", large)]["failed_searches"].values()) == 3
+    readme = (tmp_path / "report" / "README.md").read_text()
+    assert f"- strands-all, {small}: 21.4% of the card options sent as their key alone." in readme
+    assert f"- hybrid@20+strands, {large}: 3 failed searches: card '{large}_unshowable'" in readme

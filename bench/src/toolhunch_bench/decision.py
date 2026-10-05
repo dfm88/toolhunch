@@ -79,6 +79,7 @@ __all__ = [
     "LUNA_MODEL",
     "QUERY_SOURCES",
     "CacheOnlyRetrieval",
+    "CountedModel",
     "DecisionArm",
     "EstimateLine",
     "ExcludingRetriever",
@@ -292,8 +293,11 @@ class DecisionArm:
     asked: Callable[[], int] | None = None
 
 
-class _CountedModel:
-    """`inner`, with a count of the asks sent through it."""
+class CountedModel:
+    """`inner`, with a count of the asks sent through it.
+
+    A search tells from the count whether a `CandidatesDoNotFit` came before or after its decider's first ask.
+    """
 
     def __init__(self, inner: DecisionModel) -> None:
         self._inner = inner
@@ -301,27 +305,33 @@ class _CountedModel:
 
     @property
     def model_id(self) -> str:
+        """The wrapped model's identity."""
         return self._inner.model_id
 
     @property
     def limits(self) -> ModelLimits:
+        """The wrapped model's limits."""
         return self._inner.limits
 
     @property
     def question_kinds(self) -> frozenset[QuestionKind]:
+        """The wrapped model's question kinds."""
         return self._inner.question_kinds
 
     @property
     def prompt_version(self) -> str | None:
+        """The wrapped model's prompt version."""
         return self._inner.prompt_version
 
     def __repr__(self) -> str:
         return repr(self._inner)
 
     def count(self) -> int:
+        """How many asks were sent so far, failed ones and answers from a cache included."""
         return self._asks
 
     async def ask(self, request: DecisionRequest, /, **options: Any) -> DecisionResponse:
+        """Count the ask, then ask the wrapped model."""
         self._asks += 1
         return await self._inner.ask(request, **options)
 
@@ -385,7 +395,7 @@ def build_decision_arms(
                 "reserved_option": reserved_option,
             }
             abstention = Abstention(threshold=0.0, reserved_option=reserved_option)
-            counted = _CountedModel(model)
+            counted = CountedModel(model)
             decider = choice_decider(name, counted, abstention=abstention, max_detail=detail, min_detail=floor)
             arms.append(DecisionArm(f"hybrid+{name}@{k}", name, k, decider, config, model, counted.count))
     return arms
