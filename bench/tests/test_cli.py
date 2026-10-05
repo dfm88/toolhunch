@@ -504,6 +504,34 @@ def test_a_failing_decision_run_still_records_what_it_billed(
     assert all(model.closed for model in decision_setup.models.values())
 
 
+@pytest.mark.parametrize(
+    ("status", "attempts", "reason"),
+    [(401, 1, "typesafe refused with HTTP 401"), (429, 3, "3 failed attempts in a row at typesafe")],
+)
+def test_a_decision_run_stops_when_its_provider_refuses_or_is_out(
+    decision_setup: DecisionSetup, fake_decision_model: Any, status: int, attempts: int, reason: str
+) -> None:
+    # A refused key stops the run at once; a quota or an outage after three failed attempts in a row. Going on would
+    # only charge more reservations for asks that cannot be answered (P2's Clef dev run, refused at its daily quota).
+    append_ledger(p2_entry(1.5), path=decision_setup.ledger)
+    jev_model = fake_decision_model(
+        model_id="jev-1.13.0@api.typesafe.ai", limits=JEV_LIMITS, fail_on="", fail_status=status
+    )
+    decision_setup.models |= {"jev": jev_model}
+
+    result = decide(decision_setup)
+
+    assert result.exit_code == 2, result.output
+    assert f"Run stopped: {reason}" in result.output
+    assert len(jev_model.asks) == attempts
+    [run_dir] = decision_setup.runs.iterdir()
+    assert reason in json.loads((run_dir / "manifest.json").read_text())["stop_reason"]
+    billed = {(entry.provider, entry.model): entry for entry in read_ledger(decision_setup.ledger)}
+    reservation = JEV_LIMITS.estimate_usd(DecisionUsage(1, JEV_LIMITS.max_request_tokens or 0, 0)) or 0.0
+    assert billed["typesafe", "jev-1.13.0"].usd == pytest.approx(attempts * reservation)
+    assert all(model.closed for model in decision_setup.models.values())
+
+
 @pytest.mark.parametrize("name", ["logprob", "luna", "clm"])
 def test_direct_refuses_deciders_it_cannot_guard_or_ledger(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
     # The direct path guards and ledgers deciders billed per declared token and local ones only: OpenAI's would spend

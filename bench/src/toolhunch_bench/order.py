@@ -30,6 +30,7 @@ from toolhunch_bench.direct_cost import (
     GuardedEmbedder,
     ProviderCall,
     SpendGuard,
+    attempt_failure,
     openai_usd,
 )
 from toolhunch_bench.embedding_cache import (
@@ -112,6 +113,7 @@ class OrderDecisionModel:
         try:
             response = await self._inner.ask(request, **options)
         except Exception as error:
+            status, reached = attempt_failure(error)
             self._guard.record(
                 ProviderCall(
                     provider=provider,
@@ -124,6 +126,8 @@ class OrderDecisionModel:
                     list_usd=None,
                     budget_charge_usd=upper,
                     error=type(error).__name__,
+                    status=status,
+                    reached=reached,
                 )
             )
             raise DecisionError(f"order decision failed: {type(error).__name__}") from None

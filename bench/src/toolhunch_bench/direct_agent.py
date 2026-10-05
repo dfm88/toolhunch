@@ -17,7 +17,14 @@ from pydantic_ai.models import ModelRequestParameters
 from pydantic_ai.tools import ToolDefinition
 
 from toolhunch_bench.decision import LUNA_MODEL
-from toolhunch_bench.direct_cost import AGENT_MODEL, ProviderCall, ProviderFailure, SpendGuard, openai_usd
+from toolhunch_bench.direct_cost import (
+    AGENT_MODEL,
+    ProviderCall,
+    ProviderFailure,
+    SpendGuard,
+    attempt_failure,
+    openai_usd,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -233,6 +240,7 @@ class CachedAgent:
                 )
             except Exception as error:
                 diagnostic = self._failure_message(error)
+                status, reached = attempt_failure(error)
                 self._guard.record(
                     ProviderCall(
                         provider="openai",
@@ -245,6 +253,8 @@ class CachedAgent:
                         list_usd=None,
                         budget_charge_usd=upper,
                         error=diagnostic,
+                        status=status,
+                        reached=reached,
                     )
                 )
                 if attempt or (

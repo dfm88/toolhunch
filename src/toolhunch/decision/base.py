@@ -203,7 +203,15 @@ class DecisionError(Exception):
 
     The pipeline propagates it: there is no silent fallback to retrieval order. Every message starts
     with the model id.
+
+    Attributes:
+        status: The HTTP status of the reply that ended the call, when a server refused it after any
+            retries; `None` for every other failure, an unusable answer or no reply at all.
     """
+
+    def __init__(self, *args: object, status: int | None = None) -> None:
+        super().__init__(*args)
+        self.status = status
 
 
 class ModelLimits(BaseModel):

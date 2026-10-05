@@ -1,10 +1,13 @@
 import json
+from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
+import pytest
 from typer.testing import CliRunner
 
 from toolhunch_bench.cli import app
+from toolhunch_bench.deciders import DECIDERS, DeciderName, DeciderSpec
 
 
 def test_decision_charts_use_only_plain_jev_and_logprob_rows(tmp_path: Path) -> None:
@@ -61,10 +64,13 @@ def test_decision_charts_use_only_plain_jev_and_logprob_rows(tmp_path: Path) -> 
     assert all(label in text for label in ("Correct", "Wrong", "Abstained", "Negatives", "50%", "dev τ=0.50"))
 
 
-def test_cost_latency_marks_local_deciders(tmp_path: Path) -> None:
+def test_cost_latency_marks_local_deciders(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     # P2's figure puts the new deciders next to the earlier ones. A local decider is drawn hollow with the machine in
     # the caption; latency is the decision's alone, since later runs searched with cached query embeddings; CLM stays
-    # out until its authors confirm parity.
+    # out until its authors confirm parity. Colors and that exclusion are registry data, so the figure draws a new
+    # decider without an edit of its own.
+    registry = cast("dict[DeciderName, DeciderSpec]", DECIDERS)
+    monkeypatch.setitem(registry, DeciderName.STRANDS, replace(registry[DeciderName.STRANDS], color="#123456"))
     hardware = {"chip": "Apple M5 Max", "memory_gb": 128, "os": "macOS 26.1"}
 
     def pick(arm: str, rate: float, ms: float | None, usd: float | None, *, local: bool = False) -> dict[str, Any]:
@@ -139,6 +145,7 @@ def test_cost_latency_marks_local_deciders(tmp_path: Path) -> None:
         assert f'id="point-{point}-local"' in text
     assert "clm" not in text
     assert "CLM" not in text
+    assert "#123456" in text  # the registry's color for Strands
     # Text is drawn as paths; the caption is also the SVG's description, which states the machine and the points
     # whose cards were sent below full detail to fit a window.
     assert "Apple M5 Max, 128 GB, macOS 26.1" in text

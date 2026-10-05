@@ -31,8 +31,8 @@ from toolhunch_bench.direct_cost import (
     AGENT_MODEL,
     EMBEDDING_MODEL,
     ProviderFailure,
+    RunStopped,
     SpendGuard,
-    SpendLimit,
     openai_usd,
 )
 from toolhunch_bench.embedding_cache import estimate_embedding_cost
@@ -460,7 +460,7 @@ class DirectRunner:
                             if errors[arm] / planned[arm] > 0.05:
                                 raise ProviderFailure(f"more than 5% errored requests in {arm}")
                 completed = True
-        except (ProviderFailure, SpendLimit) as error:
+        except (ProviderFailure, RunStopped) as error:
             stop_reason = str(error)
         except Exception as error:
             stop_reason = f"crash: {type(error).__name__}"

@@ -137,9 +137,10 @@ class JevWireModel:
     CLM (see `clm`). It answers choice, binary and score questions.
 
     `base_url` must be an absolute http(s) URL without credentials: `ValueError` otherwise, so pass the
-    key as `api_key`. Requests go to `base_url + path`. The identity `model_id` is `"<model>@<host>"`, taken from
-    `model` and `base_url`, and is all `repr` shows, so an account ID in the URL never reaches it. The `model` and
-    `confidence` fields of a response are never used; they stay in `DecisionResponse.raw`.
+    key as `api_key`. Requests go to `base_url + path`, `path` given a leading slash when it lacks one. The identity
+    `model_id` is `"<model>@<host>"`, taken from `model` and `base_url`, and is all `repr` shows, so an account ID in
+    the URL never reaches it. The `model` and `confidence` fields of a response are never used; they stay in
+    `DecisionResponse.raw`.
 
     `response_root` names the member of the reply that holds the answer, for a server that wraps it in an envelope
     (`"result"` on Workers AI); `None` reads the reply itself.
@@ -184,7 +185,7 @@ class JevWireModel:
         self._latency_header = latency_header
         self._response_root = response_root
         self._poster = JsonPoster(
-            f"{self._base_url}{path}",
+            f"{self._base_url}/{path.lstrip('/')}",
             model_id=self._model_id,
             api_key=api_key,
             api_key_env=api_key_env,
@@ -413,8 +414,9 @@ def strands_decider(
     """A Strands Decider server: `strands-decider serve` from strands-labs/strands-decider, without auth.
 
     `base_url` is the server root; `/v1` is appended. Run the server with `--strict-window`, so a prompt over its
-    4,096-token window fails instead of losing part of its state; the planner keeps requests within
-    `STRANDS_LIMITS` and splits larger choices into two rounds.
+    4,096-token window fails instead of losing part of its state. The planner keeps requests within
+    `STRANDS_LIMITS`: it renders the cards at the most detailed level that fits, and splits a choice into two
+    rounds only when it does not fit even by name.
     """
     return JevWireModel(
         model,

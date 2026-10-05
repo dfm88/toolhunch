@@ -100,6 +100,8 @@ class DeciderSpec:
         model: The pinned model id it asks.
         billing: How its use is paid.
         make: Builds the model with the given number of internal retries; reads the environment when called.
+        color: Its color in figures.
+        published: Whether figures show it. CLM's figures wait for its authors to confirm our deployments match theirs.
         required_env: The variables it needs, checked by name before a run; their values are never printed.
         provenance: Where it runs, with pinned versions; no secret, no account ID and no deployment URL.
         serial: Ask it one request at a time, for a server whose behaviour under concurrent requests is unverified.
@@ -116,6 +118,8 @@ class DeciderSpec:
     model: str
     billing: Billing
     make: Callable[[int], DecisionModel]
+    color: str
+    published: bool = True
     required_env: tuple[str, ...] = ()
     provenance: Mapping[str, Any] = field(default_factory=dict[str, Any])
     serial: bool = False
@@ -141,6 +145,7 @@ DECIDERS: Mapping[DeciderName, DeciderSpec] = {
             model=JEV_MODEL,
             billing="tokens",
             make=lambda retries: jev(JEV_MODEL, max_retries=retries),
+            color="#2F6DB5",
             required_env=("TYPESAFE_API_KEY",),
             provenance={"endpoint": "api.typesafe.ai"},
             request_overhead_tokens=300,
@@ -152,6 +157,7 @@ DECIDERS: Mapping[DeciderName, DeciderSpec] = {
             model=LOGPROB_MODEL,
             billing="tokens",
             make=lambda retries: OpenAILogprobModel(LOGPROB_MODEL, max_retries=retries),
+            color="#C0652B",
             required_env=("OPENAI_API_KEY",),
             provenance={"endpoint": "api.openai.com"},
             request_overhead_tokens=120,
@@ -164,6 +170,7 @@ DECIDERS: Mapping[DeciderName, DeciderSpec] = {
             model=LUNA_MODEL,
             billing="tokens",
             make=lambda retries: StructuredChoiceModel(LUNA_MODEL, max_retries=retries),
+            color="#7A4FB5",
             required_env=("OPENAI_API_KEY",),
             provenance={"endpoint": "api.openai.com", "reasoning": "off"},
             request_overhead_tokens=120,
@@ -176,6 +183,8 @@ DECIDERS: Mapping[DeciderName, DeciderSpec] = {
             model=CLM_MODEL,
             billing="gpu-time",
             make=lambda retries: clm(os.environ["CLM_BASE_URL"], model=CLM_MODEL, max_retries=retries),
+            color="#8A6D3B",
+            published=False,
             required_env=("CLM_BASE_URL",),
             provenance=CLM_DEPLOYMENT,
         ),
@@ -186,6 +195,8 @@ DECIDERS: Mapping[DeciderName, DeciderSpec] = {
             model=CLM_MODEL,
             billing="local",
             make=lambda retries: clm(_url(_CLM_LOCAL_URL), model=CLM_MODEL, api_key_env=None, max_retries=retries),
+            color="#8A6D3B",
+            published=False,
             provenance={
                 "script": "bench/deploy/clm_local/serve.sh",
                 "contrastive_lm": "0.1.0",
@@ -208,6 +219,7 @@ DECIDERS: Mapping[DeciderName, DeciderSpec] = {
             model="strands-decider-2B-hobson-v19",
             billing="local",
             make=lambda retries: strands_decider(_url(_STRANDS_URL), max_retries=retries),
+            color="#16877A",
             provenance={
                 "script": "bench/deploy/strands_local.sh",
                 "code": "strands-labs/strands-decider @ 75c9fd3",
@@ -225,6 +237,7 @@ DECIDERS: Mapping[DeciderName, DeciderSpec] = {
             model="clef",
             billing="tokens",
             make=lambda retries: clef("clef", max_retries=retries),
+            color="#B5306B",
             required_env=_CLOUDFLARE_ENV,
             provenance={
                 "endpoint": "api.cloudflare.com Workers AI @cf/cloudflare/clef",
@@ -242,6 +255,7 @@ DECIDERS: Mapping[DeciderName, DeciderSpec] = {
             model="clef-flash",
             billing="tokens",
             make=lambda retries: clef("clef-flash", max_retries=retries),
+            color="#D98BB2",
             required_env=_CLOUDFLARE_ENV,
             provenance={
                 "endpoint": "api.cloudflare.com Workers AI @cf/cloudflare/clef-flash",

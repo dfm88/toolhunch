@@ -104,8 +104,9 @@ class FakeDecisionModel:
 
     Every option weighs 1, the tool whose option key is `favourite` 8, and the reserved option `none_weight`; the
     answer is those weights normalised. A request whose state contains `fail_on` raises `DecisionError` instead, as a
-    model that answers nothing usable does. Like the real adapters it checks each request against its `limits` first.
-    Each call reports 10 input tokens, 1 output token, 0.1 s of wall time and 0.01 s of server time.
+    model that answers nothing usable does, or, with `fail_status`, as a server that refuses with that HTTP status.
+    Like the real adapters it checks each request against its `limits` first. Each call reports 10 input tokens,
+    1 output token, 0.1 s of wall time and 0.01 s of server time.
 
     Attributes:
         asks: Every request it was asked, failed ones included, in order.
@@ -121,6 +122,7 @@ class FakeDecisionModel:
         favourite: str | None = None,
         none_weight: float = 1.0,
         fail_on: str | None = None,
+        fail_status: int | None = None,
     ) -> None:
         self.model_id = model_id
         self.limits = ModelLimits(source="test", checked=date(2026, 9, 29)) if limits is None else limits
@@ -131,6 +133,7 @@ class FakeDecisionModel:
         self._favourite = favourite
         self._none_weight = none_weight
         self._fail_on = fail_on
+        self._fail_status = fail_status
 
     def __repr__(self) -> str:
         return f"FakeDecisionModel({self.model_id!r})"
@@ -139,6 +142,8 @@ class FakeDecisionModel:
         check_request(request, limits=self.limits, kinds=self.question_kinds)
         self.asks.append(request)
         if self._fail_on is not None and self._fail_on in request.state:
+            if self._fail_status is not None:
+                raise DecisionError(f"{self.model_id}: HTTP {self._fail_status}: refused", status=self._fail_status)
             raise DecisionError(f"{self.model_id}: no option letter among the top logprobs")
         answers: dict[str, Answer] = {}
         for key, question in request.questions.items():

@@ -50,6 +50,7 @@ from toolhunch_bench.deciders import (
 )
 from toolhunch_bench.deciders import DECIDERS as REGISTRY
 from toolhunch_bench.decision_cache import CachedDecisionModel
+from toolhunch_bench.direct_cost import RunStopped
 from toolhunch_bench.embedding_cache import estimate_embedding_cost
 from toolhunch_bench.ledger import F2A_CAP_EUR
 from toolhunch_bench.retrieval import repo_path, run_provenance
@@ -732,72 +733,77 @@ async def run_decisions(
         manifest["task_ids"] = [task.id for task in tasks]
     manifest.update(manifest_extra or {})
     (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
-    with (run_dir / "run.jsonl").open("w", encoding="utf-8") as out:
-        for arm in arms:
-            if before_arm is not None:
-                await before_arm(arm)
-            cached = arm.model if isinstance(arm.model, CachedDecisionModel) else None
-            hits, misses = (0, 0) if cached is None else (cached.hits, cached.misses)
-            started = time.perf_counter()
-            searches = errors = 0
-            for search in _searches(
-                tasks, sources=sources, model_queries=model_queries, negatives=negatives, retriever=retriever
-            ):
-                for index, seed in enumerate([None] * repeat if order_seeds is None else order_seeds):
-                    presented = (
-                        search.retriever
-                        if seed is None
-                        else OrderedRetrieval(search.retriever, task_id=search.task.id, seed=seed)
-                    )
-                    context: dict[str, Any] = {
-                        "arm": arm.name,
-                        "task": search.task.id,
-                        "variant": search.variant,
-                        "order_seed": seed,
-                        "source": search.source,
-                    }
-                    if before_search is not None:
-                        before_search(context)
-                    if seed is not None:
-                        candidates = await presented.retrieve(list(search.queries), data.catalog, k=arm.k)
-                        if len(candidates.matches) != arm.k:
-                            raise ValueError("order mode needs exactly K candidates before any decision is paid")
-                        context["presented_candidates"] = [match.card.id for match in candidates.matches]
-                    pipeline = ToolSearchPipeline(presented, decider=arm.decider, k=arm.k)
-                    if before_search is not None:
-                        before_search(context)
-                    record = await _search_record(
-                        pipeline,
-                        arm,
-                        search,
-                        data=data,
-                        split=split,
-                        repeat=index,
-                        shared=retriever,
-                        presented=presented if seed is not None else None,
-                    )
-                    if seed is not None:
-                        record["order_seed"] = seed
-                        record["replayed"] = False
-                    out.write(json.dumps(record) + "\n")
-                    if seed is not None:
-                        out.flush()
-                    searches += 1
-                    errors += record["error"] is not None
-                    if seed is not None and stop_on_error and record["error"] is not None:
-                        raise DecisionError("order experiment stopped after an errored search")
-            wall_seconds = time.perf_counter() - started
-            summary = {
-                "record": "arm",
-                "arm": arm.name,
-                "wall_seconds": wall_seconds,
-                "searches": searches,
-                "errors": errors,
-                "cache_hits": None if cached is None else cached.hits - hits,
-                "cache_misses": None if cached is None else cached.misses - misses,
-            }
-            out.write(json.dumps(summary) + "\n")
-            out.flush()
+    try:
+        with (run_dir / "run.jsonl").open("w", encoding="utf-8") as out:
+            for arm in arms:
+                if before_arm is not None:
+                    await before_arm(arm)
+                cached = arm.model if isinstance(arm.model, CachedDecisionModel) else None
+                hits, misses = (0, 0) if cached is None else (cached.hits, cached.misses)
+                started = time.perf_counter()
+                searches = errors = 0
+                for search in _searches(
+                    tasks, sources=sources, model_queries=model_queries, negatives=negatives, retriever=retriever
+                ):
+                    for index, seed in enumerate([None] * repeat if order_seeds is None else order_seeds):
+                        presented = (
+                            search.retriever
+                            if seed is None
+                            else OrderedRetrieval(search.retriever, task_id=search.task.id, seed=seed)
+                        )
+                        context: dict[str, Any] = {
+                            "arm": arm.name,
+                            "task": search.task.id,
+                            "variant": search.variant,
+                            "order_seed": seed,
+                            "source": search.source,
+                        }
+                        if before_search is not None:
+                            before_search(context)
+                        if seed is not None:
+                            candidates = await presented.retrieve(list(search.queries), data.catalog, k=arm.k)
+                            if len(candidates.matches) != arm.k:
+                                raise ValueError("order mode needs exactly K candidates before any decision is paid")
+                            context["presented_candidates"] = [match.card.id for match in candidates.matches]
+                        pipeline = ToolSearchPipeline(presented, decider=arm.decider, k=arm.k)
+                        if before_search is not None:
+                            before_search(context)
+                        record = await _search_record(
+                            pipeline,
+                            arm,
+                            search,
+                            data=data,
+                            split=split,
+                            repeat=index,
+                            shared=retriever,
+                            presented=presented if seed is not None else None,
+                        )
+                        if seed is not None:
+                            record["order_seed"] = seed
+                            record["replayed"] = False
+                        out.write(json.dumps(record) + "\n")
+                        if seed is not None:
+                            out.flush()
+                        searches += 1
+                        errors += record["error"] is not None
+                        if seed is not None and stop_on_error and record["error"] is not None:
+                            raise DecisionError("order experiment stopped after an errored search")
+                wall_seconds = time.perf_counter() - started
+                summary = {
+                    "record": "arm",
+                    "arm": arm.name,
+                    "wall_seconds": wall_seconds,
+                    "searches": searches,
+                    "errors": errors,
+                    "cache_hits": None if cached is None else cached.hits - hits,
+                    "cache_misses": None if cached is None else cached.misses - misses,
+                }
+                out.write(json.dumps(summary) + "\n")
+                out.flush()
+    except RunStopped as stop:  # the searches so far stay in run.jsonl; the manifest says why the rest is missing
+        manifest["stop_reason"] = str(stop)
+        (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+        raise
     return run_dir
 
 

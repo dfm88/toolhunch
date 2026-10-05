@@ -12,7 +12,7 @@ import matplotlib
 from matplotlib.figure import Figure
 from matplotlib.patches import Rectangle
 
-from toolhunch_bench.deciders import DECIDERS, DeciderName
+from toolhunch_bench.deciders import DECIDERS, DeciderName, DeciderSpec
 from toolhunch_bench.direct import arm_decider
 
 if TYPE_CHECKING:
@@ -21,11 +21,8 @@ if TYPE_CHECKING:
 
 __all__ = ["build_cost_latency", "build_readme_charts"]
 
-_SEARCH, _JEV, _GPT, _LUNA = "#8C939B", "#2F6DB5", "#C0652B", "#7A4FB5"
-_STRANDS, _CLEF, _CLEF_FLASH = "#16877A", "#B5306B", "#D98BB2"
-_COLORS = {"jev": _JEV, "logprob": _GPT, "luna": _LUNA, "strands": _STRANDS, "clef": _CLEF, "clef-flash": _CLEF_FLASH}
-_UNPUBLISHED = frozenset({"clm", "clm-local"})
-"""Deciders left out of figures: CLM's figures wait for its authors to confirm our deployments match theirs."""
+_SEARCH = "#8C939B"
+_JEV, _GPT, _LUNA = (DECIDERS[name].color for name in (DeciderName.JEV, DeciderName.LOGPROB, DeciderName.LUNA))
 _GOOD, _BAD, _NEUTRAL = "#2E8B57", "#C8483B", "#C9CED4"
 _INK, _MUTED, _GRID = "#1F2328", "#5B636B", "#E6E8EB"
 _STYLE = {
@@ -515,6 +512,11 @@ def _named(arm: str, decider: str) -> tuple[str, str, float, float]:
     return (label, detail, *_P2_OFFSETS.get(arm, (12, 0)))
 
 
+def _spec(decider: str) -> DeciderSpec:
+    """A decider's registry entry, which gives its color and whether figures show it."""
+    return DECIDERS[DeciderName(decider)]
+
+
 def _slug(arm: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", arm.lower()).strip("-")
 
@@ -530,7 +532,7 @@ def _direct_points(direct: dict[str, Any]) -> list[_Point]:
         agent = arm.startswith("agent")
         if row["catalog"] != "pooled" or warm.get("decision_latency_p50_ms") is None:
             continue
-        if not agent and (decider is None or decider in _UNPUBLISHED):
+        if not agent and (decider is None or not _spec(decider).published):
             continue
         name, detail, _, _ = _named(arm, decider or "luna")
         local = bool(warm.get("local"))
@@ -539,7 +541,7 @@ def _direct_points(direct: dict[str, Any]) -> list[_Point]:
                 key=arm,
                 name=name,
                 detail=detail,
-                color=colors.get(arm) or _COLORS[decider or "luna"],
+                color=colors.get(arm) or _spec(decider or "luna").color,
                 value=row["relevant_pick_rate"]["value"],
                 interval=row["relevant_pick_rate"]["ci95"],
                 milliseconds=warm["decision_latency_p50_ms"],
@@ -556,7 +558,7 @@ def _rerank_points(decisions: Sequence[dict[str, Any]], luna: dict[str, Any] | N
     for summary in decisions:
         for row in summary["heldout"]["rows"]:
             decider = row["decider"]
-            if decider is None or decider in _UNPUBLISHED or (row["k"], row["source"]) != (20, "plain"):
+            if decider is None or not _spec(decider).published or (row["k"], row["source"]) != (20, "plain"):
                 continue
             if row["arm"] in points or row["latency_ms"]["decision"] is None:
                 continue
@@ -566,7 +568,7 @@ def _rerank_points(decisions: Sequence[dict[str, Any]], luna: dict[str, Any] | N
                 key=row["arm"],
                 name=name,
                 detail="",
-                color=_COLORS[decider],
+                color=_spec(decider).color,
                 value=row["p_at_1"],
                 interval=row["p_at_1_ci95"],
                 milliseconds=row["latency_ms"]["decision"]["p50"],

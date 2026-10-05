@@ -22,13 +22,19 @@ All notable changes to this project are documented here. The format follows
   differences, P@1 per cell and answer-or-abstain agreement.
 - `toolhunch-bench cost-latency-chart`: precision against the decision's latency and cost for every published
   decider, local ones drawn hollow with their machine in the caption.
+- `DecisionError.status`: the HTTP status a server refused the call with, after any retries; `None` for every other
+  failure.
 
 ### Changed
 
 - `JevWireModel`'s `repr` shows `model_id` instead of `base_url`.
+- `JevWireModel(path=...)` gets a leading slash when it lacks one.
 - Benchmark reports state each decider's caveats (an unpinned version, a model run locally and the machine) and a
   local model's cost as "local"; the direct-choice report gives each run's search time when runs differ, and the
   decision latency alone; `decision-report --heldout` reads one run per decider.
+- Benchmark runs stop when a provider refuses the key, the payment or the permission (HTTP 401, 402, 403), or after
+  three failed attempts in a row at one provider with HTTP 429, a server fault or no reply; the manifest says why.
+  A figure takes each decider's color, and whether it is shown, from its registry entry.
 
 - Development status: alpha, from pre-alpha.
 

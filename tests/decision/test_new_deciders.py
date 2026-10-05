@@ -9,11 +9,13 @@ import pytest
 
 from toolhunch.cards import DetailLevel, ToolCard
 from toolhunch.decision import (
+    CLEF_FLASH_LIMITS,
     STRANDS_LIMITS,
     ChoiceAnswer,
     ChoiceQuestion,
     DecisionError,
     DecisionRequest,
+    JevWireModel,
     clef,
     strands_decider,
 )
@@ -121,10 +123,27 @@ async def test_clef_reads_the_workers_ai_envelope(monkeypatch: pytest.MonkeyPatc
     assert "acc123" not in repr(model)
     assert model.limits.max_options_per_choice == 255
 
-    # A refused request: the recorded HTTP 400 with Workers AI's error envelope.
+    # A refused request: the recorded HTTP 400 with Workers AI's error envelope; its status stays readable, so a
+    # caller can tell a refused key or an exhausted quota from an unusable answer.
     _, refusing = replay("clef_error", [])
-    with pytest.raises(DecisionError, match="HTTP 400"):
+    with pytest.raises(DecisionError, match="HTTP 400") as refused:
         await clef("clef-flash", account_id="acc123", api_key="k", http_client=refusing, max_retries=0).ask(REQUEST)
+    assert refused.value.status == 400
+
+    # A path given without its leading slash reaches the same endpoint.
+    unslashed: list[httpx2.Request] = []
+    _, client = replay("clef_flash_tool_choice", unslashed)
+    await JevWireModel(
+        "clef-flash",
+        base_url="https://api.cloudflare.com/client/v4/accounts/acc123/ai/run",
+        api_key="k",
+        api_key_env=None,
+        limits=CLEF_FLASH_LIMITS,
+        path="@cf/cloudflare/clef-flash",
+        response_root="result",
+        http_client=client,
+    ).ask(REQUEST)
+    assert [str(request.url) for request in unslashed] == [str(sent.url)]
 
     # HTTP 200 without a `result` object: named, with the envelope's errors, never a KeyError.
     def no_result(request: httpx2.Request) -> httpx2.Response:

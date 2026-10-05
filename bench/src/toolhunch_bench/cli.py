@@ -80,8 +80,8 @@ from toolhunch_bench.direct_cost import (
     P1_CAP_USD,
     GuardedDecisionModel,
     GuardedEmbedder,
+    RunStopped,
     SpendGuard,
-    SpendLimit,
 )
 from toolhunch_bench.direct_report import build_direct_report
 from toolhunch_bench.embedding_cache import (
@@ -460,8 +460,8 @@ def decision(
         )
         try:
             asyncio.run(_decide(run, adapters=raw, inner=inner))
-        except SpendLimit as error:
-            typer.echo(f"Run stopped by the spend guard: {error}", err=True)
+        except RunStopped as error:
+            typer.echo(f"Run stopped: {error}", err=True)
             stopped = True
         else:
             stopped = False

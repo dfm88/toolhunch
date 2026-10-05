@@ -6,7 +6,9 @@ import time
 from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING, Any
 
+import httpx2
 from genai_prices import Usage, calc_price
+from openai import APIConnectionError
 
 from toolhunch.decision import DecisionError, DecisionUsage
 from toolhunch_bench.ledger import BUDGET
@@ -35,8 +37,30 @@ def openai_usd(*, model: str, input_tokens: int, output_tokens: int = 0, cache_r
     )
 
 
-class SpendLimit(Exception):
+class RunStopped(Exception):
+    """A run cannot usefully go on: it stops, keeps what it did and ledgers what it was charged."""
+
+
+class SpendLimit(RunStopped):
     """The next provider attempt cannot fit inside the remaining budget."""
+
+
+class ProviderStopped(RunStopped):
+    """A provider refused the account, or stopped answering: every further attempt would only be charged."""
+
+
+_REFUSED_STATUSES = frozenset({401, 402, 403})
+"""A key, a payment or a permission: no retry can fix them."""
+OUTAGE_LIMIT = 3
+"""Failed attempts in a row, without an answer, after which a provider is taken as out (a quota, a limit, an outage)."""
+
+
+def attempt_failure(error: BaseException) -> tuple[int | None, bool]:
+    """The HTTP status a failed attempt ended with, if any, and whether a reply arrived at all."""
+    status = getattr(error, "status", None) if isinstance(error, DecisionError) else getattr(error, "status_code", None)
+    cause = error.__cause__ if isinstance(error, DecisionError) else error
+    reached = not isinstance(cause, httpx2.TransportError | APIConnectionError | TimeoutError | ConnectionError)
+    return (status if isinstance(status, int) else None), reached
 
 
 class ProviderFailure(DecisionError):
@@ -52,6 +76,7 @@ class ProviderCall:
 
     Failed attempts have unknown usage and price. Their reservation remains charged to the guard, so a timeout
     cannot free budget that may have been spent upstream. The ledger reports these reserves separately in its note.
+    A failed attempt also records the HTTP status it ended with, if any, and whether a reply arrived at all.
     """
 
     provider: str
@@ -64,13 +89,18 @@ class ProviderCall:
     list_usd: float | None
     budget_charge_usd: float
     error: str | None = None
+    status: int | None = None
+    reached: bool = True
 
 
 class SpendGuard:
     """Reserve a conservative upper bound before every attempt, then account for the returned usage.
 
     Every provider shares this guard. An unsuccessful attempt keeps its reservation, including before a retry.
-    `sink` writes each completed attempt immediately; crashes therefore retain an audit trail.
+    `sink` writes each completed attempt immediately; crashes therefore retain an audit trail. The guard stops the
+    run (`ProviderStopped`) when a provider refuses with HTTP 401, 402 or 403, or after `OUTAGE_LIMIT` failed attempts
+    in a row at one provider that ended with HTTP 429, a server fault or no reply. Any other reply, an unusable one
+    included, shows the provider answering and starts the count again.
     """
 
     def __init__(
@@ -85,6 +115,7 @@ class SpendGuard:
         self.calls: list[dict[str, Any]] = []
         self.context: Mapping[str, Any] = {}
         self._sink = sink
+        self._unanswered: dict[str, int] = {}
 
     @property
     def run_usd(self) -> float:
@@ -104,6 +135,15 @@ class SpendGuard:
             self._sink(record)
         if self.prior_usd + self.run_usd > self.cap_usd:
             raise SpendLimit("provider usage exceeded its conservative reservation; run stopped")
+        if call.status in _REFUSED_STATUSES:
+            raise ProviderStopped(f"{call.provider} refused with HTTP {call.status} ({call.model})")
+        status = call.status or 0
+        if call.error is None or (call.reached and status != 429 and status < 500):
+            self._unanswered[call.provider] = 0
+            return
+        unanswered = self._unanswered[call.provider] = self._unanswered.get(call.provider, 0) + 1
+        if unanswered >= OUTAGE_LIMIT:
+            raise ProviderStopped(f"{unanswered} failed attempts in a row at {call.provider} ({call.model})")
 
 
 _UNPRICED = "priced reply without input tokens"
@@ -167,10 +207,12 @@ class GuardedDecisionModel:
         for attempt in range(self._retries + 1):
             self._guard.before(upper)
             started = time.perf_counter()
+            status, reached = None, True
             try:
                 response = await self._inner.ask(request, **options)
             except DecisionError as error:
                 failure = type(error).__name__
+                status, reached = attempt_failure(error)
             else:
                 if not (priced and response.usage.input_tokens <= 0):
                     usd = self._usd(response.usage)
@@ -201,6 +243,8 @@ class GuardedDecisionModel:
                     list_usd=None,
                     budget_charge_usd=upper,
                     error=failure,
+                    status=status,
+                    reached=reached,
                 )
             )
             # A reply the provider billed but did not account for is not retried: a retry would be billed again.
@@ -237,6 +281,7 @@ class GuardedEmbedder:
         try:
             response = await self._inner.embed(texts, kind=kind)
         except Exception as error:
+            status, reached = attempt_failure(error)
             self._guard.record(
                 ProviderCall(
                     provider="openai",
@@ -249,6 +294,8 @@ class GuardedEmbedder:
                     list_usd=None,
                     budget_charge_usd=upper,
                     error=type(error).__name__,
+                    status=status,
+                    reached=reached,
                 )
             )
             raise ProviderFailure(type(error).__name__) from None
