@@ -17,25 +17,40 @@ def test_offline_tests_cannot_open_a_network_socket() -> None:
 
 
 def test_live_tests_run_only_with_the_opt_in_from_the_shell(
-    pytester: pytest.Pytester, monkeypatch: pytest.MonkeyPatch
+    pytestconfig: pytest.Config, pytester: pytest.Pytester, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # The inner session runs the repository's own conftest.py against a live test that does nothing remote.
+    # This session loads the repository's root conftest.py: it is what covers `tests/` and `bench/tests/`.
+    assert any(
+        Path(getattr(plugin, "__file__", "")).resolve() == ROOT_CONFTEST
+        for plugin in pytestconfig.pluginmanager.get_plugins()
+    )
+
+    # The inner session runs a copy of that file under the same socket options, against an offline test that must
+    # stay blocked and a live test that does nothing remote: it only creates (never connects) a network socket.
     pytester.makeconftest(ROOT_CONFTEST.read_text())
     pytester.makeini("[pytest]\nmarkers =\n    live: paid live test\n")
     pytester.makepyfile(
         """
+        import socket
+
         import pytest
+        from pytest_socket import SocketBlockedError
+
+        def test_offline():
+            with pytest.raises(SocketBlockedError):
+                socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         @pytest.mark.live
-        def test_live(request):
-            assert request.node.get_closest_marker("enable_socket") is not None
+        def test_live():
+            socket.socket(socket.AF_INET, socket.SOCK_STREAM).close()
         """
     )
+    options = ("--disable-socket", "--allow-unix-socket")
 
     monkeypatch.delenv("TOOLHUNCH_LIVE", raising=False)
-    skipped = pytester.runpytest_subprocess("-m", "live", "-rs")
+    skipped = pytester.runpytest_subprocess(*options, "-m", "live", "-rs", timeout=60)
     skipped.assert_outcomes(skipped=1)
     skipped.stdout.fnmatch_lines(["SKIPPED*paid live test: set TOOLHUNCH_LIVE=1 in the shell to run it"])
 
     monkeypatch.setenv("TOOLHUNCH_LIVE", "1")  # reaches only the inner session's subprocess
-    pytester.runpytest_subprocess("-m", "live").assert_outcomes(passed=1)
+    pytester.runpytest_subprocess(*options, timeout=60).assert_outcomes(passed=2)
