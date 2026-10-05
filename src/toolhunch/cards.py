@@ -126,39 +126,53 @@ def render_within_budget(
     *,
     max_tokens: int | None,
     tokenizer: Tokenizer,
-    max_tokens_per_text: int | None = None,
+    max_tokens_per_text: int | Sequence[int] | None = None,
     max_detail: DetailLevel = DetailLevel.FULL,
+    min_detail: DetailLevel = DetailLevel.NAME,
 ) -> RenderedCards | None:
     """Render every card at the most detailed level whose total fits in `max_tokens`.
 
-    Levels are tried from `max_detail` down to `DetailLevel.NAME` and the first whose total fits wins;
-    with `max_tokens=None` there is no total limit, so the first level tried wins. `tokens` is the sum
-    of per-text counts; separators and any framing are the caller's to budget. Returns `None` when even
-    names alone do not fit.
+    Levels are tried from `max_detail` down to `min_detail` and the first whose total fits wins; with
+    `max_tokens=None` there is no total limit, so the first level tried wins. `tokens` is the sum of
+    per-text counts; separators and any framing are the caller's to budget. Returns `None` when no level
+    down to `min_detail` fits.
 
-    All cards share that level, except those whose text is over `max_tokens_per_text`, what one text may
-    take in the model that reads it (`None` for no per-text cap). Each of those drops alone to the most
-    detailed lower level whose text fits, so one very long card does not pull the others down; its index
+    All cards share that level, except those whose text is over their per-text cap, what one text may take
+    in the model that reads it: `max_tokens_per_text`, one cap for every card or one per card in card order
+    (`None` for no per-text cap). Each of those drops alone to the most detailed lower level whose text
+    fits, below `min_detail` if it must, so one very long card does not pull the others down; its index
     goes to `RenderedCards.reduced`, and the total is counted on the texts as they come back.
 
     Raises:
-        ValueError: A card's name alone is over `max_tokens_per_text`; the message names the card's id.
+        ValueError: A card's name alone is over its per-text cap; the message names the card's id. Or
+            `min_detail` is above `max_detail`, or `max_tokens_per_text` has not one cap per card.
     """
+    if min_detail > max_detail:
+        raise ValueError(f"min_detail={min_detail.name} is above max_detail={max_detail.name}")
+    caps: Sequence[int | None]
+    if isinstance(max_tokens_per_text, Sequence):
+        caps = max_tokens_per_text
+        if len(caps) != len(cards):
+            raise ValueError(f"max_tokens_per_text has {len(caps)} caps for {len(cards)} cards")
+    else:
+        caps = [max_tokens_per_text] * len(cards)
     levels = sorted((level for level in DetailLevel if level <= max_detail), reverse=True)
     for start, detail in enumerate(levels):
+        if detail < min_detail:
+            break
         texts: list[str] = []
         reduced: list[int] = []
         tokens = 0
-        for index, card in enumerate(cards):
-            # Walk the card down from `detail` to the first text within the per-text cap; the `else` runs
-            # only when even its name is over it.
+        for index, (card, cap) in enumerate(zip(cards, caps, strict=True)):
+            # Walk the card down from `detail` to the first text within its per-text cap, past the floor
+            # if it must; the `else` runs only when even its name is over it.
             for level in levels[start:]:
                 text = card.render(level)
                 count = tokenizer.count(text)
-                if max_tokens_per_text is None or count <= max_tokens_per_text:
+                if cap is None or count <= cap:
                     break
             else:
-                raise ValueError(f"card {card.id!r}: its name alone is over max_tokens_per_text={max_tokens_per_text}")
+                raise ValueError(f"card {card.id!r}: its name alone is over max_tokens_per_text={cap}")
             if level is not detail:
                 reduced.append(index)
             texts.append(text)

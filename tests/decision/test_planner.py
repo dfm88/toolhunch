@@ -4,7 +4,7 @@ from datetime import date
 import pytest
 
 from toolhunch import DetailLevel, ToolCard
-from toolhunch.decision import CLM_LIMITS, JEV_LIMITS, LOGPROB_LIMITS, ModelLimits
+from toolhunch.decision import CLM_LIMITS, JEV_LIMITS, LOGPROB_LIMITS, CandidatesDoNotFit, ModelLimits
 from toolhunch.decision.planner import (
     INSTRUCTIONS,
     NONE_KEY,
@@ -414,35 +414,33 @@ def test_more_candidates_than_two_rounds_hold() -> None:
 
 
 @pytest.mark.parametrize(
-    ("budget", "sizes"),
+    ("budget", "groups"),
     [
         # Five names take 4 + 11 + 5 x (1 + 4) + 5 = 45 tokens, six take 51, seven 57. Twenty options are
         # allowed, yet the chunks hold five or six: more than the ceil(40 / 20) = 2 the cap alone gives.
-        pytest.param(45, [5] * 8, id="five-names"),
-        pytest.param(51, [6, 6, 6, 6, 6, 5, 5], id="six-names"),  # grown by one at a time: 7 chunks, not 8
+        pytest.param(45, 8, id="five-names"),
+        pytest.param(51, 7, id="six-names"),  # grown by one at a time: 7 chunks, not 8
     ],
 )
-def test_the_token_budget_adds_chunks(budget: int, sizes: list[int]) -> None:
-    plan = rounds(CARDS_50[:40], limits(options=20, state=budget))
-    assert plan.single is None
-    assert [len(chunk.cards) for chunk in plan.chunks] == sizes
-    assert plan.finalists_per_chunk == 2
-    for chunk in plan.chunks:
-        assert chunk.question is not None
-        assert chunk.question.detail is DetailLevel.NAME
-        assert chunk.question.estimated_input_tokens <= budget
-    assert [c.id for c in plan.chunks[1].cards][:2] == ["c01", f"c{1 + len(sizes):02d}"]  # still round-robin
+def test_the_token_budget_adds_chunks(budget: int, groups: int) -> None:
+    # These plans used to come back, and their final question (16 and 14 finalists) failed at runtime.
+    with pytest.raises(CandidatesDoNotFit, match=f"each of the {groups} groups"):
+        rounds(CARDS_50[:40], limits(options=20, state=budget))
 
 
 def test_without_an_option_cap_the_candidates_are_the_cap() -> None:
-    # Ten candidates and no cap: the chunks are only as many as the token budget (for five names) needs, and
-    # the final question may hold all ten candidates less the reserved option, spread over the chunks.
+    # Ten candidates and no cap: the chunks are only as many as the token budget needs, and the final question
+    # may hold all ten candidates less the reserved option, spread over the chunks. Two-word names take 8
+    # tokens an option: ten in one question take 4 + 11 + 80 = 95, five take 55, and eight finalists with the
+    # reserved option 4 + 11 + 64 + 13 = 92, the budget.
+    # Two-word names: with one-word names at 45 the final question (52 tokens, then 76) failed at runtime.
+    ten = [card(f"tool {i:02d}", id=f"c{i:02d}") for i in range(10)]
     for per_chunk, kept in ((2, 2), (10, 4)):
         plan = plan_rounds(
             STATE,
-            CARDS_50[:10],
+            ten,
             reserved=True,
-            limits=limits(state=45),
+            limits=limits(state=92),
             tokenizer=WORDS,
             max_detail=DetailLevel.FULL,
             finalists_per_chunk=per_chunk,
@@ -463,3 +461,72 @@ def test_growing_the_chunks_can_leave_no_room_for_finalists() -> None:
 def test_two_options_that_do_not_fit_are_an_error() -> None:
     with pytest.raises(ValueError, match="a single option does not fit the model's token budget"):
         rounds(CARDS_50[:6], limits(options=3, state=26))
+
+
+LAYA_LIKE = ModelLimits(max_question_tokens=60, max_option_tokens=12, source="test", checked=date(2026, 10, 5))
+
+
+def test_the_option_cap_counts_the_key_and_falls_back_to_the_key_alone() -> None:
+    cards = [
+        card("short", description="One thing."),
+        card("verbose", description="w " * 30),
+        card("a b c d e f g", id="long-name"),  # key 7 + overhead 4 + name 7 > 12
+    ]
+    # The question takes 11 + (1 + 4) x 2 + (7 + 4) + 13 for the reserved option = 45 tokens beside the texts:
+    # 15 are left for them, and FULL takes 3 + 1.
+    planned = question(cards, LAYA_LIKE)
+    assert planned is not None
+    assert planned.question.options["a b c d e f g"] == ""  # the key alone, with an empty text
+    assert planned.question.options["verbose"] == "verbose"  # its own text is over the cap: name
+    assert planned.question.options["short"] == "short: One thing."
+    assert planned.detail is DetailLevel.FULL  # the others keep the question's level
+    # The per-question budget leaves the state out: a 200-word state changes nothing.
+    in_a_long_state = plan_question(
+        build_state("w " * 200, []),
+        cards,
+        reserved=True,
+        limits=LAYA_LIKE,
+        tokenizer=WORDS,
+        max_detail=DetailLevel.FULL,
+    )
+    assert in_a_long_state is not None
+    assert in_a_long_state.question == planned.question
+    with pytest.raises(CandidatesDoNotFit, match="'too-long': its option key alone takes 13 tokens") as raised:
+        question([*cards, card("k " * 9, id="too-long")], LAYA_LIKE)  # key 9 + 4 > 12
+    assert raised.value.card_id == "too-long"
+    assert isinstance(raised.value, ValueError)
+
+
+def test_the_floor_splits_into_groups_instead_of_dropping_to_names() -> None:
+    # One question over CARDS_50 takes 4 + 11 + 50 x (1 + 4) + 13 = 278 tokens beside the texts: 50 names make
+    # it 328, 50 BRIEF texts (4 words each) 478.
+    model = limits(state=328)
+    single = rounds(CARDS_50, model).single
+    assert single is not None
+    assert single.detail is DetailLevel.NAME
+    plan = plan_rounds(
+        STATE,
+        CARDS_50,
+        reserved=True,
+        limits=model,
+        tokenizer=WORDS,
+        max_detail=DetailLevel.FULL,
+        finalists_per_chunk=2,
+        min_detail=DetailLevel.BRIEF,
+    )
+    assert plan.single is None
+    # One chunk of 50 at BRIEF takes 465; two of 25 take 240 each.
+    assert [len(chunk.cards) for chunk in plan.chunks] == [25, 25]
+    assert all(c.question.detail >= DetailLevel.BRIEF for c in plan.chunks if c.question)
+    assert plan.finalists_per_chunk == 2
+
+
+def test_the_final_is_planned_against_its_worst_case() -> None:
+    # No option cap and one-word names: a chunk of n names takes 4 + 11 + 6n tokens, and a final question of n
+    # finalists and the reserved option 4 + 11 + 6n + 13.
+    # At 75, four chunks of 13 do not fit (93) and five of ten do (75): ten finalists take 88, five take 58.
+    assert rounds(CARDS_50, limits(state=75)).finalists_per_chunk == 1
+    # At 63, six chunks of nine do not fit (69) and seven of eight or seven do: even seven finalists take 70.
+    with pytest.raises(CandidatesDoNotFit, match="even one finalist from each of the 7 groups") as raised:
+        rounds(CARDS_50, limits(state=63))
+    assert raised.value.card_id is None

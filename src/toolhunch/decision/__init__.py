@@ -33,6 +33,7 @@ from toolhunch.decision.jev_wire import (
     strands_decider,
 )
 from toolhunch.decision.logprobs import LOGPROB_LIMITS, OpenAILogprobModel
+from toolhunch.decision.planner import CandidatesDoNotFit
 
 __all__ = [
     "CLEF_FLASH_LIMITS",
@@ -45,6 +46,7 @@ __all__ = [
     "Answer",
     "BinaryAnswer",
     "BinaryQuestion",
+    "CandidatesDoNotFit",
     "ChoiceAnswer",
     "ChoiceDecider",
     "ChoiceQuestion",

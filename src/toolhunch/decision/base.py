@@ -227,6 +227,9 @@ class ModelLimits(BaseModel):
         max_state_plus_question_tokens: Tokens in the state plus the longest question.
         max_text_tokens: Tokens in each text the model encodes on its own: every option, and the
             state together with the question's instructions.
+        max_question_tokens: Tokens in one question: its instructions and every option, keys and
+            framing included; the state is not counted.
+        max_option_tokens: Tokens in one option as its server renders it: key, framing and text.
         max_questions_per_request: Questions in one request.
         score_levels: The fewest and the most levels a score question may have.
         price_input_per_mtok: USD per million input tokens.
@@ -241,6 +244,8 @@ class ModelLimits(BaseModel):
     max_request_tokens: int | None = Field(default=None, ge=1)
     max_state_plus_question_tokens: int | None = Field(default=None, ge=1)
     max_text_tokens: int | None = Field(default=None, ge=1)
+    max_question_tokens: int | None = Field(default=None, ge=1)
+    max_option_tokens: int | None = Field(default=None, ge=1)
     max_questions_per_request: int | None = Field(default=None, ge=1)
     score_levels: tuple[int, int] | None = None
     price_input_per_mtok: float | None = Field(default=None, ge=0)

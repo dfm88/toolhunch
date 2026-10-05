@@ -15,6 +15,7 @@ from toolhunch.decision import (
     Abstention,
     Answer,
     BinaryAnswer,
+    CandidatesDoNotFit,
     ChoiceAnswer,
     ChoiceDecider,
     ChoiceQuestion,
@@ -352,16 +353,18 @@ async def test_a_failing_round_one_chunk_raises_the_models_error(fake_model: Any
 
 
 async def test_finalists_that_do_not_fit_the_token_budget_raise(fake_model: Any) -> None:
-    # Room for five one-word names per question: 40 candidates make eight chunks and sixteen finalists.
+    # Room for five one-word names per question: 40 candidates make eight chunks, and not even one finalist from
+    # each fits the final question with the reserved option (4 + 11 + 8 x 6 + 13 = 76 tokens).
     budget = ModelLimits(
         max_options_per_choice=20, max_state_plus_question_tokens=45, source="test", checked=date(2026, 9, 28)
     )
     model = fake_model({}, limits=budget)
     decider = ChoiceDecider(model, abstention=Abstention(), tokenizer=Words())
 
-    with pytest.raises(ValueError, match=r"finalists .* token budget"):
+    with pytest.raises(CandidatesDoNotFit, match="even one finalist") as raised:
         await decider.decide("Request: Book a table", scored(*TOOLS_50[:40]))
-    assert len(model.requests) == 8  # the first round was asked; nothing was shrunk to make the final fit
+    assert raised.value.card_id is None
+    assert len(model.requests) == 0  # refused before the first round, no longer after it
 
 
 async def test_the_threshold_key_follows_the_payload_shape(fake_model: Any) -> None:

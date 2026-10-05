@@ -6,13 +6,13 @@ import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from toolhunch.cards import render_within_budget
+from toolhunch.cards import DetailLevel, render_within_budget
 from toolhunch.decision.base import ChoiceQuestion
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
-    from toolhunch.cards import DetailLevel, ToolCard
+    from toolhunch.cards import ToolCard
     from toolhunch.decision.base import ModelLimits
     from toolhunch.tokens import Tokenizer
 
@@ -22,6 +22,7 @@ __all__ = [
     "NONE_TEXT",
     "OPTION_OVERHEAD_TOKENS",
     "PROMPT_VERSION",
+    "CandidatesDoNotFit",
     "Chunk",
     "PlannedQuestion",
     "RoundPlan",
@@ -58,6 +59,20 @@ _ELLIPSIS = " … "
 _STATE_SHARE = 4  # the state may take a quarter of what a state and its longest question may take together
 
 
+class CandidatesDoNotFit(ValueError):
+    """The candidates cannot be asked about within the model's declared limits, however they are planned.
+
+    Attributes:
+        card_id: The id of the card no question can show, when one card is the cause. `None` when the
+            candidates as a whole do not fit: more than two rounds hold, not even a pair of them, or not even
+            one finalist from each group in the final question.
+    """
+
+    def __init__(self, message: str, /, *, card_id: str | None = None) -> None:
+        super().__init__(message)
+        self.card_id = card_id
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class PlannedQuestion:
     """A choice question and the way back from each of its options to a card.
@@ -65,8 +80,8 @@ class PlannedQuestion:
     Attributes:
         question: The question to ask; the reserved option, when there is one, comes last.
         card_ids: Option key to the id of the card it stands for. The reserved option has no entry.
-        detail: The level of detail the cards are rendered at. A card over the model's per-text cap is
-            rendered lower.
+        detail: The level of detail the cards are rendered at. A card over its per-text or per-option cap is
+            rendered lower, or as its key alone. `NAME` when every card is its key alone.
         estimated_input_tokens: What the question counts against the model's token budget, by the tokenizer
             it was planned with: the state, the instructions, and every option's key, text and overhead.
     """
@@ -99,7 +114,8 @@ class RoundPlan:
         single: The one question over every candidate, when it fits; then `chunks` is empty.
         chunks: The first round: the candidates dealt round-robin, so each share is a similar mix.
         finalists_per_chunk: How many candidates each chunk keeps for the final question, which the caller
-            builds once the first round has answered. 0 when there are no chunks.
+            builds once the first round has answered; planned so that the final fits whichever they are.
+            0 when there are no chunks.
     """
 
     single: PlannedQuestion | None
@@ -207,24 +223,32 @@ def plan_question(
     limits: ModelLimits,
     tokenizer: Tokenizer,
     max_detail: DetailLevel,
+    min_detail: DetailLevel = DetailLevel.NAME,
 ) -> PlannedQuestion | None:
     """Fit one choice question over `cards` within `limits`; `None` when it cannot be done.
 
     The options follow the order of `cards`, keyed by `option_keys`, and the reserved option comes last when
-    `reserved`. The cards are rendered at the most detailed level, up to `max_detail`, at which the question
-    fits the smaller of `limits.max_state_plus_question_tokens` and `limits.max_request_tokens` (there is no
-    total limit when neither is declared). Before that, the state, the instructions, and each option's key
-    and `OPTION_OVERHEAD_TOKENS` are taken off, the reserved option's key, text and overhead included. A card
-    over `limits.max_text_tokens` at that level drops alone to a lower one. The state is counted as given:
-    `fit_state` is what makes it fit its own budget.
+    `reserved`. The cards are rendered at the most detailed level, from `max_detail` down to `min_detail`, at
+    which the question fits its token budget. That budget is the smallest of the declared remainders:
+    `limits.max_state_plus_question_tokens` and `limits.max_request_tokens` less the state, the instructions,
+    and each option's key and `OPTION_OVERHEAD_TOKENS`, the reserved option's key, text and overhead
+    included; and `limits.max_question_tokens` less the same without the state. There is no budget when none
+    of them is declared. The state is counted as given: `fit_state` is what makes it fit its own budget.
+
+    A card whose text is over its own cap at that level drops alone to a lower one, below `min_detail` if it
+    must. Its cap is the smaller of `limits.max_text_tokens` and what `limits.max_option_tokens` leaves after
+    its key and `OPTION_OVERHEAD_TOKENS`. A card whose name is over what `limits.max_option_tokens` leaves is
+    shown by its key alone, with an empty text.
 
     Returns `None` when the options, the reserved one included, are more than `limits.max_options_per_choice`,
-    or when not even the names fit.
+    or when no level down to `min_detail` fits.
 
     Raises:
-        ValueError: There are fewer than two options in all. Or a card's name alone is over
-            `limits.max_text_tokens`, and the message names the card's id: no question could show it, so this
-            is raised whatever the token budget, though not for a question with too many options.
+        CandidatesDoNotFit: A card's name alone is over `limits.max_text_tokens`, or its key and
+            `OPTION_OVERHEAD_TOKENS` alone are over `limits.max_option_tokens`; `card_id` names the card. No
+            question could show it, so this is raised whatever the token budget, though not for a question
+            with too many options.
+        ValueError: There are fewer than two options in all, or `min_detail` is above `max_detail`.
     """
     option_count = len(cards) + reserved
     if option_count < 2:
@@ -232,30 +256,65 @@ def plan_question(
     if limits.max_options_per_choice is not None and option_count > limits.max_options_per_choice:
         return None
     keys = option_keys(cards, reserved=reserved)
-    fixed = tokenizer.count(state) + tokenizer.count(INSTRUCTIONS)
-    fixed += sum(tokenizer.count(key) + OPTION_OVERHEAD_TOKENS for key in keys)
+    key_tokens = [tokenizer.count(key) for key in keys]
+    # The cards shown with a text, by index, and each one's cap on it; the others are their key alone.
+    shown: list[int] = []
+    caps: list[int] = []
+    for index, card in enumerate(cards):
+        if limits.max_text_tokens is not None and tokenizer.count(card.name) > limits.max_text_tokens:
+            raise CandidatesDoNotFit(
+                f"card {card.id!r}: its name alone is over max_tokens_per_text={limits.max_text_tokens}",
+                card_id=card.id,
+            )
+        if limits.max_option_tokens is None:
+            shown.append(index)
+            continue
+        key_alone = key_tokens[index] + OPTION_OVERHEAD_TOKENS
+        if key_alone > limits.max_option_tokens:
+            raise CandidatesDoNotFit(
+                f"card {card.id!r}: its option key alone takes {key_alone} tokens, over "
+                f"max_option_tokens={limits.max_option_tokens}",
+                card_id=card.id,
+            )
+        cap = limits.max_option_tokens - key_alone
+        if limits.max_text_tokens is not None:
+            cap = min(cap, limits.max_text_tokens)
+        if tokenizer.count(card.render(DetailLevel.NAME)) <= cap:
+            shown.append(index)
+            caps.append(cap)
+
+    question_fixed = tokenizer.count(INSTRUCTIONS) + sum(key_tokens) + OPTION_OVERHEAD_TOKENS * len(keys)
     if reserved:
-        fixed += tokenizer.count(NONE_KEY) + tokenizer.count(NONE_TEXT) + OPTION_OVERHEAD_TOKENS
-    declared = [
-        tokens for tokens in (limits.max_state_plus_question_tokens, limits.max_request_tokens) if tokens is not None
+        question_fixed += tokenizer.count(NONE_KEY) + tokenizer.count(NONE_TEXT) + OPTION_OVERHEAD_TOKENS
+    fixed = tokenizer.count(state) + question_fixed
+    remainders = [
+        tokens - fixed
+        for tokens in (limits.max_state_plus_question_tokens, limits.max_request_tokens)
+        if tokens is not None
     ]
-    # A negative remainder goes on as it is: nothing fits, yet a name over the per-text cap still raises.
+    if limits.max_question_tokens is not None:
+        remainders.append(limits.max_question_tokens - question_fixed)
+    # A negative remainder goes on as it is: then nothing fits.
     rendered = render_within_budget(
-        cards,
-        max_tokens=min(declared) - fixed if declared else None,
+        [cards[index] for index in shown],
+        max_tokens=min(remainders) if remainders else None,
         tokenizer=tokenizer,
-        max_tokens_per_text=limits.max_text_tokens,
+        max_tokens_per_text=limits.max_text_tokens if limits.max_option_tokens is None else caps,
         max_detail=max_detail,
+        min_detail=min_detail,
     )
     if rendered is None:
         return None
-    options = dict(zip(keys, rendered.texts, strict=True))
+    texts = [""] * len(cards)
+    for index, text in zip(shown, rendered.texts, strict=True):
+        texts[index] = text
+    options = dict(zip(keys, texts, strict=True))
     if reserved:
         options[NONE_KEY] = NONE_TEXT
     return PlannedQuestion(
         question=ChoiceQuestion(instructions=INSTRUCTIONS, options=options),
         card_ids={key: card.id for key, card in zip(keys, cards, strict=True)},
-        detail=rendered.detail,
+        detail=rendered.detail if shown else DetailLevel.NAME,
         estimated_input_tokens=fixed + rendered.tokens,
     )
 
@@ -269,6 +328,7 @@ def plan_rounds(
     tokenizer: Tokenizer,
     max_detail: DetailLevel,
     finalists_per_chunk: int,
+    min_detail: DetailLevel = DetailLevel.NAME,
 ) -> RoundPlan:
     """Plan how to ask about `cards`: one question when everything fits, otherwise two rounds.
 
@@ -277,24 +337,36 @@ def plan_rounds(
     where `m` starts at `ceil(K / cap)` for `K` cards and `cap` options per question (`K` when
     `limits.max_options_per_choice` is not declared). Each chunk of two or more cards is planned as a
     question of its own, without the reserved option; when one does not fit, `m` grows by one and the
-    cards are dealt again. A chunk of one card needs no question.
+    cards are dealt again. A chunk of one card needs no question. Every question is planned with
+    `min_detail` as its floor (see `plan_question`), so a question that fits only below it is split.
 
     The final question is built by the caller once the first round has answered: the top
     `finalists_per_chunk` of every chunk, fewer when the option cap leaves no room for that many beside
-    the reserved option, and the reserved option. `RoundPlan.finalists_per_chunk` is the number in effect.
+    the reserved option, and the reserved option. Which cards those are is not known yet, so the final is
+    planned here against its worst case, at `min_detail`: the longest that many cards of every chunk, by
+    the tokens of their name and of their text at `min_detail`. When they do not fit, every chunk keeps
+    one. `RoundPlan.finalists_per_chunk` is the number in effect.
 
     Raises:
-        ValueError: A card's name alone is over `limits.max_text_tokens` (see `plan_question`). Or there are
-            more candidates than two rounds can hold: the message gives the most. Or two candidates do not
-            fit the token budget together.
+        CandidatesDoNotFit: A card cannot be shown in any question (see `plan_question`), and `card_id`
+            names it. Or, with `card_id` `None`: there are more candidates than two rounds can hold, and the
+            message gives the most; two candidates do not fit the token budget together; or not even one
+            finalist from each chunk fits the final question. All of it is raised before anything is asked.
+        ValueError: There are fewer than two options in all, or `min_detail` is above `max_detail`.
     """
 
-    def ask(members: Sequence[ToolCard], *, with_reserved: bool) -> PlannedQuestion | None:
+    def ask(members: Sequence[ToolCard], *, with_reserved: bool, top: DetailLevel) -> PlannedQuestion | None:
         return plan_question(
-            state, members, reserved=with_reserved, limits=limits, tokenizer=tokenizer, max_detail=max_detail
+            state,
+            members,
+            reserved=with_reserved,
+            limits=limits,
+            tokenizer=tokenizer,
+            max_detail=top,
+            min_detail=min_detail,
         )
 
-    single = ask(cards, with_reserved=reserved)
+    single = ask(cards, with_reserved=reserved, top=max_detail)
     if single is not None:
         return RoundPlan(single=single, chunks=(), finalists_per_chunk=0)
 
@@ -303,7 +375,7 @@ def plan_rounds(
     def finalists(chunk_count: int) -> int:
         kept = min(finalists_per_chunk, (cap - reserved) // chunk_count)
         if kept < 1:
-            raise ValueError(f"at most {cap * (cap - reserved)} candidates fit two rounds for this model")
+            raise CandidatesDoNotFit(f"at most {cap * (cap - reserved)} candidates fit two rounds for this model")
         return kept
 
     chunk_count = math.ceil(len(cards) / cap)
@@ -311,14 +383,28 @@ def plan_rounds(
     while True:
         shares = [tuple(cards[start::chunk_count]) for start in range(chunk_count)]
         chunks = tuple(
-            Chunk(cards=share, question=ask(share, with_reserved=False) if len(share) > 1 else None) for share in shares
+            Chunk(cards=share, question=ask(share, with_reserved=False, top=max_detail) if len(share) > 1 else None)
+            for share in shares
         )
         if all(chunk.question is not None or len(chunk.cards) < 2 for chunk in chunks):
-            return RoundPlan(single=None, chunks=chunks, finalists_per_chunk=finalists(chunk_count))
+            break
         # The first chunk is the largest. Once it is a pair there is no smaller question to ask.
         if len(chunks[0].cards) <= 2:
-            raise ValueError("a single option does not fit the model's token budget")
+            raise CandidatesDoNotFit("a single option does not fit the model's token budget")
         chunk_count += 1
+
+    def length(card: ToolCard) -> int:
+        return tokenizer.count(card.name) + tokenizer.count(card.render(min_detail))
+
+    for kept in sorted({finalists(chunk_count), 1}, reverse=True):
+        # `sorted` is stable, so cards of equal length are taken in chunk order.
+        worst = [card for chunk in chunks for card in sorted(chunk.cards, key=length, reverse=True)[:kept]]
+        if ask(worst, with_reserved=reserved, top=min_detail) is not None:
+            return RoundPlan(single=None, chunks=chunks, finalists_per_chunk=kept)
+    raise CandidatesDoNotFit(
+        f"{len(cards)} candidates do not fit two rounds for {limits.source!r}: even one finalist from each of "
+        f"the {chunk_count} groups does not fit the final question"
+    )
 
 
 def _normalise(text: str) -> str:

@@ -298,6 +298,8 @@ async def test_run_records_every_arm_source_variant_and_the_negatives_exclude_go
                 "max_request_tokens": None,
                 "max_state_plus_question_tokens": None,
                 "max_text_tokens": None,
+                "max_question_tokens": None,
+                "max_option_tokens": None,
                 "max_questions_per_request": None,
                 "score_levels": None,
                 "price_input_per_mtok": None,
