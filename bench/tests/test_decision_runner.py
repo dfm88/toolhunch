@@ -1,6 +1,7 @@
 import hashlib
 import json
 from collections.abc import Sequence
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -15,15 +16,25 @@ from toolhunch import (
     DenseRetriever,
     DetailLevel,
     HybridRetriever,
+    ScoredCard,
     ToolCard,
     ToolCatalog,
     default_search_text,
 )
-from toolhunch.decision import CLM_LIMITS, JEV_LIMITS, LOGPROB_LIMITS, clm
+from toolhunch.decision import (
+    CLM_LIMITS,
+    JEV_LIMITS,
+    LOGPROB_LIMITS,
+    ChoiceQuestion,
+    DecisionRequest,
+    ModelLimits,
+    clm,
+)
+from toolhunch.decision.planner import NONE_KEY
 from toolhunch.retrieval import Retrieval
 from toolhunch_bench import decision as decision_module
 from toolhunch_bench.datasets.model_queries import WrittenQueries, save_model_queries
-from toolhunch_bench.datasets.toolret import ToolRetData, write_task_file
+from toolhunch_bench.datasets.toolret import ToolRetData, ToolRetTask, write_task_file
 from toolhunch_bench.decision import (
     CLM_DEPLOYMENT,
     JEV_REQUEST_OVERHEAD_TOKENS,
@@ -39,6 +50,7 @@ from toolhunch_bench.decision import (
     warm_up_clm,
 )
 from toolhunch_bench.decision_cache import CachedDecisionModel
+from toolhunch_bench.decision_report import build_decision_report
 from toolhunch_bench.embedding_cache import CachedEmbedder
 from toolhunch_bench.retrieval import build_arms
 
@@ -262,11 +274,14 @@ async def test_run_records_every_arm_source_variant_and_the_negatives_exclude_go
                     "output_tokens": 1,
                     "seconds": 0.1,
                     "server_seconds": 0.01,
+                    "key_only_options": [],
                 }
             ],
             "usage": {"requests": 1, "input_tokens": 10, "output_tokens": 1},
             "decision_seconds": 0.1,
+            "decision_sequential_seconds": 0.1,
             "server_seconds": 0.01,
+            "not_applicable": None,
             "error": None,
         }
     )
@@ -309,6 +324,8 @@ async def test_run_records_every_arm_source_variant_and_the_negatives_exclude_go
             },
             "prompt_version": "tool-choice-v1",
             "max_detail": "BRIEF",
+            "min_detail": "NAME",
+            "tokenizer": "HeuristicTokenizer(bytes_per_token=3.0)",
             "reserved_option": True,
         }
     )
@@ -370,6 +387,128 @@ async def test_a_decision_error_is_recorded_and_the_run_goes_on(
     assert len(inner.calls) == 4  # the failed searches' candidates came from the shared retrieval
     assert (manifest["split"], manifest["sources"], manifest["model_queries"]) == ("heldout", ["plain"], None)
     assert manifest["clm_deployment"] is None  # no CLM arm
+
+
+class GoldFirst:
+    """Ranks a request's gold tools first, then every other tool in catalog order, leaving `hidden` out."""
+
+    def __init__(self, tasks: Sequence[ToolRetTask], *, hidden: str) -> None:
+        self._gold = {task.query: sorted(task.relevant) for task in tasks}
+        self._hidden = hidden
+
+    async def retrieve(self, queries: Sequence[str], catalog: ToolCatalog, *, k: int) -> Retrieval:
+        gold = self._gold[queries[0]]
+        cards = {card.id: card for card in catalog}
+        rest = [card_id for card_id in cards if card_id not in gold and card_id != self._hidden]
+        return Retrieval(matches=tuple(ScoredCard(cards[card_id], 1.0) for card_id in [*gold, *rest][:k]))
+
+
+async def test_lists_two_rounds_cannot_hold_are_not_applicable_and_a_card_over_the_cap_fails(
+    tmp_path: Path, fake_decision_model: Any
+) -> None:
+    # Ten tools whose names take 5 heuristic tokens, and one whose key alone takes 19: the gold tool of the last task.
+    pdf = ToolCard(id="pdf", name="convert_a_portable_document_into_plain_text", description="PDF to text.")
+    catalog = ToolCatalog([*(ToolCard(id=f"t{i}", name=f"tool_number_{i:02d}") for i in range(10)), pdf])
+    tasks = tuple(
+        ToolRetTask(f"q{i}", "t", f"request {i}", "Retrieve tools", frozenset({gold}))
+        for i, gold in enumerate(["t0", "t1", "t2", "t3", "pdf"])
+    )
+    data = ToolRetData(catalog=catalog, raw_text={}, tasks=tasks, mapping_stats={})
+    task_file = tmp_path / "tasks.json"
+    write_task_file(task_file, tasks, seed=0)
+
+    async def run(
+        model: Any, *, k: int, searched: Sequence[ToolRetTask], run_id: str
+    ) -> tuple[list[dict[str, Any]], dict[str, Any], str]:
+        arms = build_decision_arms(["strands"], ks=[k], models={"strands": model}, max_detail={})
+        retriever = GoldFirst(tasks, hidden="pdf")
+        [line] = await estimate_decisions(
+            arms, data, searched, retriever=retriever, sources=("plain",), model_queries=None, negatives=True, repeat=1
+        )
+        run_dir = await run_decisions(
+            arms,
+            data,
+            searched,
+            retriever=SharedRetrieval(retriever),
+            split="heldout",
+            sources=("plain",),
+            model_queries=None,
+            negatives=True,
+            repeat=1,
+            out_dir=tmp_path / "runs",
+            task_file=task_file,
+            model_queries_file=None,
+            run_id=run_id,
+        )
+        build_decision_report([], run_dir, out_dir=tmp_path / run_id)
+        _, records = read_run(run_dir)
+        decided = [record for record in records if record["record"] == "search" and record["decider"] == "strands"]
+        summary = json.loads((tmp_path / run_id / "summary.json").read_text())
+        [row] = [row for row in summary["heldout"]["rows"] if row["arm"] == f"hybrid+strands@{k}"]
+        assert (line.not_applicable, line.would_fail) == (
+            sum(record["not_applicable"] is not None for record in decided),
+            sum(record["error"] is not None for record in decided),
+        )  # the estimate counted them, and asked nothing for them
+        return decided, row, (tmp_path / run_id / "README.md").read_text()
+
+    # Three options a question hold two rounds of at most 3 x 2 candidates, with the reserved option in the final:
+    # eight are not applicable, and nothing is asked.
+    unasked = fake_decision_model(
+        limits=ModelLimits(max_options_per_choice=3, source="test", checked=date(2026, 10, 5))
+    )
+    decided, row, readme = await run(unasked, k=8, searched=tasks[:4], run_id="too-many")
+    assert len(decided) == 8
+    reason = "at most 6 candidates fit two rounds for this model"
+    assert all(r["not_applicable"] == reason and r["error"] is None and r["ranked"] is None for r in decided)
+    assert unasked.asks == []
+    assert (row["status"], row["not_applicable"], row["errors"]) == (
+        "not applicable",
+        {"searches": 8, "reason": reason},
+        0,
+    )
+    assert row["p_at_1"] is row["p_at_1_ci95"] is row["delta_p_at_1"] is None
+    assert set(row["rules"].values()) == {None}
+    assert "| not applicable (8) |" in readme
+    assert f"8 searches not applicable: {reason}" in readme
+
+    # Under a 12-token option window every name would take its option past it, so each goes as its key alone; the PDF
+    # tool's key alone is over it, so the one search that retrieves it fails. Four options a question split five
+    # candidates into groups of three and two, asked in 0.3 and 0.1 s, and a final of the two winners and the reserved
+    # option, asked at once.
+    def seconds(request: DecisionRequest) -> float:
+        [question] = request.questions.values()
+        assert isinstance(question, ChoiceQuestion)
+        return 0.0 if NONE_KEY in question.options else {3: 0.3, 2: 0.1}[len(question.options)]
+
+    laya_like = ModelLimits(
+        max_options_per_choice=4,
+        max_question_tokens=100,
+        max_option_tokens=12,
+        source="test",
+        checked=date(2026, 10, 5),
+    )
+    decided, row, readme = await run(
+        fake_decision_model(limits=laya_like, seconds=seconds), k=5, searched=tasks, run_id="key-alone"
+    )
+    [failed] = [record for record in decided if record["error"] is not None]
+    assert (failed["task"], failed["variant"], failed["not_applicable"]) == ("q4", "positive", None)
+    assert failed["error"].startswith("card 'pdf': its option key alone takes 19 tokens, over max_option_tokens=12")
+    answered = [record for record in decided if record["error"] is None]
+    assert all(
+        [(exchange["round"], exchange["seconds"]) for exchange in record["exchanges"]] == [(1, 0.3), (1, 0.1), (2, 0.0)]
+        and (record["decision_seconds"], record["decision_sequential_seconds"]) == (0.3, pytest.approx(0.4))
+        for record in answered
+    )
+    assert "status" not in row
+    assert (row["errors"], row["positives"], row["p_at_1"]) == (1, 4, 1.0)  # the other positives keep their P@1
+    # All 7 card options of each search went as their key alone (3 + 2 in round one, 2 in the final); the reserved
+    # option is not a card.
+    assert row["key_only_option_share"] == 1.0
+    # Strands is asked one request at a time: a decision takes 0.3 + 0.1 + 0 s, not its critical path of 0.3.
+    assert row["latency_ms"]["decision"]["p50"] == pytest.approx(400.0)
+    assert row["latency_ms"]["decision_basis"] == "sum of calls"
+    assert "| sum of calls |" in readme
+    assert "100.0% of the card options sent as their key alone; 1 failed search: card 'pdf'" in readme
 
 
 class Clock:

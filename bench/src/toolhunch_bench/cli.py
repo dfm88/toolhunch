@@ -298,6 +298,13 @@ def decision(
     max_detail: Annotated[
         str, typer.Option(help="Most detail per decider, such as jev=full,logprob=brief; full when left out.")
     ] = "",
+    min_detail: Annotated[
+        str,
+        typer.Option(
+            help="Least detail per decider, such as laya-wide=brief: below it the planner splits the candidates into "
+            "groups instead; name when left out."
+        ),
+    ] = "",
     repeat: Annotated[int, typer.Option(min=1, help="How many times each search is made.")] = 1,
     limit: Annotated[int | None, typer.Option(min=1, help="Only the first N tasks of the task file.")] = None,
     bypass_cache: Annotated[
@@ -332,7 +339,8 @@ def decision(
     if not (chosen := _listed(sources, allowed=QUERY_SOURCES, option="--sources")):
         raise typer.BadParameter("give one or more query sources", param_hint="--sources")
     source_list: list[QuerySource] = [source for name in chosen for source in QUERY_SOURCES if source == name]
-    details = _max_detail(max_detail)
+    details = _details(max_detail, option="--max-detail")
+    floors = _details(min_detail, option="--min-detail")
     negatives, reserved = not no_negatives, not no_reserved
     if order_sensitivity:
         from toolhunch_bench.order import ORDER_DETAILS, order_experiment
@@ -355,6 +363,7 @@ def decision(
                 "order mode requires heldout, K20, plain, positives/negatives, the reserved option, repeat 1, no "
                 "--limit, and a --max-detail for every decider (Jev BRIEF and logprob FULL for P1's pair)"
             )
+        _check_floors(floors, ceilings=order_details)
         try:
             result = asyncio.run(
                 order_experiment(
@@ -369,6 +378,7 @@ def decision(
                     echo=typer.echo,
                     deciders={name: level for name, level in order_details.items() if level is not None},
                     budget=BUDGET,
+                    min_detail=floors,
                 )
             )
         except Exception as error:
@@ -384,6 +394,7 @@ def decision(
         raise typer.BadParameter("--pilot, --pilot-run and --estimate-out require --order-sensitivity")
     if orders and repeat != 1:
         raise typer.BadParameter("--orders asks each search once per order", param_hint="--repeat")
+    _check_floors(floors, ceilings=details)
     from toolhunch_bench.order import ORDER_SEEDS
 
     order_seeds = ORDER_SEEDS if orders else None
@@ -407,7 +418,9 @@ def decision(
     )
     try:
         [hybrid] = build_arms(["hybrid"], embedder=cache, raw_text=data.raw_text)
-        estimate_arms = build_decision_arms(names, ks=ks, models=adapters, max_detail=details, reserved_option=reserved)
+        estimate_arms = build_decision_arms(
+            names, ks=ks, models=adapters, max_detail=details, min_detail=floors, reserved_option=reserved
+        )
         free = CacheOnlyRetrieval(hybrid.retriever, stand_in=BM25Retriever(), embeddings=cache)
         lines = asyncio.run(
             estimate_decisions(
@@ -431,19 +444,25 @@ def decision(
             return
 
         models = {
-            name: CachedDecisionModel(adapter, path=DECISION_CACHE_PATH, bypass=bypass_cache)
+            name: CachedDecisionModel(
+                adapter,
+                path=DECISION_CACHE_PATH,
+                bypass=bypass_cache,
+                namespace=REGISTRY[DeciderName(name)].cache_namespace,
+            )
             for name, adapter in adapters.items()
         }
-        arms = build_decision_arms(names, ks=ks, models=models, max_detail=details, reserved_option=reserved)
+        arms = build_decision_arms(
+            names, ks=ks, models=models, max_detail=details, min_detail=floors, reserved_option=reserved
+        )
         run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         settings = [", ".join(names) or "retrieval only", "k " + "/".join(map(str, ks)), "/".join(source_list)]
         settings += [] if negatives else ["no negatives"]
         settings += [] if reserved else ["no reserved option"]
-        settings += [
-            f"{name} {details[name].name.lower()}"
-            for name in names
-            if details.get(name, DetailLevel.FULL) < DetailLevel.FULL
-        ]
+        for name in names:
+            floor, top = floors.get(name, DetailLevel.NAME), details.get(name, DetailLevel.FULL)
+            if floor > DetailLevel.NAME or top < DetailLevel.FULL:
+                settings.append(f"{name} {floor.name.lower()} to {top.name.lower()}")
         settings += [f"repeat {repeat}"] if repeat > 1 else []
         settings += ["five orders"] if orders else []
         settings += ["cache bypassed"] if bypass_cache else []
@@ -1116,8 +1135,8 @@ def _counts(text: str) -> list[int]:
     return counts
 
 
-def _max_detail(text: str) -> dict[str, DetailLevel]:
-    """`--max-detail`: `<decider>=<level>` pairs, such as `jev=full,logprob=brief`."""
+def _details(text: str, *, option: str) -> dict[str, DetailLevel]:
+    """`--max-detail` or `--min-detail` (`option`): `<decider>=<level>` pairs, such as `jev=full,logprob=brief`."""
     details: dict[str, DetailLevel] = {}
     for item in (part.strip() for part in text.split(",")):
         if not item:
@@ -1128,10 +1147,18 @@ def _max_detail(text: str) -> dict[str, DetailLevel]:
             raise typer.BadParameter(
                 f"{item!r} is not <decider>=<level>, the decider one of {', '.join(DECIDERS)} and the level one of "
                 f"{levels}",
-                param_hint="--max-detail",
+                param_hint=option,
             )
         details[name] = DetailLevel[level.upper()]
     return details
+
+
+def _check_floors(floors: Mapping[str, DetailLevel], *, ceilings: Mapping[str, DetailLevel | None]) -> None:
+    """Refuse a `--min-detail` above its decider's most detail, `FULL` for a decider `ceilings` leaves out."""
+    if above := [name for name, floor in floors.items() if floor > (ceilings.get(name) or DetailLevel.FULL)]:
+        raise typer.BadParameter(
+            f"the floor of {', '.join(above)} is above its most detail (--max-detail)", param_hint="--min-detail"
+        )
 
 
 def _decision_models(
@@ -1166,6 +1193,11 @@ def _print_decision_estimate(lines: Sequence[EstimateLine], *, searches: int, re
     for line in lines:
         cost = "Modal credits" if line.usd is None else f"${line.usd:.4f}"
         typer.echo(f"  {line.provider} {line.model}: {cost}; {line.note}")
+        if line.not_applicable or line.would_fail:
+            typer.echo(
+                f"    {line.not_applicable:,} searches not applicable (two rounds cannot hold their candidates), "
+                f"{line.would_fail:,} would fail (a card no question can show); neither asks the model"
+            )
     typer.echo(
         f"  retrieval: {len(retrieval.stand_in_queries):,} of {len(retrieval.searched):,} query lists have no cached "
         "embedding yet, so the estimate takes their candidates from BM25 alone"

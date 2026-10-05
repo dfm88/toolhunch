@@ -4,9 +4,10 @@
 `summary.json` and `README.md`. On dev it chooses one threshold per threshold key, sets the P@1 of every run side by
 side (the ablations next to the main run) and measures how far repeated searches drift. On held-out, per arm and
 query source, it reports P@1 against retrieval alone and the ceiling, the two abstention rules, latency, cost per
-1,000 searches, errors and the model source's fallbacks; a second held-out run that repeats its searches adds how
-much each arm varies from one repeat to the next. Both come with the Jev token check and the provenance of every
-run. The CLM endpoint's host is published as `modal`.
+1,000 searches, errors, the searches two rounds cannot hold, the options sent as their key alone and the model
+source's fallbacks; a second held-out run that repeats its searches adds how much each arm varies from one repeat to
+the next. Both come with the Jev token check and the provenance of every run. The CLM endpoint's host is published as
+`modal`.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ import contextlib
 import functools
 import json
 import math
+import re
 import statistics
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -52,6 +54,14 @@ PUBLIC_CLM_HOST = "modal"
 """What the published files call the CLM endpoint's host: the deployment script documents it, its URL stays private."""
 SEARCHED = "model (searched)"
 """The model source without the tasks whose writer made no search: those fell back to the plain request."""
+NOT_APPLICABLE = "not applicable"
+"""The status of a cell with a search whose candidates two rounds cannot hold: it reports no P@1 and no rule."""
+SUM_OF_CALLS = "sum of calls"
+"""The decision latency of a model asked one request at a time: every call of a search added."""
+CRITICAL_PATH = "critical path"
+"""The decision latency of a model asked concurrently: within a round only the slowest call counts."""
+_CARD_NOT_SHOWN = re.compile(r"card .+: its (?:name alone is over|option key alone takes) ")
+"""The planner's message for a card that no question can show, the one failure whose message a report repeats."""
 
 type Record = dict[str, Any]
 
@@ -129,8 +139,9 @@ def build_decision_report(
     hosts = _clm_hosts(runs)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "summary.json").write_text(_published(json.dumps(summary, indent=2) + "\n", hosts), encoding="utf-8")
+    failures = {} if heldout is None else _failures(heldout)
     (out_dir / "README.md").write_text(
-        _published(_markdown(summary, fallbacks_in_tau=fallbacks_in_tau), hosts), encoding="utf-8"
+        _published(_markdown(summary, fallbacks_in_tau=fallbacks_in_tau, failures=failures), hosts), encoding="utf-8"
     )
 
 
@@ -241,8 +252,17 @@ def _counts(outcomes: Sequence[Outcome]) -> dict[str, int]:
 
 
 def _ok(records: Iterable[Record]) -> list[Record]:
-    """The searches that did not fail: a failed search counts as an error and stays out of every rate."""
-    return [record for record in records if record["error"] is None]
+    """The searches that did not fail and were applicable: the others stay out of every rate.
+
+    A failed search counts as an error. A search whose candidates two rounds cannot hold is not applicable, counted
+    apart; runs from before that existed have no such search.
+    """
+    return [record for record in records if record["error"] is None and record.get("not_applicable") is None]
+
+
+def _failed(records: Iterable[Record]) -> int:
+    """How many of `records` failed."""
+    return sum(record["error"] is not None for record in records)
 
 
 def _decided(records: Iterable[Record]) -> list[Record]:
@@ -415,7 +435,7 @@ def _spread(values: Sequence[float]) -> float:
 
 def _errors(run: _Run, arm: str) -> dict[str, Any]:
     own = [record for record in run.searches if record["arm"] == arm]
-    return {"run_id": run.run_id, "arm": arm, "searches": len(own), "errors": len(own) - len(_ok(own))}
+    return {"run_id": run.run_id, "arm": arm, "searches": len(own), "errors": _failed(own)}
 
 
 def _heldout(run: _Run, taus: dict[str, float], *, repeats: _Run | None) -> dict[str, Any]:
@@ -507,7 +527,7 @@ def _repeat_row(
         "source": source,
         "searches": _search_count(ok),
         "records": len(ok),
-        "errors": len(records) - len(ok),
+        "errors": _failed(records),
         "per_repeat": per_repeat,
         "p_at_1_range": _range([entry["p_at_1"] for entry in per_repeat]),
         "utility_range": _range([entry["reserved_and_dev_tau"]["utility"] for entry in per_repeat]),
@@ -524,11 +544,18 @@ def _range(values: Sequence[float | None]) -> list[float] | None:
 
 
 def _row(run: _Run, *, arm: str, source: str, taus: dict[str, float]) -> dict[str, Any] | None:
-    """The held-out figures of one arm and query source; `None` when the arm made no search from it."""
+    """The held-out figures of one arm and query source; `None` when the arm made no search from it.
+
+    A cell with a search whose candidates two rounds cannot hold is not applicable: it gets a `status` and the count
+    and most common reason of those searches in `not_applicable`, and no P@1, interval or abstention rule, since its
+    figures would describe only the candidate lists that happened to fit.
+    """
     records = [record for record in run.searches if record["arm"] == arm and _in_source(record, source)]
     if not records:
         return None
     config = run.manifest["arms"][arm]
+    spec = None if config["decider"] is None else REGISTRY[DeciderName(config["decider"])]
+    basis = None if spec is None else SUM_OF_CALLS if spec.serial else CRITICAL_PATH
     ok = _ok(records)
     positives = [record for record in ok if record["variant"] == "positive"]
     decided = [record for record in ok if record["decider"] is not None]
@@ -540,14 +567,14 @@ def _row(run: _Run, *, arm: str, source: str, taus: dict[str, float]) -> dict[st
     asked: list[list[dict[str, Any]]] = [record["exchanges"] or [] for record in decided]
     sent = collections.Counter[str](exchange["detail"] for exchanges in asked for exchange in exchanges)
     lowered = sum(any(exchange["detail"] != config["max_detail"] for exchange in exchanges) for exchanges in asked)
-    return {
+    row: dict[str, Any] = {
         "arm": arm,
         "decider": config["decider"],
         "k": config["k"],
         "source": source,
         "searches": _search_count(ok),
         "records": len(ok),
-        "errors": len(records) - len(ok),
+        "errors": _failed(records),
         "fallbacks": sum(record["fallback"] is True for record in ok) if source in ("model", SEARCHED) else None,
         "positives": len(positives),
         "negatives": sum(record["variant"] == "negative" for record in ok),
@@ -559,6 +586,7 @@ def _row(run: _Run, *, arm: str, source: str, taus: dict[str, float]) -> dict[st
         "ceiling": _share([record["gold_in_candidates"] for record in positives]),
         "detail_mix": {level: sent[level] for level in _DETAILS if sent[level]} if config["decider"] else None,
         "lower_detail_searches": lowered if config["decider"] else None,
+        "key_only_option_share": _key_only_share(decided) if config["decider"] else None,
         "rules": {
             "answer_always": _rule(ok, [0.0] * len(ok), answer_always=True),
             "reserved": _rule(ok, [0.0] * len(ok)),
@@ -568,12 +596,67 @@ def _row(run: _Run, *, arm: str, source: str, taus: dict[str, float]) -> dict[st
         },
         "risk_coverage": {"grid": _grid(decided), "dev_taus": sorted(set(applied))} if decided else None,
         "latency_ms": {
-            "decision": _percentiles([record["decision_seconds"] for record in ok]),
+            "decision": _percentiles([_decision_seconds(record, basis=basis) for record in ok]),
+            "decision_basis": basis,
             "server": _percentiles([record["server_seconds"] for record in ok]),
             "retrieval": _percentiles([record["retrieval_seconds"] for record in ok]),
         },
         "cost": _cost(ok, config=config, manifest=run.manifest),
     }
+    if inapplicable := [record for record in records if record.get("not_applicable") is not None]:
+        reasons = collections.Counter[str](record["not_applicable"] for record in inapplicable)
+        precision = ("p_at_1", "p_at_1_ci95", "hybrid_p_at_1", "delta_p_at_1", "delta_p_at_1_ci95")
+        row |= dict.fromkeys(precision) | {
+            "status": NOT_APPLICABLE,
+            "not_applicable": {"searches": _search_count(inapplicable), "reason": reasons.most_common(1)[0][0]},
+            "rules": dict.fromkeys(row["rules"]),
+            "risk_coverage": None,
+        }
+    return row
+
+
+def _decision_seconds(record: Record, *, basis: str | None) -> float | None:
+    """A search's decision latency on `basis`: every call added for a model asked one request at a time.
+
+    Runs from before the sum was recorded hold the critical path alone, which is the sum when each search made one
+    call.
+    """
+    if basis == SUM_OF_CALLS and "decision_sequential_seconds" in record:
+        return record["decision_sequential_seconds"]
+    return record["decision_seconds"]
+
+
+def _key_only_share(records: Sequence[Record]) -> float | None:
+    """The share of the card options the decided `records` sent as their key alone, with an empty text.
+
+    The reserved option is not a card and is left out. `None` when they sent no card option, or when they come from a
+    run from before the key-only options were recorded.
+    """
+    sent = key_only = 0
+    for record in records:
+        exchanges: list[Record] = record["exchanges"] or []
+        if any("key_only_options" not in exchange for exchange in exchanges):
+            return None
+        # The reserved option, when the decider offers one, is in the last question asked.
+        sent += sum(sum(counts) for counts in record["shape"]["questions"])
+        sent -= int(bool(exchanges) and record["shape"]["reserved_option"])
+        key_only += sum(len(exchange["key_only_options"]) for exchange in exchanges)
+    return key_only / sent if sent else None
+
+
+def _failures(run: _Run) -> dict[tuple[str, str], dict[str, int]]:
+    """The failed decider searches of `run` by arm and query source, counted by reason.
+
+    The reason of a card no question can show is the planner's message, which names the card. Any other failure is
+    the model's: its message, a provider's reply among them, stays in the run's records.
+    """
+    failures: dict[tuple[str, str], collections.Counter[str]] = {}
+    for record in run.searches:
+        if record["decider"] is None or record["error"] is None:
+            continue
+        reason = record["error"] if _CARD_NOT_SHOWN.match(record["error"]) else "the decision model's call failed"
+        failures.setdefault((record["arm"], record["source"]), collections.Counter())[reason] += 1
+    return {cell: dict(reasons) for cell, reasons in failures.items()}
 
 
 def _dev_taus(records: Sequence[Record], taus: dict[str, float]) -> list[float]:
@@ -698,7 +781,7 @@ def _arm_entry(run: _Run, arm: str) -> dict[str, Any]:
         "k": config["k"],
         "searches": _search_count(own),
         "records": len(own),
-        "errors": len(own) - len(_ok(own)),
+        "errors": _failed(own),
         "decision_seconds": sum(search["decision_seconds"] for search in decided) if decided else None,
         "wall_seconds": record.get("wall_seconds"),
         "cache_hits": record.get("cache_hits"),
@@ -793,7 +876,9 @@ def published_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
 # Markdown
 
 
-def _markdown(summary: dict[str, Any], *, fallbacks_in_tau: bool) -> str:
+def _markdown(
+    summary: dict[str, Any], *, fallbacks_in_tau: bool, failures: dict[tuple[str, str], dict[str, int]]
+) -> str:
     heldout = summary["heldout"]
     deployments: list[dict[str, Any]] = []
     for entry in summary["runs"]:
@@ -815,7 +900,7 @@ def _markdown(summary: dict[str, Any], *, fallbacks_in_tau: bool) -> str:
         lines += [paragraph, ""]
     lines += _runs_section(summary["runs"], deployments=deployments)
     if heldout is not None:
-        lines += _heldout_section(heldout, runs=summary["runs"])
+        lines += _heldout_section(heldout, runs=summary["runs"], failures=failures)
     lines += [
         *_dev_section(summary["dev"]),
         *_tokenizer_section(summary["tokenizer"]),
@@ -877,7 +962,7 @@ def _runs_section(runs: Sequence[dict[str, Any]], *, deployments: Sequence[dict[
                 "yes" if manifest["negatives"] else "no",
                 str(manifest["repeat"]),
                 ", ".join(_unique(str(config["k"]) for config in manifest["arms"].values())),
-                ", ".join(_unique(f"{config['decider']} ({config['max_detail']})" for config in deciders)) or "none",
+                ", ".join(_unique(_detail_setting(config) for config in deciders)) or "none",
                 ", ".join(_unique("on" if config["reserved_option"] else "off" for config in deciders)) or "-",
                 fallbacks,
                 f"`{_commit(manifest['git'])}`",
@@ -908,7 +993,16 @@ def _runs_section(runs: Sequence[dict[str, Any]], *, deployments: Sequence[dict[
     return lines
 
 
-def _heldout_section(heldout: dict[str, Any], *, runs: Sequence[dict[str, Any]]) -> list[str]:
+def _detail_setting(config: dict[str, Any]) -> str:
+    """A decider and its most detail, with its floor when it has one above names."""
+    floor = config.get("min_detail")  # runs from before floors existed have none
+    shown = config["max_detail"] if floor in (None, "NAME") else f"{config['max_detail']}, floor {floor}"
+    return f"{config['decider']} ({shown})"
+
+
+def _heldout_section(
+    heldout: dict[str, Any], *, runs: Sequence[dict[str, Any]], failures: dict[tuple[str, str], dict[str, int]]
+) -> list[str]:
     rows = heldout["rows"]
     entry = _main_heldout(runs)[0]  # the runs of one held-out report share their tasks and model queries
     lines = ["## Held-out", ""]
@@ -942,6 +1036,7 @@ def _heldout_section(heldout: dict[str, Any], *, runs: Sequence[dict[str, Any]])
             "the detail sent.",
             "",
         ]
+    lines += _planning_caveat(rows, failures=failures)
     header = ["arm", "source", "rule", "τ", "searches", "errors", "coverage", "selective accuracy"]
     header += [
         "correct",
@@ -979,8 +1074,9 @@ def _heldout_section(heldout: dict[str, Any], *, runs: Sequence[dict[str, Any]])
             "",
         ]
     latency = [[row["arm"], row["source"], *_latency_cells(row["latency_ms"])] for row in rows]
-    header = ["arm", "source", "decision p50 ms", "p95", "server p50 ms", "p95", "retrieval p50 ms", "p95"]
-    lines += ["### Latency", "", *_table(header, latency, align="llrrrrrr"), ""]
+    header = ["arm", "source", "decision p50 ms", "p95", "latency basis", "server p50 ms", "p95", "retrieval p50 ms"]
+    header += ["p95"]
+    lines += ["### Latency", "", *_table(header, latency, align="llrrlrrrr"), ""]
     cost = [[row["arm"], row["source"], *_cost_cells(row["cost"])] for row in rows]
     header = ["arm", "source", "asks / search", "input tokens / search", "USD", "CLM busy USD", "CLM wall USD"]
     lines += ["### Cost per 1,000 searches", "", *_table(header, cost, align="llrrrrr"), ""]
@@ -999,6 +1095,43 @@ def _heldout_section(heldout: dict[str, Any], *, runs: Sequence[dict[str, Any]])
             "",
         ]
     return [*lines, *([] if heldout["repeats"] is None else _variation_section(heldout["repeats"]))]
+
+
+def _planning_caveat(rows: Sequence[dict[str, Any]], *, failures: dict[tuple[str, str], dict[str, int]]) -> list[str]:
+    """Where the planner could not ask about every card in full, per decider arm and query source of the held-out run.
+
+    It lists the share of card options sent as their key alone, the failed searches by reason, and the searches whose
+    candidates two rounds cannot hold. Nothing when none of these occurred; failures of the model's calls alone are in
+    the errors column already.
+    """
+    items: list[str] = []
+    for row in rows:
+        if row["decider"] is None or row["source"] == SEARCHED:  # the searched source repeats the model source's
+            continue
+        share, unfit = row["key_only_option_share"], row.get("not_applicable")
+        reasons = failures.get((row["arm"], row["source"]), {})
+        if not share and unfit is None and not any(_CARD_NOT_SHOWN.match(reason) for reason in reasons):
+            continue
+        parts = [f"{share:.1%} of the card options sent as their key alone"] if share else []
+        if reasons:
+            count = sum(reasons.values())
+            listed = "; ".join(f"{reason} ({times:,})" for reason, times in reasons.items())
+            parts.append(f"{count:,} failed {'search' if count == 1 else 'searches'}: {listed}")
+        if unfit is not None:
+            parts.append(f"{unfit['searches']:,} searches not applicable: {unfit['reason']}")
+        items.append(f"- {row['arm']}, {row['source']}: {'; '.join(parts)}.")
+    if not items:
+        return []
+    return [
+        "**Key-only options, failed searches and lists two rounds cannot hold.** A card whose name would take its "
+        "option past the model's per-option window is sent as its key alone, the name itself. A card that no "
+        "question can show fails its search, which counts as an error. A search whose candidates two rounds cannot "
+        "hold (groups asked at the same time, then one final question) is not applicable, and so is its cell: that "
+        "is the two-round policy chosen here, not a verdict on what the model could do with the catalog another way.",
+        "",
+        *items,
+        "",
+    ]
 
 
 def _variation_section(repeats: dict[str, Any]) -> list[str]:
@@ -1035,9 +1168,10 @@ def _variation_section(repeats: dict[str, Any]) -> list[str]:
 def _precision_row(row: dict[str, Any]) -> list[str]:
     first = [row["arm"], row["source"], f"{row['positives']:,}"]
     delta = "-" if row["delta_p_at_1"] is None else _with_ci(row["delta_p_at_1"], row["delta_p_at_1_ci95"], signed=True)
+    unfit = row.get("not_applicable")
     return [
         *first,
-        _with_ci(row["p_at_1"], row["p_at_1_ci95"]),
+        _with_ci(row["p_at_1"], row["p_at_1_ci95"]) if unfit is None else f"not applicable ({unfit['searches']:,})",
         _fixed(row["hybrid_p_at_1"]),
         delta,
         _fixed(row["ceiling"]),
@@ -1075,11 +1209,13 @@ def _rule_cells(metrics: dict[str, Any], *, negatives: str) -> list[str]:
     return [_fixed(metrics["coverage"]), _fixed(metrics["selective_accuracy"]), *counts, negatives, wrong, *abstention]
 
 
-def _latency_cells(latency: dict[str, dict[str, float] | None]) -> list[str]:
+def _latency_cells(latency: dict[str, Any]) -> list[str]:
     cells: list[str] = []
     for kind in ("decision", "server", "retrieval"):
         timing = latency[kind]
         cells += ["-", "-"] if timing is None else [f"{timing['p50']:,.0f}", f"{timing['p95']:,.0f}"]
+        if kind == "decision":
+            cells.append(latency.get("decision_basis") or "-")
     return cells
 
 
@@ -1223,10 +1359,13 @@ def _notes(*, fallbacks_in_tau: bool) -> list[str]:
         + "The held-out risk-coverage tables are there to read, never to choose.",
         f"- **Intervals.** 95% percentile bootstrap, {BOOTSTRAP_RESAMPLES:,} resamples with seed {BOOTSTRAP_SEED}, "
         "resampling tasks: a task's positive search, its negative and their repeats are drawn together.",
-        "- **Errors.** A search whose decider raised `DecisionError` counts as an error and stays out of every rate, "
-        "latency and cost figure.",
-        "- **Latency.** Decision: the critical path of the decider's calls as the client timed them, network "
-        "included; a call the decision cache replays keeps the time the original call took. Server: the same by the "
+        "- **Errors.** A search whose decider raised `DecisionError`, or whose candidates hold a card no question can "
+        "show, counts as an error and stays out of every rate, latency and cost figure. A search whose candidates two "
+        "rounds cannot hold is not applicable: it is counted apart, and its cell reports no P@1 and no rule.",
+        "- **Latency.** Decision: the decider's calls as the client timed them, network included; a call the "
+        "decision cache replays keeps the time the original call took. Its basis is the critical path (within a "
+        "round only the slowest call counts, as round one's calls run at the same time), or the sum of calls for a "
+        "model asked one request at a time, such as a local server. Server: the critical path by the "
         "server's own clock, where it reports one. Retrieval: the first hybrid retrieval of the search's queries, "
         "measured live; a query whose vector the embedding cache already held skips the embeddings call, so it "
         "reads faster than a cold one.",

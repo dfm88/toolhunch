@@ -686,7 +686,7 @@ async def test_order_report_covers_any_decider(
     assert set(summary["same_order_noise_baseline"]["deciders"]) == set(names)
     # Only the paid decider reaches the ledger, under the current phase.
     entries = order_ledger_entries(guard, run_id="p2", pilot=True, budget=BUDGET)
-    paid = [("cloudflare", "P2: order sensitivity pilot")] if "clef-flash" in names else []
+    paid = [("cloudflare", f"{BUDGET.prefix} order sensitivity pilot")] if "clef-flash" in names else []
     assert [(entry.provider, entry.purpose) for entry in entries] == paid
 
 

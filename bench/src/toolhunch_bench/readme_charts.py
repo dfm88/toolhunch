@@ -466,6 +466,7 @@ class _Point:
     cost: str
     local: bool
     lowered: bool = False
+    summed: bool = False
 
 
 # Label offsets in points from the point, per arm of the P2 cost-latency figure; a far label gets a connector.
@@ -560,8 +561,8 @@ def _rerank_points(decisions: Sequence[dict[str, Any]], luna: dict[str, Any] | N
             decider = row["decider"]
             if decider is None or not _spec(decider).published or (row["k"], row["source"]) != (20, "plain"):
                 continue
-            if row["arm"] in points or row["latency_ms"]["decision"] is None:
-                continue
+            if row["arm"] in points or row["latency_ms"]["decision"] is None or row["p_at_1"] is None:
+                continue  # a cell two rounds cannot hold has no P@1 to plot
             name, _, _, _ = _named(row["arm"], decider)
             local = "local" in row["cost"]
             points[row["arm"]] = _Point(
@@ -575,6 +576,7 @@ def _rerank_points(decisions: Sequence[dict[str, Any]], luna: dict[str, Any] | N
                 cost=_usd(row["cost"]["usd_per_1000_searches"], local=local),
                 local=local,
                 lowered=bool(row.get("lower_detail_searches")),
+                summed=row["latency_ms"].get("decision_basis") == "sum of calls",
             )
     if luna is not None:
         first = luna["first_pick"]
@@ -682,7 +684,9 @@ def build_cost_latency(
     The direct-choice panel reads `direct_summary`; the 44,453-tool panel reads the held-out K20 plain rows of each
     decision summary (the first holding an arm wins) and GPT-6 Luna's first pick. A local decider is drawn hollow,
     its machine in the caption. Latency is the decision's alone: later runs searched with query embeddings an
-    earlier run had cached, so totals that include the search would not compare. CLM is left out.
+    earlier run had cached, so totals that include the search would not compare. When a plotted decision's latency
+    adds every call, as for a model asked one request at a time, the caption says so. A cell two rounds cannot hold
+    has no P@1 and is not drawn. CLM is left out.
     """
     if fmt not in ("svg", "png"):
         raise ValueError("fmt must be 'svg' or 'png'")
@@ -717,6 +721,8 @@ def build_cost_latency(
     if lowered := [point for point in points if point.lowered]:
         names = ", ".join(f"{point.name} ({point.detail})" if point.detail else point.name for point in lowered)
         notes.append(f"Lower detail: {names} sent cards below full detail to fit the model's window.")
+    if any(point.summed for point in points):
+        notes.append("Local deciders are asked one request at a time: their latency adds every call of a search.")
     footer = "\n".join([*notes, f"toolhunch · ToolRet · runs of {', '.join(dates)}"])
     out_dir.mkdir(parents=True, exist_ok=True)
     with cast("Any", matplotlib).rc_context(_STYLE):

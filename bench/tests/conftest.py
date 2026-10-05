@@ -1,7 +1,7 @@
 import hashlib
 import json
 import re
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -109,7 +109,7 @@ class FakeDecisionModel:
     answer is those weights normalised. A request whose state contains `fail_on` raises `DecisionError` instead, as a
     model that answers nothing usable does, or, with `fail_status`, as a server that refuses with that HTTP status.
     Like the real adapters it checks each request against its `limits` first. Each call reports 10 input tokens,
-    1 output token, 0.1 s of wall time and 0.01 s of server time.
+    1 output token, 0.1 s of wall time (or what `seconds` gives for the request) and 0.01 s of server time.
 
     Attributes:
         asks: Every request it was asked, failed ones included, in order.
@@ -126,6 +126,7 @@ class FakeDecisionModel:
         none_weight: float = 1.0,
         fail_on: str | None = None,
         fail_status: int | None = None,
+        seconds: Callable[[DecisionRequest], float] | None = None,
     ) -> None:
         self.model_id = model_id
         self.limits = ModelLimits(source="test", checked=date(2026, 9, 29)) if limits is None else limits
@@ -137,6 +138,7 @@ class FakeDecisionModel:
         self._none_weight = none_weight
         self._fail_on = fail_on
         self._fail_status = fail_status
+        self._seconds = seconds
 
     def __repr__(self) -> str:
         return f"FakeDecisionModel({self.model_id!r})"
@@ -153,8 +155,9 @@ class FakeDecisionModel:
             assert isinstance(question, ChoiceQuestion)
             weights = {option: self._weight(option, text) for option, text in question.options.items()}
             answers[key] = choice_answer(weights, keys=list(question.options), model_id=self.model_id)
+        seconds = 0.1 if self._seconds is None else self._seconds(request)
         return DecisionResponse(
-            answers=answers, usage=DecisionUsage(1, 10, 1), seconds=0.1, server_seconds=0.01, raw={}
+            answers=answers, usage=DecisionUsage(1, 10, 1), seconds=seconds, server_seconds=0.01, raw={}
         )
 
     async def aclose(self) -> None:

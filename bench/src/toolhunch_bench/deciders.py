@@ -7,6 +7,7 @@ member, one entry and its declared `ModelLimits` in the library.
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 import platform
@@ -18,7 +19,7 @@ from typing import TYPE_CHECKING, Any, Literal
 import anyio
 import httpx2
 
-from toolhunch import DetailLevel
+from toolhunch import DetailLevel, HeuristicTokenizer
 from toolhunch.decision import (
     ChoiceDecider,
     OpenAILogprobModel,
@@ -43,6 +44,7 @@ from toolhunch_bench.structured import StructuredChoiceModel
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Mapping
+    from pathlib import Path
 
     from toolhunch.decision import (
         Abstention,
@@ -69,6 +71,7 @@ __all__ = [
     "decision_model",
     "local_provenance",
     "missing_env",
+    "planner_tokenizer",
     "report_caveats",
 ]
 
@@ -186,7 +189,13 @@ def _url(variable: tuple[str, str]) -> str:
 
 def _laya_tokenizer() -> LayaTokenizer:
     """Laya's pinned tokenizer, read when a Laya decider is built: the file comes with the checkpoint's download."""
-    return LayaTokenizer(laya_tokenizer_path(), sha256=LAYA_TOKENIZER_SHA256)
+    return _read_laya_tokenizer(laya_tokenizer_path(), LAYA_TOKENIZER_SHA256)
+
+
+@functools.cache
+def _read_laya_tokenizer(path: Path, sha256: str) -> LayaTokenizer:
+    # Read once per file and hash: reading and hashing it takes about 50 ms, and a run builds many deciders.
+    return LayaTokenizer(path, sha256=sha256)
 
 
 DECIDERS: Mapping[DeciderName, DeciderSpec] = {
@@ -429,6 +438,15 @@ def decision_model(name: DeciderName, *, max_retries: int = 3) -> DecisionModel:
     return SerialDecisionModel(model) if spec.serial else model
 
 
+def planner_tokenizer(name: str) -> Tokenizer:
+    """What the decider of the entry `name` counts tokens with when it plans its questions.
+
+    The tokenizer the entry names; the planner's heuristic for a name outside the registry or an entry that names none.
+    """
+    spec = DECIDERS[DeciderName(name)] if name in DeciderName else None
+    return spec.tokenizer() if spec is not None and spec.tokenizer is not None else HeuristicTokenizer()
+
+
 def choice_decider(
     name: str,
     model: DecisionModel,
@@ -437,14 +455,9 @@ def choice_decider(
     max_detail: DetailLevel,
     min_detail: DetailLevel = DetailLevel.NAME,
 ) -> ChoiceDecider:
-    """The decider of the entry `name` over `model`, planning with the tokenizer the entry names.
-
-    A name outside the registry, or an entry that names no tokenizer, plans with the planner's heuristic.
-    """
-    spec = DECIDERS[DeciderName(name)] if name in DeciderName else None
-    tokenizer = spec.tokenizer() if spec is not None and spec.tokenizer is not None else None
+    """The decider of the entry `name` over `model`, planning with `planner_tokenizer(name)`."""
     return ChoiceDecider(
-        model, abstention=abstention, max_detail=max_detail, min_detail=min_detail, tokenizer=tokenizer
+        model, abstention=abstention, max_detail=max_detail, min_detail=min_detail, tokenizer=planner_tokenizer(name)
     )
 
 

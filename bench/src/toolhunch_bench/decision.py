@@ -16,7 +16,7 @@ import hashlib
 import json
 import random
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -28,8 +28,8 @@ from toolhunch import DetailLevel, HeuristicTokenizer, ToolSearchPipeline, defau
 from toolhunch.decision import (
     JEV_LIMITS,
     Abstention,
+    CandidatesDoNotFit,
     ChoiceAnswer,
-    ChoiceDecider,
     ChoiceQuestion,
     DecisionError,
     DecisionRequest,
@@ -47,6 +47,8 @@ from toolhunch_bench.deciders import (
     LOGPROB_MODEL,
     LUNA_MODEL,
     DeciderName,
+    choice_decider,
+    planner_tokenizer,
 )
 from toolhunch_bench.deciders import DECIDERS as REGISTRY
 from toolhunch_bench.decision_cache import CachedDecisionModel
@@ -293,16 +295,20 @@ def build_decision_arms(
     ks: Sequence[int],
     models: Mapping[str, DecisionModel],
     max_detail: Mapping[str, DetailLevel],
+    min_detail: Mapping[str, DetailLevel] | None = None,
     reserved_option: bool = True,
 ) -> list[DecisionArm]:
     """Build, for each k in `ks`, the arm `hybrid@<k>` and then `hybrid+<name>@<k>` for each name in `deciders`.
 
-    Each decider is a `ChoiceDecider` over `models[name]` that records the full final distribution: abstention at
-    threshold 0, with the reserved option unless `reserved_option` is off, and cards at `max_detail[name]` at most
-    (`FULL` for a name it leaves out).
+    Each decider is the registry's `choice_decider` over `models[name]`, planning with the tokenizer its entry names,
+    that records the full final distribution: abstention at threshold 0, with the reserved option unless
+    `reserved_option` is off, and cards at `max_detail[name]` at most (`FULL` for a name it leaves out) and
+    `min_detail[name]` at least (`NAME` for a name it leaves out). Each arm's config records both levels and the
+    `repr` of the planner's tokenizer.
 
     Raises:
-        ValueError: A name is not one of `DECIDERS` or has no model, or a k is below 1.
+        ValueError: A name is not one of `DECIDERS` or has no model, a k is below 1, or a floor is above its
+            decider's most detail.
     """
     if unknown := sorted(set(deciders) - set(DECIDERS)):
         raise ValueError(f"unknown deciders {unknown}; choose from {', '.join(DECIDERS)}")
@@ -319,12 +325,15 @@ def build_decision_arms(
             "limits": None,
             "prompt_version": None,
             "max_detail": None,
+            "min_detail": None,
+            "tokenizer": None,
             "reserved_option": None,
         }
         arms.append(DecisionArm(f"hybrid@{k}", None, k, None, baseline))
         for name in deciders:
             model = models[name]
             detail = max_detail.get(name, DetailLevel.FULL)
+            floor = (min_detail or {}).get(name, DetailLevel.NAME)
             own_version = model.prompt_version
             config = baseline | {
                 "decider": name,
@@ -334,16 +343,14 @@ def build_decision_arms(
                 # As `Decision.key` writes it: the planner's version, then the model's own after a "+".
                 "prompt_version": PROMPT_VERSION if own_version is None else f"{PROMPT_VERSION}+{own_version}",
                 "max_detail": detail.name,
+                "min_detail": floor.name,
+                "tokenizer": repr(planner_tokenizer(name)),
                 "reserved_option": reserved_option,
             }
-            decider = _choice_decider(model, max_detail=detail, reserved_option=reserved_option)
+            abstention = Abstention(threshold=0.0, reserved_option=reserved_option)
+            decider = choice_decider(name, model, abstention=abstention, max_detail=detail, min_detail=floor)
             arms.append(DecisionArm(f"hybrid+{name}@{k}", name, k, decider, config, model))
     return arms
-
-
-def _choice_decider(model: DecisionModel, *, max_detail: DetailLevel, reserved_option: bool) -> ChoiceDecider:
-    abstention = Abstention(threshold=0.0, reserved_option=reserved_option)
-    return ChoiceDecider(model, abstention=abstention, max_detail=max_detail)
 
 
 async def warm_up_clm(
@@ -397,6 +404,9 @@ class EstimateLine:
         input_tokens: The input tokens priced.
         usd: The expected cost; `None` for CLM, which Modal credits pay and the cap leaves out.
         note: How the figure was reached; for CLM, the GPU seconds.
+        not_applicable: The searches whose candidates two rounds cannot hold, which the run records as not
+            applicable and asks nothing for.
+        would_fail: The searches with a card that no question can show, which the run records as failed.
     """
 
     provider: str
@@ -405,6 +415,8 @@ class EstimateLine:
     input_tokens: int
     usd: float | None
     note: str
+    not_applicable: int = 0
+    would_fail: int = 0
 
 
 class _StandIn:
@@ -479,8 +491,10 @@ async def estimate_decisions(
     - CLM on Modal: no dollars in the cap, 0.3 GPU seconds per ask in the note;
     - a local decider: no charge.
 
-    Every ask is counted, including those the decision cache would answer, so the estimate leans high. With
-    `embeddings`, one more line prices the query and card texts that cache lacks.
+    Every ask is counted, including those the decision cache would answer, so the estimate leans high. A search whose
+    plan raises `CandidatesDoNotFit` asks nothing: its line counts it as not applicable, or as one that would fail when
+    one card is the cause, as the run records it. With `embeddings`, one more line prices the query and card texts that
+    cache lacks.
 
     Args:
         arms: The arms, from `build_decision_arms`; each decider arm's model is replaced by a stand-in.
@@ -498,14 +512,20 @@ async def estimate_decisions(
         ValueError: A decider arm has no model, or the `model` source has no queries.
     """
     counted: dict[str, list[_StandIn]] = {}
+    unfit: dict[str, list[CandidatesDoNotFit]] = {}
     for arm in arms:
         if arm.decider_name is None:
             continue
         if arm.model is None:
             raise ValueError(f"arm {arm.name} has no model to stand in for")
         stand_in = _StandIn(arm.model)
-        decider = _choice_decider(
-            stand_in, max_detail=DetailLevel[arm.config["max_detail"]], reserved_option=arm.config["reserved_option"]
+        decider = choice_decider(
+            arm.decider_name,
+            stand_in,
+            abstention=Abstention(threshold=0.0, reserved_option=arm.config["reserved_option"]),
+            max_detail=DetailLevel[arm.config["max_detail"]],
+            # An arm built by hand, as the direct runs build theirs, may leave its floor out.
+            min_detail=DetailLevel[arm.config.get("min_detail", DetailLevel.NAME.name)],
         )
         for search in _searches(
             tasks, sources=sources, model_queries=model_queries, negatives=negatives, retriever=retriever
@@ -517,15 +537,22 @@ async def estimate_decisions(
                     else OrderedRetrieval(search.retriever, task_id=search.task.id, seed=seed)
                 )
                 pipeline = ToolSearchPipeline(presented, decider=decider, k=arm.k)
-                await pipeline.search(list(search.queries), data.catalog, context=search.task.query)
+                try:
+                    await pipeline.search(list(search.queries), data.catalog, context=search.task.query)
+                except CandidatesDoNotFit as error:
+                    unfit.setdefault(arm.decider_name, []).append(error)
         counted.setdefault(arm.decider_name, []).append(stand_in)
     lines = [
-        _decider_line(
-            name,
-            calls=repeat * sum(stand_in.calls for stand_in in stand_ins),
-            tokens=repeat * sum(stand_in.input_tokens for stand_in in stand_ins),
-            options=repeat * sum(stand_in.options for stand_in in stand_ins),
-            limits=stand_ins[0].limits,
+        replace(
+            _decider_line(
+                name,
+                calls=repeat * sum(stand_in.calls for stand_in in stand_ins),
+                tokens=repeat * sum(stand_in.input_tokens for stand_in in stand_ins),
+                options=repeat * sum(stand_in.options for stand_in in stand_ins),
+                limits=stand_ins[0].limits,
+            ),
+            not_applicable=repeat * sum(error.card_id is None for error in unfit.get(name, [])),
+            would_fail=repeat * sum(error.card_id is not None for error in unfit.get(name, [])),
         )
         for name, stand_ins in counted.items()
     ]
@@ -661,7 +688,9 @@ async def run_decisions(
     arm it goes through each source, task, variant (the positive, then the negative with the gold tools taken out when
     `negatives` is on) and repeat, and searches through a `ToolSearchPipeline` with the arm's decider over its K
     candidates, the task's request as the decider's context. A `DecisionError` is recorded in the search's `error` and
-    the run goes on; the candidates of that search come from the shared retrieval.
+    the run goes on; the candidates of that search come from the shared retrieval. So is a `CandidatesDoNotFit` that
+    names a card no question can show. One without a card, candidates that two rounds cannot hold, is recorded in
+    `not_applicable` instead, with no error and no ranking: nothing was asked.
 
     The directory gets `manifest.json` (provenance, written first) and `run.jsonl`: one `search` record per search,
     and after each arm's searches one `arm` record with its wall seconds, searches and errors, and, when the arm's
@@ -670,9 +699,11 @@ async def run_decisions(
     the identity of the search (`arm`, `decider`, `k`, `source`, `split`, `variant`, `repeat` from 0, `task`), its
     input (`queries`, `fallback` for the model source, `context`, `candidates` in retrieval order, `relevant`,
     `gold_in_candidates`), the decision (`ranked`, `probabilities`, `none_probability`, `abstained`, `key`, `shape`,
-    `state_cut`, `exchanges`), its cost and timing (`usage`, `decision_seconds`, `server_seconds`, `retrieval_seconds`,
-    the first retrieval's measured time) and `error`. The retrieval-only arms rank by retrieval and have no
-    probabilities and no decision; a search that failed has no ranking.
+    `state_cut`, `exchanges`, each with the `key_only_options` it sent with an empty text), its cost and timing
+    (`usage`, `decision_seconds` on the critical path, `decision_sequential_seconds` with every call added,
+    `server_seconds`, `retrieval_seconds`, the first retrieval's measured time), `not_applicable` and `error`. The
+    retrieval-only arms rank by retrieval and have no probabilities and no decision; a search that failed or was not
+    applicable has no ranking.
 
     Args:
         arms: What to run, from `build_decision_arms`.
@@ -829,10 +860,16 @@ async def _search_record(
     queries = list(search.queries)
     decision: Decision | None = None
     error: str | None = None
+    not_applicable: str | None = None
     try:
         decision = (await pipeline.search(queries, data.catalog, context=search.task.query)).decision
     except DecisionError as failure:
         error = str(failure)
+    except CandidatesDoNotFit as unfit:
+        if unfit.card_id is None:
+            not_applicable = str(unfit)
+        else:
+            error = str(unfit)
     # The search's own retrieval again: the shared retrieval kept it, so it costs nothing and outlives an error.
     retrieval = await (search.retriever if presented is None else presented).retrieve(queries, data.catalog, k=arm.k)
     candidates = [match.card.id for match in retrieval.matches]
@@ -856,6 +893,7 @@ async def _search_record(
             decision, candidates=candidates, decided=arm.decider is not None, record_requests=presented is not None
         ),
         "retrieval_seconds": shared.first_seconds(queries),
+        "not_applicable": not_applicable,
         "error": error,
     }
 
@@ -864,7 +902,7 @@ def _decision_fields(
     decision: Decision | None, *, candidates: list[str], decided: bool, record_requests: bool = False
 ) -> dict[str, Any]:
     if decision is None:
-        # Retrieval alone ranks by retrieval; a decider that failed ranked nothing.
+        # Retrieval alone ranks by retrieval; a decider that failed, or had nothing it could ask, ranked nothing.
         return {
             "ranked": None if decided else candidates,
             "probabilities": {},
@@ -876,6 +914,7 @@ def _decision_fields(
             "exchanges": None,
             "usage": None,
             "decision_seconds": None,
+            "decision_sequential_seconds": None,
             "server_seconds": None,
         }
     return {
@@ -895,6 +934,13 @@ def _decision_fields(
                 "output_tokens": exchange.response.usage.output_tokens,
                 "seconds": exchange.response.seconds,
                 "server_seconds": exchange.response.server_seconds,
+                "key_only_options": [
+                    key
+                    for question in exchange.request.questions.values()
+                    if isinstance(question, ChoiceQuestion)
+                    for key, text in question.options.items()
+                    if text == ""
+                ],
                 **(
                     {
                         "request": {
@@ -924,5 +970,6 @@ def _decision_fields(
         ],
         "usage": asdict(decision.usage),
         "decision_seconds": decision.seconds,
+        "decision_sequential_seconds": decision.sequential_seconds,
         "server_seconds": decision.server_seconds,
     }

@@ -214,7 +214,13 @@ def order_ledger_entries(
 
 def _configuration(arms: list[DecisionArm]) -> dict[str, Any]:
     fields = ("model_id", "limits", "prompt_version", "max_detail", "reserved_option", "k")
-    return {arm.name: {key: arm.config[key] for key in fields} for arm in arms if arm.model is not None}
+    # A floor enters only above names, so that a pilot recorded before floors existed still matches its full run.
+    return {
+        arm.name: {key: arm.config[key] for key in fields}
+        | ({"min_detail": arm.config["min_detail"]} if arm.config["min_detail"] != DetailLevel.NAME.name else {})
+        for arm in arms
+        if arm.model is not None
+    }
 
 
 async def order_experiment(
@@ -231,8 +237,12 @@ async def order_experiment(
     embedding_cache_path: Path = EMBEDDING_CACHE_PATH,
     deciders: Mapping[str, DetailLevel] = ORDER_DETAILS,
     budget: Budget = P1_BUDGET,
+    min_detail: Mapping[str, DetailLevel] | None = None,
 ) -> Path | None:
-    """Estimate both workloads freely; paid full runs require a matching, automatically validated pilot."""
+    """Estimate both workloads freely; paid full runs require a matching, automatically validated pilot.
+
+    `deciders` gives each decider's most detail and `min_detail` its floor (`NAME` for a decider it leaves out).
+    """
     import tiktoken
     from dotenv import load_dotenv
 
@@ -287,7 +297,7 @@ async def order_experiment(
     try:
         [hybrid] = build_arms(["hybrid"], embedder=cache, raw_text=data.raw_text)
         free = CacheOnlyRetrieval(hybrid.retriever, stand_in=BM25Retriever(), embeddings=cache)
-        estimate_arms = build_decision_arms(names, ks=[20], models=adapters, max_detail=deciders)
+        estimate_arms = build_decision_arms(names, ks=[20], models=adapters, max_detail=deciders, min_detail=min_detail)
         estimates: dict[str, Any] = {}
         for phase, phase_tasks in (("pilot", tasks[:10]), ("full", tasks)):
             lines = await estimate_decisions(
@@ -369,7 +379,7 @@ async def order_experiment(
             raise ValueError("paid order mode requires cached hybrid query and corpus embeddings; no stand-ins allowed")
         load_dotenv(BENCH_DIR.parent / ".env", override=False)
         models = {name: OrderDecisionModel(adapter, decider=name, guard=guard) for name, adapter in adapters.items()}
-        arms = build_decision_arms(names, ks=[20], models=models, max_detail=deciders)
+        arms = build_decision_arms(names, ks=[20], models=models, max_detail=deciders, min_detail=min_detail)
         extra = {
             "experiment": "order-sensitivity-v1",
             "pilot": pilot,

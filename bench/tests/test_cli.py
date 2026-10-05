@@ -26,7 +26,7 @@ from toolhunch_bench.datasets.model_queries import (
 )
 from toolhunch_bench.datasets.toolret import ToolRetData, ToolRetTask, write_task_file
 from toolhunch_bench.deciders import DeciderName, decision_model
-from toolhunch_bench.ledger import LedgerEntry, append_ledger, f2a_spend, read_ledger
+from toolhunch_bench.ledger import BUDGET, LedgerEntry, append_ledger, f2a_spend, read_ledger
 
 TOOLS = {"web_tool_0": ("get_weather", "Weather forecast."), "web_tool_1": ("send_email", "Send an email.")}
 DATA = ToolRetData(
@@ -134,7 +134,11 @@ def f2a_entry(usd: float) -> LedgerEntry:
     )
 
 
-def p2_entry(usd: float) -> LedgerEntry:
+PHASE = BUDGET.prefix.rstrip(":")
+
+
+def phase_entry(usd: float) -> LedgerEntry:
+    """An earlier paid run of the current phase, whose budget the paid commands check."""
     return LedgerEntry(
         timestamp=datetime(2026, 9, 29, 9, 0, tzinfo=UTC),
         run_id="20260929T090000Z",
@@ -142,7 +146,7 @@ def p2_entry(usd: float) -> LedgerEntry:
         model="gpt-4.1-mini",
         input_tokens=1_000,
         usd=usd,
-        purpose="P2: an earlier paid run",
+        purpose=f"{BUDGET.prefix} an earlier paid run",
     )
 
 
@@ -358,7 +362,7 @@ def spent_nothing(setup: DecisionSetup) -> bool:
 
 
 def test_decision_dry_run_prints_an_estimate_and_spends_nothing(decision_setup: DecisionSetup) -> None:
-    append_ledger(p2_entry(1.5), path=decision_setup.ledger)
+    append_ledger(phase_entry(1.5), path=decision_setup.ledger)
     before = decision_setup.ledger.read_text()
 
     result = decide(decision_setup, "--dry-run")
@@ -369,8 +373,8 @@ def test_decision_dry_run_prints_an_estimate_and_spends_nothing(decision_setup: 
         assert line in result.output
     assert "GPU seconds" in result.output  # CLM is counted in time, not in dollars
     assert "BM25 alone" in result.output  # the cache holds no query embedding yet
-    assert "$1.5000" in result.output  # the P2 total the cap is checked against
-    assert "$8.00 cap" in result.output
+    assert "$1.5000" in result.output  # the phase total the cap is checked against
+    assert f"${BUDGET.cap_usd:.2f} cap" in result.output
     assert decision_setup.ledger.read_text() == before
     assert spent_nothing(decision_setup)
 
@@ -401,13 +405,13 @@ def test_decision_dry_run_estimates_new_deciders_from_the_registry(
 
 
 def test_decision_stops_before_spending_when_the_ledger_is_over_the_cap(decision_setup: DecisionSetup) -> None:
-    append_ledger(p2_entry(8.5), path=decision_setup.ledger)
+    append_ledger(phase_entry(8.5), path=decision_setup.ledger)
     before = decision_setup.ledger.read_text()
 
     result = decide(decision_setup)  # a paid run, not a dry run
 
     assert result.exit_code == 2
-    assert "Over the cap: nothing was spent. P2 total $8.5000, estimate $" in result.output
+    assert f"Over the cap: nothing was spent. {PHASE} total $8.5000, estimate $" in result.output
     assert decision_setup.ledger.read_text() == before
     assert spent_nothing(decision_setup)
 
@@ -415,7 +419,7 @@ def test_decision_stops_before_spending_when_the_ledger_is_over_the_cap(decision
 def test_a_decision_run_warms_clm_up_and_records_what_it_billed(
     decision_setup: DecisionSetup, fake_decision_model: Any
 ) -> None:
-    append_ledger(p2_entry(1.5), path=decision_setup.ledger)
+    append_ledger(phase_entry(1.5), path=decision_setup.ledger)
     # Neither Jev nor the logprob model answers anything usable for "mail my boss": 2 arms x 2 sources x 2 variants
     # of that task end in an error. The logprob model takes 4 options, so at K = 5 it asks two questions in round
     # one, and both fail: its 8 failed searches are 12 failed asks.
@@ -439,9 +443,9 @@ def test_a_decision_run_warms_clm_up_and_records_what_it_billed(
     [run_dir] = decision_setup.runs.iterdir()
     records = [json.loads(line) for line in (run_dir / "run.jsonl").read_text().splitlines()]
     earlier, *entries = read_ledger(decision_setup.ledger)
-    assert earlier == p2_entry(1.5)
+    assert earlier == phase_entry(1.5)
     assert {entry.purpose for entry in entries} == {
-        "P2: decision dev (jev, clm, logprob; k 3/5; plain/model) on tasks.json"
+        f"{BUDGET.prefix} decision dev (jev, clm, logprob; k 3/5; plain/model) on tasks.json"
     }
     by_model = {(entry.provider, entry.model): entry for entry in entries}
     assert sorted(by_model) == [
@@ -469,13 +473,13 @@ def test_a_decision_run_warms_clm_up_and_records_what_it_billed(
     clm_seconds = sum(r["wall_seconds"] for r in records if r["record"] == "arm" and "+clm@" in r["arm"])
     assert modal.usd == pytest.approx(clm_seconds * 0.80 / 3600)
     assert modal.note.startswith("Modal credits: ")
-    assert f2a_spend(read_ledger(decision_setup.ledger), purpose_prefix="P2:").modal_usd == pytest.approx(
+    assert f2a_spend(read_ledger(decision_setup.ledger), purpose_prefix=BUDGET.prefix).modal_usd == pytest.approx(
         modal.usd
     )  # apart from the cap
     assert by_model["openai", "text-embedding-3-small"].input_tokens > 0  # the texts the fresh cache lacked
     assert all(model.closed for model in models.values())
     assert all(embedder.closed for embedder in decision_setup.embedders)
-    assert "P2 total now: $" in result.output
+    assert f"{PHASE} total now: $" in result.output
 
 
 def test_a_failing_decision_run_still_records_what_it_billed(
@@ -513,7 +517,7 @@ def test_a_decision_run_stops_when_its_provider_refuses_or_is_out(
 ) -> None:
     # A refused key stops the run at once; a quota or an outage after three failed attempts in a row. Going on would
     # only charge more reservations for asks that cannot be answered (P2's Clef dev run, refused at its daily quota).
-    append_ledger(p2_entry(1.5), path=decision_setup.ledger)
+    append_ledger(phase_entry(1.5), path=decision_setup.ledger)
     jev_model = fake_decision_model(
         model_id="jev-1.13.0@api.typesafe.ai", limits=JEV_LIMITS, fail_on="", fail_status=status
     )
