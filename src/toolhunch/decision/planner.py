@@ -258,7 +258,30 @@ def plan_question(
         raise ValueError(f"min_detail={min_detail.name} is above max_detail={max_detail.name}")
     if limits.max_options_per_choice is not None and option_count > limits.max_options_per_choice:
         return None
-    keys = option_keys(cards, reserved=reserved)
+    return _fit_question(
+        state,
+        cards,
+        option_keys(cards, reserved=reserved),
+        reserved=reserved,
+        limits=limits,
+        tokenizer=tokenizer,
+        max_detail=max_detail,
+        min_detail=min_detail,
+    )
+
+
+def _fit_question(
+    state: str,
+    cards: Sequence[ToolCard],
+    keys: Sequence[str],
+    *,
+    reserved: bool,
+    limits: ModelLimits,
+    tokenizer: Tokenizer,
+    max_detail: DetailLevel,
+    min_detail: DetailLevel,
+) -> PlannedQuestion | None:
+    """What `plan_question` does once the options are keyed: `keys` holds one key per card, as `option_keys` gives."""
     question_fixed = tokenizer.count(INSTRUCTIONS) + sum(tokenizer.count(key) + OPTION_OVERHEAD_TOKENS for key in keys)
     if reserved:
         question_fixed += tokenizer.count(NONE_KEY) + tokenizer.count(NONE_TEXT) + OPTION_OVERHEAD_TOKENS
@@ -319,9 +342,10 @@ def plan_rounds(
     the reserved option, and the reserved option. Which cards those are is not known yet, so the final is
     planned here against its worst case, at `min_detail`: that many cards of every chunk whose options cost
     the most, each counted as `plan_question` charges it under the card's own caps. When they do not fit,
-    every chunk keeps one. `RoundPlan.finalists_per_chunk` is the number in effect. The worst case counts
-    each card under its own name, where the final keys a repeated name `name #2`, so the caller still checks
-    the final question it builds.
+    every chunk keeps one. `RoundPlan.finalists_per_chunk` is the number in effect. Each card is counted
+    under the key `option_keys` gives it over all of `cards`, which a repeated name makes `name #2`: the final
+    lists its finalists in candidate order, so a card's key there is never longer than that. A final built
+    from the finalists therefore fits when this check passes, and the caller's check of it is a safety net.
 
     Raises:
         CandidatesDoNotFit: A card cannot be shown in any question (see `plan_question`), and `card_id`
@@ -369,17 +393,18 @@ def plan_rounds(
             raise CandidatesDoNotFit("a single option does not fit the model's token budget")
         chunk_count += 1
 
-    # Each chunk's cards, the costliest option at `min_detail` first; `sorted` is stable, so equal costs stay in
-    # chunk order.
-    costliest: list[list[ToolCard]] = []
-    for chunk in chunks:
-        names = [card.name for card in chunk.cards]
+    # Each chunk's cards with their keys, the costliest option at `min_detail` first; `sorted` is stable, so equal
+    # costs stay in chunk order. A card keeps the key it has among all the candidates.
+    all_keys = option_keys(cards, reserved=reserved)
+    costliest: list[list[tuple[ToolCard, str]]] = []
+    for start, chunk in enumerate(chunks):
+        chunk_keys = all_keys[start::chunk_count]
         # Without a total budget the first level tried always fits.
         rendered = cast(
             "RenderedCards",
             _option_texts(
                 chunk.cards,
-                names,
+                chunk_keys,
                 max_tokens=None,
                 limits=limits,
                 tokenizer=tokenizer,
@@ -388,15 +413,25 @@ def plan_rounds(
             ),
         )
         costs = [
-            tokenizer.count(name) + OPTION_OVERHEAD_TOKENS + tokenizer.count(text)
-            for name, text in zip(names, rendered.texts, strict=True)
+            tokenizer.count(key) + OPTION_OVERHEAD_TOKENS + tokenizer.count(text)
+            for key, text in zip(chunk_keys, rendered.texts, strict=True)
         ]
-        ranked = sorted(zip(costs, chunk.cards, strict=True), key=lambda pair: pair[0], reverse=True)
-        costliest.append([card for _, card in ranked])
+        ranked = sorted(zip(costs, chunk.cards, chunk_keys, strict=True), key=lambda entry: entry[0], reverse=True)
+        costliest.append([(card, key) for _, card, key in ranked])
 
     for kept in sorted({finalists(chunk_count), 1}, reverse=True):
-        worst = [card for cards_by_cost in costliest for card in cards_by_cost[:kept]]
-        if ask(worst, with_reserved=reserved, top=min_detail) is not None:
+        worst = [entry for entries in costliest for entry in entries[:kept]]
+        fitted = _fit_question(
+            state,
+            [card for card, _ in worst],
+            [key for _, key in worst],
+            reserved=reserved,
+            limits=limits,
+            tokenizer=tokenizer,
+            max_detail=min_detail,
+            min_detail=min_detail,
+        )
+        if fitted is not None:
             return RoundPlan(single=None, chunks=chunks, finalists_per_chunk=kept)
     raise CandidatesDoNotFit(
         f"{len(cards)} candidates do not fit two rounds for {limits.source!r}: even one finalist from each of "

@@ -118,7 +118,7 @@ class Decision:
             setting that leaves the questions as they were before it existed is left out, so a key from before
             it still holds: `"min_detail"` only above `NAME`, `"budgets"` (the limits the questions were planned
             under) only when the model declares `max_question_tokens` or `max_option_tokens`, and `"tokenizer"`
-            (its class name) only when it is not a `HeuristicTokenizer`.
+            (its class name, not its settings) only when it is not a `HeuristicTokenizer`.
         state_cut: Whether the state was cut to fit the model.
         exchanges: Every call made: round one in chunk order, then the final question. Empty when nothing was asked.
     """
@@ -198,9 +198,9 @@ class ChoiceDecider:
     candidate, or one and no reserved option, there is nothing to choose between and nothing is asked. Cards are
     described to the model by `max_detail` at most and `min_detail` at least, lower when a limit demands it, and
     counted by `tokenizer` (`HeuristicTokenizer` by default). A question that fits only below `min_detail` is split
-    into groups instead. What these settings and the model's declared budgets do to the questions enters
-    `Decision.shape` only when it differs from the defaults, and the tokenizer's class name enters it when it is not
-    the default one, so a threshold keeps its key until the questions it was measured on change.
+    into groups instead. These settings, the model's declared budgets and the tokenizer enter `Decision.shape` only
+    when they differ from the defaults, so a key from before they existed still holds. The tokenizer enters by its
+    class name alone: a `HeuristicTokenizer` with another `bytes_per_token` plans differently under the default key.
 
     A model failure is raised as it is, `DecisionError` for a call that failed or answered something that does not
     match the question, with no fallback to retrieval order.
@@ -248,13 +248,10 @@ class ChoiceDecider:
             ValueError: The candidates do not have distinct card ids, or the state's search queries alone take
                 its state budget.
             CandidatesDoNotFit: The candidates do not fit the model's limits, however they are asked. A
-                `ValueError`, raised before the first call. `card_id` is the id of the card no question can show:
-                its name is over `max_text_tokens`, or its option key and framing are over `max_option_tokens`.
-                It is `None` when the candidates as a whole do not fit: more than two rounds hold, two of them do
-                not fit the token budget together, or not even one finalist from each group fits the final
-                question. With `card_id` `None` it is also what stops a final question that does not fit after
-                round one has been asked, which the check before the first call cannot rule out when tools share
-                a name.
+                `ValueError`, raised before any call. `card_id` is the id of the card no question can show: its
+                name is over `max_text_tokens`, or its option key and framing are over `max_option_tokens`. It is
+                `None` when the candidates as a whole do not fit: more than two rounds hold, two of them do not fit
+                the token budget together, or not even one finalist from each group fits the final question.
             DecisionError: A call to the model failed or its answer does not match the question. Round one asks
                 its chunks at the same time; when several fail, the first in chunk order is raised, and the calls
                 of the other chunks are not cancelled.
@@ -339,11 +336,11 @@ class ChoiceDecider:
             min_detail=self._min_detail,
         )
         if final is None:
-            # `plan_rounds` checked a worst-case final before the first call, so this is a guard against a final
-            # that costs more than the worst case did, as with repeated names, which the final keys `name #2`.
+            # `plan_rounds` checked a worst-case final before the first call, so this should not happen: it is a
+            # guard in case the final built from the finalists costs more than that worst case.
             raise CandidatesDoNotFit(
-                f"the {len(finalists)} finalists of the first round do not fit the final question of "
-                f"{self._model.model_id}: {len(cards)} candidates are more than two rounds can rank with these limits"
+                f"the final question over the {len(finalists)} finalists of the first round does not fit the limits "
+                f"of {self._model.model_id}, though the plan expected it to"
             )
         return [[asked for asked in first if asked is not None], [await self._ask(state, final, round_number=2)]]
 

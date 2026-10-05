@@ -45,10 +45,10 @@ All notable changes to this project are documented here. The format follows
 - Benchmark runs stop when a provider refuses the key, the payment or the permission (HTTP 401, 402, 403), or after
   three failed attempts in a row at one provider with HTTP 429, a server fault or no reply; the manifest says why.
   A figure takes each decider's color, and whether it is shown, from its registry entry.
-- When a model declares `max_option_tokens` and a tool's name, at name level, is over it, the option is sent as its
-  key alone with no text, since at that level the text only repeats the key. A key that does not fit raises
-  `CandidatesDoNotFit` with the card's `card_id`, as does a name over `max_text_tokens`, which raised a plain
-  `ValueError` before.
+- When a model declares `max_option_tokens` and a tool's option at name level (its key, the framing and the name as
+  text) is over it, the option is sent as its key alone with no text, since at that level the text only repeats the
+  key. A key that does not fit raises `CandidatesDoNotFit` with the card's `card_id`, as does a name over
+  `max_text_tokens`, which raised a plain `ValueError` before.
 - When the candidates need two rounds, `plan_rounds` checks before the first call that a final question fits, at the
   worst case of the finalists the first round can keep, and keeps one finalist per group when more do not fit. A list
   that cannot be asked about raises `CandidatesDoNotFit` before any call, where it used to fail after the first

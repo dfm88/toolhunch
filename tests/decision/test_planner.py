@@ -549,6 +549,12 @@ def test_the_final_is_planned_against_its_worst_case() -> None:
     with pytest.raises(CandidatesDoNotFit, match="even one finalist from each of the 2 groups") as raised:
         rounds(cards, limits(state=47))
     assert raised.value.card_id is None
+    # A repeated name is priced under the key it has among all the candidates. Eight cards called "s" are keyed "s",
+    # "s #2", ..., two words for all but the first: [s0, s2, s4, s6] and [s1, s3, s5, s7] take 42 each. The worst final
+    # holds two of each group, 4 + 11 + 4 x 7 + 13 = 56; priced by the bare name it would take 52 and wrongly pass.
+    twins = [card("s", id=f"s{i}") for i in range(8)]
+    assert rounds(twins, limits(state=56)).finalists_per_chunk == 2
+    assert rounds(twins, limits(state=55)).finalists_per_chunk == 1
     # Under the option cap the cost is the option's as planned, without the state. "x0 a b c d" is its key alone,
     # 5 + 4 = 9 tokens; "y0 a b c" is its key and name, 4 + 4 + 4 = 12. Groups [x0, y0] and [x1, y1] take
     # 11 + 9 + 12 = 32 each, all four 53. A final with the y cards takes 11 + 2 x 12 + 13 = 48, with the x

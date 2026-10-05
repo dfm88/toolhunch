@@ -427,11 +427,26 @@ async def test_new_settings_enter_the_key_only_when_they_change_the_questions(fa
     assert base.key.payload_shape == "db6d5d57dd5971bd"  # unchanged: the thresholds measured so far still hold
     assert not {"min_detail", "budgets", "tokenizer"} & set(base.shape)
 
-    floored = await ChoiceDecider(fake_model({}), abstention=Abstention(), min_detail=DetailLevel.BRIEF).decide(
-        "Request: x", candidates
+    # The floor changes what is asked. Six options and 60 words a question: a group of six described cards takes 79
+    # at FULL and 67 at BRIEF but 49 at names, so without a floor round one asks two questions at names. With
+    # BRIEF as the floor the groups shrink to four cards, 57 at FULL, and the final's three finalists keep it.
+    squeezed = ModelLimits(
+        max_options_per_choice=6, max_state_plus_question_tokens=60, source="test", checked=date(2026, 10, 5)
     )
+    described = scored(*TOOLS_50[:12], description="Does a thing. Then another.")
+    unfloored = await ChoiceDecider(fake_model({}, limits=squeezed), abstention=Abstention(), tokenizer=Words()).decide(
+        "Request: x", described
+    )
+    floored = await ChoiceDecider(
+        fake_model({}, limits=squeezed), abstention=Abstention(), tokenizer=Words(), min_detail=DetailLevel.BRIEF
+    ).decide("Request: x", described)
+    assert [exchange.round for exchange in unfloored.exchanges] == [1, 1, 2]
+    assert {exchange.detail for exchange in unfloored.exchanges} == {DetailLevel.NAME}
+    assert [exchange.round for exchange in floored.exchanges] == [1, 1, 1, 2]  # two rounds, more groups
+    assert all(exchange.detail >= DetailLevel.BRIEF for exchange in floored.exchanges)
     assert floored.shape["min_detail"] == "BRIEF"
-    assert floored.key != base.key
+    assert "min_detail" not in unfloored.shape
+    assert floored.key != unfloored.key != base.key
 
     budgeted = await ChoiceDecider(fake_model({}, limits=LAYA_LIKE), abstention=Abstention()).decide(
         "Request: x", candidates
