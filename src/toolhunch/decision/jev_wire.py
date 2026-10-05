@@ -128,20 +128,26 @@ _LAYA_CHECKPOINTS = ("english", "multilingual", "typed-decisions")
 # request costs 149 tokens, rounded up to a multiple of 64.
 _RIZZO_FLOW_CONTEXT = 8192
 _RIZZO_FLOW_TEMPLATE_MARGIN = 192
+# The server refuses an option text over 8,000 characters (HTTP 422). The default `HeuristicTokenizer` counts at least
+# one token per 3 UTF-8 bytes, so an option it counts at 2,666 tokens or fewer, key and framing included, has a text
+# of at most 7,998 bytes. A tokenizer that counts fewer tokens per byte does not keep that promise.
+_RIZZO_FLOW_OPTION_TOKENS = 8000 // 3
 RIZZO_FLOW_LIMITS = ModelLimits(
     max_options_per_choice=26,
     max_state_plus_question_tokens=_RIZZO_FLOW_CONTEXT - _RIZZO_FLOW_TEMPLATE_MARGIN,
+    max_option_tokens=_RIZZO_FLOW_OPTION_TOKENS,
     max_questions_per_request=64,
     price_input_per_mtok=0.0,
     price_output_per_mtok=0.0,
     source=(
-        "Rizzo-AI-Academy/rizzo-flow @ b9ba007: schema.py MAX_SLOTS = 26; --ctx 8192 bounds each question with its "
-        "state (prompts.py compile_request); template margin 192 from a probe on 2026-10-05: a minimal request "
-        "costs 149 tokens"
+        "Rizzo-AI-Academy/rizzo-flow @ b9ba007: schema.py MAX_SLOTS = 26 and Text max_length=8000 characters for "
+        "each option; --ctx 8192 bounds each question with its state (prompts.py compile_request); template margin "
+        "192 from a probe on 2026-10-05: a minimal request costs 149 tokens"
     ),
     checked=date(2026, 10, 5),
 )
-"""rizzo-flow's limits: 26 options, and an 8,192-token context for each question with its state, served locally."""
+"""rizzo-flow's limits: 26 options, 8,000 characters in each option's text (2,666 tokens by the default tokenizer),
+and an 8,192-token context for each question with its state, served locally."""
 
 _CLEF_SOURCE = (
     "developers.cloudflare.com/workers-ai/models/{model}: 65,536-token context, 1-64 questions, "

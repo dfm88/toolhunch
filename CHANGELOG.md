@@ -17,8 +17,9 @@ All notable changes to this project are documented here. The format follows
   (`strict=True`, which needs a checkpoint name, not an alias) a reply raises `DecisionError` when Laya cut the
   state, collapsed options into one, answered with another checkpoint than the one asked for, or carries no
   `routing`.
-- `rizzo_flow()`: a local rizzo-flow server (`rizzo serve`), with `RIZZO_FLOW_LIMITS` (26 options and an 8,192-token
-  context for each question with its state, less the server's template). The default model id names the weights,
+- `rizzo_flow()`: a local rizzo-flow server (`rizzo serve`), with `RIZZO_FLOW_LIMITS` (26 options, 8,000 characters
+  in each option's text, held as 2,666 tokens by the default tokenizer, and an 8,192-token context for each question
+  with its state, less the server's template). The default model id names the weights,
   `rizzo-flow-4b-q8_0`.
 - `clef()`: Cloudflare's Clef and Clef-flash on Workers AI, with `CLEF_LIMITS` and `CLEF_FLASH_LIMITS`. The account
   ID goes into the URL only, never into `model_id` or `repr`.

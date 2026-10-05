@@ -7,10 +7,12 @@ from typing import TYPE_CHECKING, Any
 import httpx2
 import pytest
 
+from toolhunch import ScoredCard, ToolCard
 from toolhunch.decision import (
     LAYA_LIMITS,
     RIZZO_FLOW_LIMITS,
     ChoiceAnswer,
+    ChoiceDecider,
     ChoiceQuestion,
     DecisionError,
     DecisionRequest,
@@ -163,3 +165,32 @@ async def test_rizzo_flow_names_its_weights_and_holds_26_options() -> None:
         assert str(sent.url) == "http://127.0.0.1:8017/v1/systemone"
         assert "authorization" not in sent.headers
         assert json.loads(sent.content)["model"] == "rizzo-flow-4b-q8_0"
+
+
+async def test_rizzo_flow_keeps_each_option_text_within_its_8000_characters() -> None:
+    # A ToolRet card's full text ran past 8,000 characters and the server refused the question with HTTP 422.
+    long = "Search property listings by city, state and postal code, with prices and photos. " * 120
+    assert len(long) > 8000
+    candidates = [
+        ScoredCard(ToolCard(name=f"tool_{index}", description=long if index == 1 else f"Does thing {index}."), 0.5)
+        for index in range(3)
+    ]
+    template = fixture("rizzo_flow_tool_choice")["body"]
+    sent: list[dict[str, Any]] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        body = json.loads(request.content)
+        sent.append(body)
+        answers = {
+            key: template["answers"]["tool"]
+            | {"choice": next(iter(question["criteria"])), "probabilities": dict.fromkeys(question["criteria"], 0.25)}
+            for key, question in body["questions"].items()
+        }
+        return httpx2.Response(200, json=template | {"answers": answers})
+
+    model = rizzo_flow(http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler)), max_retries=0)
+    await ChoiceDecider(model).decide("Request: find a house in Austin", candidates)
+
+    texts = [question["criteria"] for body in sent for question in body["questions"].values()]
+    assert all(text["tool_1"] for text in texts)  # shown at a lower detail, not dropped
+    assert max(len(text) for criteria in texts for text in criteria.values()) <= 8000
