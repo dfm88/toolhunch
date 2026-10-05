@@ -38,12 +38,26 @@ class CachedEmbedder:
     rank identically. Only misses reach the wrapped embedder, `chunk_size` texts at a time, and each
     chunk is stored before the next is requested: a failed run keeps what it paid for, and running
     it again resumes. `billed_tokens` adds up what the wrapped embedder reported.
+
+    A kind in `fresh_kinds` is embedded by the wrapped embedder as if the cache were empty, and is
+    neither read from nor written to SQLite: a run timed on it pays the embedding call a first run
+    paid. Its vectors are kept in memory for the instance's life, so a text repeated within the run
+    is embedded once, as a first run reads back what it has just stored; `missing` counts the rest.
     """
 
-    def __init__(self, inner: Embedder, *, path: Path = EMBEDDING_CACHE_PATH, chunk_size: int = 2048) -> None:
-        """Open (or create) the cache at `path` in front of `inner`."""
+    def __init__(
+        self,
+        inner: Embedder,
+        *,
+        path: Path = EMBEDDING_CACHE_PATH,
+        chunk_size: int = 2048,
+        fresh_kinds: frozenset[EmbeddingKind] = frozenset(),
+    ) -> None:
+        """Open (or create) the cache at `path` in front of `inner`, embedding `fresh_kinds` afresh."""
         self._inner = inner
         self._chunk_size = chunk_size
+        self._fresh_kinds = fresh_kinds
+        self._fresh: dict[tuple[EmbeddingKind, str], tuple[float, ...]] = {}
         path.parent.mkdir(parents=True, exist_ok=True)
         self._db = sqlite3.connect(path)
         self._db.execute(
@@ -63,7 +77,12 @@ class CachedEmbedder:
     async def embed(self, texts: Sequence[str], /, *, kind: EmbeddingKind) -> EmbeddingBatch:
         """Embed `texts`, asking the wrapped embedder only for texts not in the cache."""
         keys = [_key(text) for text in texts]
-        vectors = self._load(keys, kind=kind)
+        fresh = kind in self._fresh_kinds
+        vectors = (
+            {key: self._fresh[kind, key] for key in keys if (kind, key) in self._fresh}
+            if fresh
+            else self._load(keys, kind=kind)
+        )
         pending = list({key: text for key, text in zip(keys, texts, strict=True) if key not in vectors}.items())
         billed = 0
         for start in range(0, len(pending), self._chunk_size):
@@ -72,18 +91,28 @@ class CachedEmbedder:
             billed += batch.input_tokens
             self.billed_tokens += batch.input_tokens
             stored = [(key, array("f", vector)) for (key, _), vector in zip(chunk, batch.vectors, strict=True)]
-            self._db.executemany(
-                "INSERT OR REPLACE INTO embeddings VALUES (?, ?, ?, ?)",
-                [(self.model_id, kind, key, vector.tobytes()) for key, vector in stored],
-            )
-            self._db.commit()
+            if fresh:
+                self._fresh.update(((kind, key), tuple(vector)) for key, vector in stored)
+            else:
+                self._db.executemany(
+                    "INSERT OR REPLACE INTO embeddings VALUES (?, ?, ?, ?)",
+                    [(self.model_id, kind, key, vector.tobytes()) for key, vector in stored],
+                )
+                self._db.commit()
             vectors.update((key, tuple(vector)) for key, vector in stored)
         return EmbeddingBatch(vectors=tuple(vectors[key] for key in keys), input_tokens=billed)
 
     def missing(self, texts: Iterable[str], *, kind: EmbeddingKind) -> list[str]:
-        """The distinct `texts` with no cached vector, in first-seen order."""
+        """The distinct `texts` with no vector to reuse, in first-seen order.
+
+        A text of a kind in `fresh_kinds` has one only once this instance has embedded it.
+        """
         unique = {_key(text): text for text in texts}
-        cached = {key for key, _ in self._rows(list(unique), kind=kind, with_vectors=False)}
+        cached = (
+            {key for key in unique if (kind, key) in self._fresh}
+            if kind in self._fresh_kinds
+            else {key for key, _ in self._rows(list(unique), kind=kind, with_vectors=False)}
+        )
         return [text for key, text in unique.items() if key not in cached]
 
     def close(self) -> None:

@@ -1,4 +1,6 @@
+import sqlite3
 from collections.abc import Sequence
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -54,6 +56,46 @@ async def test_only_misses_are_embedded_and_the_cache_survives_a_reopen(tmp_path
 
     assert reopened_inner.calls == []
     assert again == EmbeddingBatch(vectors=(first.vectors[3], first.vectors[0]), input_tokens=0)  # float32 either way
+
+
+async def test_fresh_query_embeddings_skip_the_cache_and_leave_it_untouched(tmp_path: Path) -> None:
+    # A run timed on fresh queries pays each query's embedding as the first run did, and leaves that run's vectors.
+    db = tmp_path / "embeddings.sqlite"
+
+    def rows() -> list[tuple[str, str, str, bytes]]:
+        with closing(sqlite3.connect(db)) as connection:
+            return connection.execute("SELECT * FROM embeddings ORDER BY kind, text_sha256").fetchall()
+
+    stored = CachedEmbedder(CountingEmbedder(), path=db)
+    first = await stored.embed(["q"], kind="query")
+    await stored.embed(["d"], kind="document")
+    stored.close()
+    before = rows()
+
+    class Negated(CountingEmbedder):
+        """Other vectors than the first run's: one read from the cache, or written over it, would show."""
+
+        async def embed(self, texts: Sequence[str], /, *, kind: EmbeddingKind) -> EmbeddingBatch:
+            batch = await super().embed(texts, kind=kind)
+            return EmbeddingBatch(
+                vectors=tuple(tuple(-value for value in vector) for vector in batch.vectors),
+                input_tokens=batch.input_tokens,
+            )
+
+    fresh_inner = Negated()
+    fresh = CachedEmbedder(fresh_inner, path=db, fresh_kinds=frozenset({"query"}))
+    assert fresh.missing(["q"], kind="query") == ["q"]  # an estimate counts it as paid
+    again = await fresh.embed(["q", "q"], kind="query")
+    repeat = await fresh.embed(["q"], kind="query")
+    await fresh.embed(["d"], kind="document")
+    assert fresh.missing(["q"], kind="query") == []
+    fresh.close()
+
+    assert fresh_inner.calls == [("query", ["q"])]  # once, then reused in memory; "d" from the cache
+    negated = tuple(-value for value in first.vectors[0])
+    assert again == EmbeddingBatch(vectors=(negated, negated), input_tokens=1)
+    assert repeat == EmbeddingBatch(vectors=(negated,), input_tokens=0)
+    assert rows() == before  # the first run's vectors untouched, and nothing added
 
 
 async def test_estimate_prices_only_what_is_not_cached(tmp_path: Path) -> None:

@@ -10,7 +10,7 @@ import time
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from importlib.metadata import version
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from toolhunch import DetailLevel, ToolCatalog, ToolSearchPipeline, default_search_text
 from toolhunch.decision import Abstention, CandidatesDoNotFit, ChoiceQuestion
@@ -479,6 +479,8 @@ class DirectRunner:
 
     Each decider is the registry's `choice_decider`, planning with its entry's tokenizer, with cards at
     `max_detail[name]` at most (`FULL` for a name it leaves out) and `min_detail[name]` at least (`NAME`).
+    The manifest records `query_embeddings`, whether the retriever embedded each query afresh or read it from the
+    embedding cache, and `agent_cache`, the name of the agents' replay file.
     """
 
     def __init__(
@@ -494,6 +496,8 @@ class DirectRunner:
         provenance: Mapping[str, Mapping[str, Any]] | None = None,
         max_detail: Mapping[str, DetailLevel] | None = None,
         min_detail: Mapping[str, DetailLevel] | None = None,
+        query_embeddings: Literal["fresh", "cached"] = "cached",
+        agent_cache: str | None = None,
     ) -> None:
         self.retriever = SharedRetrieval(retriever)
         self.models, self.agent, self.guard = models, agent, guard
@@ -501,6 +505,7 @@ class DirectRunner:
         self.not_applicable = not_applicable
         self.provenance = dict(provenance or {})
         self.max_detail, self.min_detail = dict(max_detail or {}), dict(min_detail or {})
+        self.query_embeddings, self.agent_cache = query_embeddings, agent_cache
         self._searches: dict[tuple[str, str], tuple[Retrieval, float, float]] = {}
 
     async def run(
@@ -520,7 +525,15 @@ class DirectRunner:
         """
         run_dir = out_dir / run_id
         run_dir.mkdir(parents=True, exist_ok=False)
-        manifest = _manifest(catalogs, run_id=run_id, pilot=pilot, estimate=estimate, arms=self.arms)
+        manifest = _manifest(
+            catalogs,
+            run_id=run_id,
+            pilot=pilot,
+            estimate=estimate,
+            arms=self.arms,
+            query_embeddings=self.query_embeddings,
+            agent_cache=self.agent_cache,
+        )
         manifest["not_applicable"] = [
             {"arm": arm, "catalog": source, **evidence}
             for (arm, source), evidence in self.not_applicable.items()
@@ -742,6 +755,8 @@ def _manifest(
     pilot: bool,
     estimate: DirectEstimate,
     arms: Sequence[str],
+    query_embeddings: str,
+    agent_cache: str | None,
 ) -> dict[str, Any]:
     def git(*args: str) -> str:
         return subprocess.run(["git", *args], capture_output=True, text=True, check=True, timeout=10).stdout.strip()
@@ -776,6 +791,8 @@ def _manifest(
         "tasks": tasks,
         "tasks_sha256": hashlib.sha256(json.dumps(tasks, sort_keys=True).encode()).hexdigest(),
         "arms": list(arms),
+        "query_embeddings": query_embeddings,
+        "agent_cache": agent_cache,
         "order": "catalog, arm, positives, negatives",
         "decision_basis": "sum of calls",
         "concurrency": 1,

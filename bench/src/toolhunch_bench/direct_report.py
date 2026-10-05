@@ -284,28 +284,48 @@ def build_direct_report(run_dir: Path, *, out_dir: Path, added: Sequence[Path] =
     """Generate a summary and public table from recorded requests; this never contacts a provider.
 
     `added` runs contribute only their own arms, such as `LUNA_ARMS`, on the same catalogs and tasks; the run cost
-    stays that of `run_dir`, and each added run's provenance and cost are listed under `added_runs`.
+    stays that of `run_dir`, and each added run's provenance and cost are listed under `added_runs`. An added run may
+    measure an arm of an earlier added run again: the later run replaces that arm, its records and its calls, and
+    `added_runs` lists for each run the arms it contributes (`arms`), those it replaced (`replaced`) and the verified
+    cost of its contributed arms alone (`verified_usd`).
+
+    Raises:
+        ValueError: An added run ran other tasks or another dataset than `run_dir`, or repeats an arm of `run_dir`.
     """
     manifest = json.loads((run_dir / "manifest.json").read_text())
     records, calls = _lines(run_dir / "run.jsonl"), _lines(run_dir / "calls.jsonl")
     own_calls = list(calls)
     manifests = [manifest]
-    search_ms = {run_dir.name: _search_ms(records)}
-    unfit = _unfit_pairs(run_dir, manifest, records)
-    for path in added:
+    owners: dict[str, int] = {}  # each added arm and the added run it comes from: the latest that ran it
+    replaced: list[list[dict[str, str]]] = []
+    for index, path in enumerate(added):
         extra = json.loads((path / "manifest.json").read_text())
         if extra["tasks_sha256"] != manifest["tasks_sha256"] or extra["dataset"] != manifest["dataset"]:
             raise ValueError(f"{path} ran other tasks or another dataset than {run_dir}")
         if set(extra["arms"]) & set(manifest["arms"]):
             raise ValueError(f"{path} repeats arms of {run_dir}")
+        replaced.append(
+            [{"arm": arm, "run": manifests[owners[arm] + 1]["run_id"]} for arm in extra["arms"] if arm in owners]
+        )
+        owners |= dict.fromkeys(extra["arms"], index)
         manifests.append(extra)
-        extra_records = _lines(path / "run.jsonl")
+    contributed = [[arm for arm in extra["arms"] if owners[arm] == index] for index, extra in enumerate(manifests[1:])]
+    search_ms = {run_dir.name: _search_ms(records)}
+    unfit = _unfit_pairs(run_dir, manifest, records)
+    exclusions = list(manifest.get("not_applicable", []))
+    added_calls: list[list[dict[str, Any]]] = []
+    for path, extra, arms_kept in zip(added, manifests[1:], contributed, strict=True):
+        extra_records = [r for r in _lines(path / "run.jsonl") if r["arm"] in arms_kept]
+        added_calls.append([call for call in _lines(path / "calls.jsonl") if call["arm"] in arms_kept])
         search_ms[path.name] = _search_ms(extra_records)
         unfit |= _unfit_pairs(path, extra, extra_records)
+        # The applicability of an arm replaced here is the later run's to state.
+        dropped = set(extra["arms"]).difference(arms_kept)
+        exclusions += [item for item in extra.get("not_applicable", []) if item["arm"] not in dropped]
         records += extra_records
-        calls += _lines(path / "calls.jsonl")
+        calls += added_calls[-1]
     not_applicable = dict(NOT_APPLICABLE)
-    for exclusion in (item for recorded in manifests for item in recorded.get("not_applicable", [])):
+    for exclusion in exclusions:
         not_applicable[(exclusion["arm"], exclusion["catalog"])] = {
             field: exclusion[field] for field in ("reason", "source", "date")
         }
@@ -408,11 +428,13 @@ def build_direct_report(run_dir: Path, *, out_dir: Path, added: Sequence[Path] =
         "added_runs": [
             {
                 "manifest": extra,
-                "verified_usd": sum(
-                    call["usd"] or 0 for call in _lines(path / "calls.jsonl") if call["arm"] in extra["arms"]
-                ),
+                "arms": arms_kept,
+                "replaced": arms_replaced,
+                "verified_usd": sum(call["usd"] or 0 for call in extra_calls),
             }
-            for path, extra in zip(added, manifests[1:], strict=True)
+            for extra, arms_kept, arms_replaced, extra_calls in zip(
+                manifests[1:], contributed, replaced, added_calls, strict=True
+            )
         ],
         "applicability": {
             "common_catalogs": common,
@@ -466,6 +488,12 @@ def build_direct_report(run_dir: Path, *, out_dir: Path, added: Sequence[Path] =
             "Cold is the first scored positive; a replay there provides no new cold measurement.",
             "Caching reflects one provider's routing in one single-turn run and does not isolate a latency effect.",
             *_added_caveats(manifests, search_ms),
+            *(
+                f"**{item['arm']} measured again.** Its rows come from `{extra['run_id']}`, which replaced the "
+                f"records and calls of `{item['run']}` for this arm."
+                for extra, arms_replaced in zip(manifests[1:], replaced, strict=True)
+                for item in arms_replaced
+            ),
             *_planning_caveats(rows),
         ],
     }

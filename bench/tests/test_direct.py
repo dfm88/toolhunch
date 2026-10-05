@@ -1,5 +1,6 @@
 import hashlib
 import json
+import shutil
 import sqlite3
 import time
 from collections.abc import Sequence
@@ -30,11 +31,12 @@ from toolhunch.decision import (
 )
 from toolhunch_bench import cli
 from toolhunch_bench.datasets.toolret import ToolRetData, ToolRetTask
-from toolhunch_bench.decision import CacheOnlyRetrieval, SharedRetrieval
+from toolhunch_bench.decision import LUNA_MODEL, CacheOnlyRetrieval, SharedRetrieval
 from toolhunch_bench.decision_cache import CachedDecisionModel
 from toolhunch_bench.direct import (
     CATALOGS,
     DIRECT_ARMS,
+    LUNA_ARMS,
     CatalogOrderRetriever,
     DirectRunner,
     arm_decider,
@@ -911,6 +913,88 @@ async def test_direct_report_discloses_added_deciders_and_search_time(tmp_path: 
     [row] = [r for r in summary["rows"] if r["arm"] == "hybrid@20+strands" and r["catalog"] == "pooled"]
     warm = row["positive_cost"]["warm"]
     assert 0 < warm["decision_latency_p50_ms"] < warm["latency_p50_ms"]
+
+
+async def test_a_later_added_run_replaces_an_arm(tmp_path: Path, fake_decision_model: Any) -> None:
+    # Luna's searched arm measured again: the later run replaces that arm of the earlier Luna run, whose other arm
+    # stays, with its records, calls and cost. The earlier run picks a relevant tool, the later one abstains.
+    selected = direct_catalogs(
+        data(sources={"webtools_spotify": "restgpt-spotify"}, count=2), sources={"webtools_spotify": "restgpt-spotify"}
+    )
+
+    def agent_model(*, picks: bool, name: str) -> FunctionModel:
+        def answer(messages: Sequence[ModelMessage], info: AgentInfo) -> ModelResponse:
+            matching = [tool for tool in info.function_tools if "Weather forecast" in (tool.description or "")]
+            parts: list[ModelResponsePart] = (
+                [ToolCallPart(matching[0].name, {})] if picks and matching else [TextPart("none")]
+            )
+            # Priced by the tools offered, so that each arm's calls cost apart.
+            tokens = 100 * (1 + len(info.function_tools))
+            return ModelResponse(parts=parts, usage=RequestUsage(input_tokens=tokens, output_tokens=1))
+
+        return FunctionModel(answer, model_name=name)
+
+    fake = fake_decision_model(model_id="jev-fake@test", limits=JEV_LIMITS, favourite="weather tool")
+    runs: dict[str, Path] = {}
+    for run_id, arms, picks in (
+        ("base", DIRECT_ARMS, True),
+        ("luna", LUNA_ARMS, True),
+        ("luna-again", ("agent-luna@20",), False),
+    ):
+        guard = SpendGuard()
+        estimate = await estimate_direct(selected, retriever=BM25Retriever(), models={"jev": fake}, arms=arms)
+        name = "fake-agent" if run_id == "base" else LUNA_MODEL
+        agent = CachedAgent(agent_model(picks=picks, name=name), path=tmp_path / f"{run_id}.sqlite", guard=guard)
+        try:
+            runs[run_id] = await DirectRunner(
+                retriever=BM25Retriever(),
+                models={"jev": GuardedDecisionModel(fake, guard=guard)},
+                agent=agent,
+                luna_agent=agent,
+                guard=guard,
+                arms=arms,
+                query_embeddings="fresh" if run_id == "luna-again" else "cached",
+                agent_cache=f"{run_id}.sqlite",
+            ).run(selected, out_dir=tmp_path / "runs", run_id=run_id, pilot=False, estimate=estimate)
+        finally:
+            agent.close()
+
+    summary = build_direct_report(runs["base"], out_dir=tmp_path / "report", added=[runs["luna"], runs["luna-again"]])
+
+    pooled = {row["arm"]: row for row in summary["rows"] if row["catalog"] == "pooled"}
+    assert pooled["agent-luna@20"]["relevant_pick_rate"]["value"] == 0
+    assert pooled["agent-luna@20"]["none_option"]["abstained"] == 3
+    assert pooled["agent-luna-all"]["relevant_pick_rate"]["value"] == 1
+    # The later run's requests and calls alone; its second positive asks what its first asked, and is replayed.
+    later_calls = (runs["luna-again"] / "calls.jsonl").read_text().splitlines()
+    assert {key: summary["validation"]["agent-luna@20"][key] for key in ("raw_requests", "provider_calls")} == {
+        "raw_requests": 3,
+        "provider_calls": len(later_calls),
+    }
+    first, later = summary["added_runs"]
+    assert (first["arms"], first["replaced"]) == (["agent-luna-all"], [])
+    assert (later["arms"], later["replaced"]) == (["agent-luna@20"], [{"arm": "agent-luna@20", "run": "luna"}])
+    assert [(run["manifest"]["query_embeddings"], run["manifest"]["agent_cache"]) for run in (first, later)] == [
+        ("cached", "luna.sqlite"),
+        ("fresh", "luna-again.sqlite"),
+    ]
+    calls = [json.loads(line) for line in (runs["luna"] / "calls.jsonl").read_text().splitlines()]
+    kept = sum(call["usd"] for call in calls if call["arm"] == "agent-luna-all")
+    assert first["verified_usd"] == pytest.approx(kept)
+    assert 0 < kept < sum(call["usd"] for call in calls)
+    readme = (tmp_path / "report" / "README.md").read_text()
+    assert (
+        "- **agent-luna@20 measured again.** Its rows come from `luna-again`, which replaced the records and calls of "
+        "`luna` for this arm." in readme
+    )
+
+    # An arm of the base run is never replaced.
+    repeating = tmp_path / "runs" / "repeating"
+    shutil.copytree(runs["luna-again"], repeating)
+    manifest = json.loads((repeating / "manifest.json").read_text())
+    (repeating / "manifest.json").write_text(json.dumps(manifest | {"arms": ["agent@20"]}))
+    with pytest.raises(ValueError, match="repeats arms of"):
+        build_direct_report(runs["base"], out_dir=tmp_path / "rejected", added=[repeating])
 
 
 async def test_direct_plans_not_applicable_catalogs_and_counts_key_only_options(

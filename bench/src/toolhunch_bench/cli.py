@@ -720,7 +720,11 @@ def direct(
     ] = False,
     estimate_out: Annotated[Path | None, typer.Option("--estimate-out", help="Write both estimates as JSON.")] = None,
     luna: Annotated[
-        bool, typer.Option("--luna", help="Only the agent arms again, with GPT-6 Luna and reasoning off.")
+        bool,
+        typer.Option(
+            "--luna",
+            help="Only the agent arms again, with GPT-6 Luna and reasoning off, under the current phase's budget.",
+        ),
     ] = False,
     deciders: Annotated[
         str,
@@ -739,13 +743,36 @@ def direct(
             "candidates into groups instead; name when left out."
         ),
     ] = "",
+    subset: Annotated[
+        str,
+        typer.Option(
+            "--arms",
+            help="Only these of the selected arms, comma-separated, such as agent-luna@20 with --luna; all of them "
+            "when left out.",
+        ),
+    ] = "",
+    fresh_query_embeddings: Annotated[
+        bool,
+        typer.Option(
+            "--fresh-query-embeddings",
+            help="Embed each request's query through the API, neither reading nor writing the embedding cache, as a "
+            "first run does; tool vectors stay cached.",
+        ),
+    ] = False,
+    agent_cache: Annotated[
+        str, typer.Option(help="The agents' replay file, a file name under bench/runs/cache/.")
+    ] = "agent.sqlite",
 ) -> None:
     """Compare direct-choice strategies; every paid attempt shares one spend guard.
 
     Without options it runs the five P1 arms; `--luna` the agent arms with GPT-6 Luna; `--deciders` the decider arms
-    of the deciders named, merged later into the P1 report with `direct-report --add`. Before the estimate, each
-    `<name>-all` arm plans every request of each catalog without asking anything: a catalog with a request that does
-    not fit the two-round policy is not applicable for it, and neither estimated nor run.
+    of the deciders named, merged later into the P1 report with `direct-report --add`; `--arms` keeps some of them.
+    Before the estimate, each `<name>-all` arm plans every request of each catalog without asking anything: a catalog
+    with a request that does not fit the two-round policy is not applicable for it, and neither estimated nor run.
+
+    With `--fresh-query-embeddings` a searching arm pays and waits for its query's embedding, as the first run that
+    embedded those queries did; the estimate counts every query as paid. The manifest records it, and the name of
+    the agents' replay file (`--agent-cache`): a new file keeps the answers of earlier runs out of this one.
     """
     from dataclasses import asdict
 
@@ -764,11 +791,17 @@ def direct(
             param_hint="--max-detail, --min-detail",
         )
     _check_floors(floors, ceilings=details)
+    group = decider_arms(names) if names else LUNA_ARMS if luna else DIRECT_ARMS
+    chosen = _listed(subset, allowed=group, option="--arms")
+    arms = tuple(arm for arm in group if arm in chosen) if chosen else group
+    if agent_cache in ("", ".", "..") or Path(agent_cache).name != agent_cache:
+        raise typer.BadParameter(
+            f"{agent_cache!r} is not a file name; give one, such as agent-luna-p3.sqlite", param_hint="--agent-cache"
+        )
     data = load_toolret(cache_dir=TOOLRET_CACHE)
     full, small = direct_catalogs(data), direct_catalogs(data, pilot=True)
-    prefix, cap = (BUDGET.prefix, BUDGET.cap_usd) if names else ("P1:", P1_CAP_USD)
+    prefix, cap = (BUDGET.prefix, BUDGET.cap_usd) if names or luna else ("P1:", P1_CAP_USD)
     spend = f2a_spend(read_ledger(LEDGER_PATH), purpose_prefix=prefix)
-    arms = decider_arms(names) if names else LUNA_ARMS if luna else DIRECT_ARMS
     suffix = "-direct-" + "-".join(names) if names else "-direct-luna" if luna else "-direct"
     run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + suffix + ("-pilot" if pilot else "")
     which = f"{', '.join(names)} " if names else "luna " if luna else ""
@@ -787,6 +820,7 @@ def direct(
         ),
         path=EMBEDDING_CACHE_PATH,
         chunk_size=512,
+        fresh_kinds=frozenset({"query"}) if fresh_query_embeddings else frozenset(),
     )
     if names:  # building Clef reads the account ID, and a local server's URL may be set there; keys at call time
         load_dotenv(BENCH_DIR.parent / ".env", override=False)
@@ -856,7 +890,7 @@ def direct(
             raise typer.Exit(code=2)
         client = AsyncOpenAI(base_url="https://api.openai.com/v1", max_retries=0, timeout=60)
         model = OpenAIChatModel(LUNA_MODEL if luna else AGENT_MODEL, provider=OpenAIProvider(openai_client=client))
-        agent = CachedAgent(model, path=BENCH_DIR / "runs" / "cache" / "agent.sqlite", guard=guard)
+        agent = CachedAgent(model, path=BENCH_DIR / "runs" / "cache" / agent_cache, guard=guard)
         direct_cache = BENCH_DIR / "runs" / "cache" / "direct-decisions.sqlite"
         for name, model in raw.items():
             # A local model goes through the guard too, at no charge: every ask is then recorded and timed.
@@ -874,6 +908,8 @@ def direct(
             provenance=provenance,
             max_detail=details,
             min_detail=floors,
+            query_embeddings="fresh" if fresh_query_embeddings else "cached",
+            agent_cache=agent_cache,
         )
 
         async def execute() -> Path:
