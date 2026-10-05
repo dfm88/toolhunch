@@ -127,7 +127,8 @@ class _ReadmeCharts:
     @staticmethod
     def _footer(started: list[str], *models: str) -> str:
         dates = sorted({day[:10] for day in started})
-        return f"toolhunch · ToolRet · runs of {' and '.join(dates)} · {', '.join(models)}"
+        # Each model once, in order: a run that measures an earlier run's arm again asks the same model.
+        return f"toolhunch · ToolRet · runs of {' and '.join(dates)} · {', '.join(dict.fromkeys(models))}"
 
     def write(self) -> list[Path]:
         self.out_dir.mkdir(parents=True, exist_ok=True)

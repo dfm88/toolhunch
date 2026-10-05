@@ -133,6 +133,7 @@ if TYPE_CHECKING:
 TOOLRET_CACHE = BENCH_DIR / "runs" / "data" / "toolret" / TOOLRET_REVISION
 MODES: tuple[QueryMode, ...] = ("plain", "instructed")
 MAX_INPUT_TOKENS = 8191  # text-embedding-3-* context length (OpenAI cookbook, Embedding_long_inputs)
+_AGENT_CACHE = "agent.sqlite"  # the agents' replay file of the earlier direct runs
 DECISION_EMBEDDING_MODEL = "text-embedding-3-small"  # the hybrid retriever's, as in the F1 pilot
 _FALLBACK_EXAMPLES = 5  # what the writer answered instead of searching, shown after a queries run
 
@@ -760,8 +761,12 @@ def direct(
         ),
     ] = False,
     agent_cache: Annotated[
-        str, typer.Option(help="The agents' replay file, a file name under bench/runs/cache/.")
-    ] = "agent.sqlite",
+        str,
+        typer.Option(
+            help="The agents' replay file, a file name under bench/runs/cache/; with --luna and "
+            "--fresh-query-embeddings, give one other than the default."
+        ),
+    ] = _AGENT_CACHE,
 ) -> None:
     """Compare direct-choice strategies; every paid attempt shares one spend guard.
 
@@ -796,7 +801,13 @@ def direct(
     arms = tuple(arm for arm in group if arm in chosen) if chosen else group
     if agent_cache in ("", ".", "..") or Path(agent_cache).name != agent_cache:
         raise typer.BadParameter(
-            f"{agent_cache!r} is not a file name; give one, such as agent-luna-p3.sqlite", param_hint="--agent-cache"
+            f"{agent_cache!r} is not a file name; give one, such as agent-luna-rerun.sqlite", param_hint="--agent-cache"
+        )
+    if luna and fresh_query_embeddings and agent_cache == _AGENT_CACHE:
+        raise typer.BadParameter(
+            f"a Luna rerun with fresh query embeddings would replay, and add to, the earlier runs' answers in "
+            f"{_AGENT_CACHE}; give it a file of its own, such as agent-luna-rerun.sqlite",
+            param_hint="--agent-cache",
         )
     data = load_toolret(cache_dir=TOOLRET_CACHE)
     full, small = direct_catalogs(data), direct_catalogs(data, pilot=True)
@@ -909,7 +920,7 @@ def direct(
             max_detail=details,
             min_detail=floors,
             query_embeddings="fresh" if fresh_query_embeddings else "cached",
-            agent_cache=agent_cache,
+            agent_cache=None if names else agent_cache,  # a decider run asks no agent
         )
 
         async def execute() -> Path:
@@ -995,7 +1006,11 @@ def direct_report(
     added: Annotated[
         list[Path] | None,
         typer.Option(
-            "--add", help="A later run of other arms, such as --luna; repeatable.", exists=True, file_okay=False
+            "--add",
+            help="A later run of other arms, such as --luna, or of an earlier added run's arm, which it replaces; "
+            "repeatable.",
+            exists=True,
+            file_okay=False,
         ),
     ] = None,
 ) -> None:

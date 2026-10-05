@@ -505,7 +505,8 @@ class DirectRunner:
         self.not_applicable = not_applicable
         self.provenance = dict(provenance or {})
         self.max_detail, self.min_detail = dict(max_detail or {}), dict(min_detail or {})
-        self.query_embeddings, self.agent_cache = query_embeddings, agent_cache
+        self.query_embeddings: Literal["fresh", "cached"] = query_embeddings
+        self.agent_cache = agent_cache
         self._searches: dict[tuple[str, str], tuple[Retrieval, float, float]] = {}
 
     async def run(
@@ -755,7 +756,7 @@ def _manifest(
     pilot: bool,
     estimate: DirectEstimate,
     arms: Sequence[str],
-    query_embeddings: str,
+    query_embeddings: Literal["fresh", "cached"],
     agent_cache: str | None,
 ) -> dict[str, Any]:
     def git(*args: str) -> str:
