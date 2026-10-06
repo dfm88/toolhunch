@@ -14,15 +14,16 @@ toolhunch searches them, lets a fast decision model pick, and can say “none”
   <img src="https://img.shields.io/badge/python-3.12%2B-3776AB" alt="Python 3.12+">
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license">
   <img src="https://img.shields.io/badge/Pydantic%20AI-integration-E92063" alt="Pydantic AI integration">
-  <img src="https://img.shields.io/badge/Jev--compatible-Laya-2F6DB5" alt="Jev-compatible: Laya">
+  <img src="https://img.shields.io/badge/Jev--compatible-Clef%20·%20Strands%20·%20rizzo--flow%20·%20Laya-2F6DB5" alt="Jev-compatible: Clef, Strands Decider, rizzo-flow, Laya">
   <img src="https://img.shields.io/badge/ToolRet-44%2C453%20tools-2E8B57" alt="Benchmarked on ToolRet, 44,453 tools">
 </p>
 
-![Which tool should the agent call? GPT-6 Luna agent 80%, Jev 74%, GPT-4.1 mini agent 61%, search only 54%](https://raw.githubusercontent.com/dfm88/toolhunch/main/docs/assets/direct-choice.svg)
+![Which tool should the agent call? GPT-6 Luna agent and Clef 80%, Jev 74%, rizzo-flow 70% on a Mac, GPT-4.1 mini agent 61%, search only 54%](https://raw.githubusercontent.com/dfm88/toolhunch/main/docs/assets/direct-choice.svg)
 
 On catalogs of 40–101 tools, a GPT-6 Luna agent given every tool as a function picked a relevant tool for
-**80%** of 290 requests, Jev **74%** and a GPT-4.1 mini agent **61%**. Jev answered in 0.32 s against Luna's
-1.45 s, and Luna never answered “none”. [Results and limits below](#results).
+**80%** of 290 requests, and so did Cloudflare's Clef reading the whole catalog. Jev reached **74%**, rizzo-flow
+running on a Mac **70%** and a GPT-4.1 mini agent **61%**. Jev decided in 0.32 s against 1.43–1.45 s for Clef
+and Luna, and Luna never answered “none”. [Results and limits below](#results).
 
 ## Why search tools at all?
 
@@ -45,8 +46,10 @@ request ──► search (BM25 + embeddings) ──► 20 candidates ──► d
 
 - **Search** ranks tools by keywords (BM25) and by meaning (embeddings), merged with reciprocal rank fusion.
 - **A decider** reads the request and the candidates, then picks one or answers “none”. It can be a System-1
-  decision model such as [TypeSafe's Jev](https://docs.typesafe.ai), a Jev-compatible server
-  ([Laya](https://github.com/NandhaKishorM/laya), [rizzo-flow](https://github.com/Rizzo-AI-Academy/rizzo-flow)),
+  decision model such as [TypeSafe's Jev](https://docs.typesafe.ai) or
+  [Cloudflare's Clef](https://developers.cloudflare.com/workers-ai/models/clef/), a Jev-compatible server you
+  run yourself ([Strands Decider](https://github.com/strands-labs/strands-decider),
+  [rizzo-flow](https://github.com/Rizzo-AI-Academy/rizzo-flow), [Laya](https://github.com/NandhaKishorM/laya)),
   or an LLM that ranks the options with its token probabilities (logprobs) or names one as structured output.
 - **Two ways to use a decider:** after search, on the 20 candidates, at any catalog size; or instead of search,
   reading the whole catalog, when it is small.
@@ -64,29 +67,46 @@ over tasks; every figure is generated from a published summary.
 
 Four ToolRet catalogs of 40–101 tools, with the same 290 requests for every strategy (chart above):
 
-| Strategy | Relevant tool picked (95% CI) | Cost / 1,000 requests | Median latency |
+| Strategy | Relevant tool picked (95% CI) | Cost / 1,000 requests | Median decision latency |
 |---|---:|---:|---:|
 | GPT-6 Luna agent, whole catalog | **79.7%** (74.8–84.1) | $0.07 (99.6% cached) | 1.45 s |
-| GPT-6 Luna agent, 20 searched tools | 77.6% (72.4–82.1) | $0.18 | 1.24 s |
+| Clef reads the whole catalog | **79.7%** (75.2–84.1) | $1.63 | 1.43 s |
+| Clef-flash reads the whole catalog | 78.6% (73.8–83.1) | $0.61 | 0.69 s |
+| GPT-6 Luna agent, 20 searched tools | 77.6% (72.4–82.1) | $0.18 | 1.28 s |
+| Search, then Clef picks among 20 | 76.9% (72.1–81.7) | $0.44 | 0.61 s |
+| Search, then Clef-flash picks among 20 | 76.9% (72.1–81.7) | $0.17 | 0.46 s |
 | Jev reads the whole catalog | 74.1% (69.0–79.0) | $0.28 | 0.32 s |
-| Search, then Jev picks among 20 | 71.4% (65.9–76.6) | $0.08 | 0.45 s |
-| GPT-4.1 mini agent, 20 searched tools | 61.7% (55.9–66.9) | $0.68 | 0.94 s |
+| Search, then Jev picks among 20 | 71.4% (65.9–76.6) | $0.08 | 0.28 s |
+| Search, then rizzo-flow picks among 20 | 69.7% (64.5–74.5) | local | 0.57 s |
+| rizzo-flow reads the whole catalog | 69.0% (63.4–74.1) | local | 2.95 s |
+| Strands Decider 2B reads the whole catalog | 62.1% (56.2–67.6) | local | 0.12 s |
+| GPT-4.1 mini agent, 20 searched tools | 61.7% (55.9–66.9) | $0.68 | 0.76 s |
+| Search, then Strands Decider 2B picks among 20 | 61.4% (55.9–66.9) | local | 0.16 s |
 | GPT-4.1 mini agent, whole catalog | 60.7% (55.2–66.2) | $0.79 (92% cached) | 0.86 s |
-| Search only, top result | 54.5% (48.6–60.0) | ≈ $0 | 0.16 s |
+| Search only, top result | 54.5% (48.6–60.0) | ≈ $0 | 0.16 s (search) |
+| Search, then Laya wide picks among 20 | 40.7% (34.8–46.2) | local | 0.11 s |
+| Laya wide reads the whole catalog | 34.8% (29.3–40.3) | local | 0.30 s |
 
 The agent makes one function-calling request; its first call is scored, never executed. GPT-6 Luna runs with
-reasoning off, in a later run on the same requests. Costs and latency are for warm requests, after the first of
-each catalog, and include search where a strategy searches first.
+reasoning off. Later runs, on the same requests, added the other deciders. Costs and latency are for warm
+requests, after the first of each catalog; latency is the decision's alone, since some runs searched with query
+embeddings an earlier run had cached. “Local” deciders ran on one Mac (Apple M5 Max, 128 GB): no money cost,
+and that machine's latency. rizzo-flow and Laya answer one request at a time, so their latency adds every call
+of a request: rizzo-flow asks about six questions when it reads a whole catalog. Clef and Clef-flash have no
+pinned version (runs of 2026-10-04). [Limits of these runs](#limits-of-these-runs) has more.
 
 ### 2. 44,453 tools: search, then decide
 
-![Search only 22%, Jev 32%, GPT-4.1 mini 33%, GPT-6 Luna 34%; ceiling 59%](https://raw.githubusercontent.com/dfm88/toolhunch/main/docs/assets/rerank-44k.svg)
+![Search only 22%; GPT-6 Luna 34%, GPT-4.1 mini 33%, Jev 32%, Clef 31%, rizzo-flow 30.5%, Strands Decider 2B 28.5%, Clef-flash 24%, Laya wide 20%; ceiling 59%](https://raw.githubusercontent.com/dfm88/toolhunch/main/docs/assets/rerank-44k.svg)
 
 On 200 held-out requests, search alone puts a relevant tool first 22% of the time. A decider over the 20
-candidates raises that to 32% (Jev), 33% (GPT-4.1 mini logprobs) or 34% (GPT-6 Luna): the same precision
-within the intervals, with Jev the cheapest and fastest ($0.05 per 1,000 searches and 0.25 s, against $0.12
-and 1.06 s for Luna, $0.52 and 1.31 s for GPT-4.1 mini). Search is the limit: a relevant tool is among the
-20 candidates only 59% of the time. With 50 candidates the ceiling is 71.5%, and Jev reaches 37.0%.
+candidates raises that to 34% (GPT-6 Luna), 33% (GPT-4.1 mini logprobs), 32% (Jev), 31% (Clef) or 30.5%
+(rizzo-flow, on a Mac): the same precision within the intervals. Jev is the cheapest and fastest hosted decider
+($0.05 per 1,000 searches and 0.25 s, against $0.27 and 0.52 s for Clef, $0.12 and 1.06 s for Luna, $0.52 and
+1.31 s for GPT-4.1 mini). Strands Decider 2B reaches 28.5% in 0.08 s on the Mac, Clef-flash 24%, and Laya wide,
+used zero-shot, 20%: no gain over search. Search is the limit: a relevant tool is among the 20 candidates only
+59% of the time. With 50 candidates the ceiling is 71.5%, and Jev reaches 37.0%, Clef 36.5% and rizzo-flow
+33.5%.
 
 Why GPT-4.1 mini for logprobs? The decider reads the probability of every option letter, and GPT-4.1 mini is
 the newest OpenAI model we found that returns 20 of them: GPT-5-mini refuses logprobs, GPT-5.4-mini returns at
@@ -109,7 +129,9 @@ read in three ways:
 On small catalogs, with “none” allowed: when no right tool existed, Jev said “none” 45% of the time and
 the GPT-4.1 mini agent 41%, so both usually picked something anyway. The GPT-6 Luna agent never said it: it
 called a tool for all 145 requests without a right one. When a right tool existed, the GPT-4.1 mini agent
-said “none” to 27% of requests, Jev to 12%.
+said “none” to 27% of requests, Jev to 12%. Among the later deciders, Clef said “none” to 26–31% of the
+requests without a right tool, Clef-flash 16–25%, Strands Decider 2B 26–37% and rizzo-flow 28–29% (whole
+catalog and 20 searched tools). Laya wide said it most, 43–58%, but also to 37–40% of the requests that had one.
 
 A threshold is no cure either. At 44,453 tools, on 200 requests with a relevant tool and 200 without:
 
@@ -121,33 +143,40 @@ A threshold is no cure either. At 44,453 tools, on 200 requests with a relevant 
 
 Without a relevant tool any pick is wrong, so “answer always” is wrong at least 200 times by design.
 The threshold removed about 9 in 10 wrong picks, and 2 in 3 right ones. GPT-4.1 mini gives 66/334/0, 61/272/67
-and 52/215/133 for the same readings; GPT-6 Luna, allowed “none”, gives 60/257/83.
+and 52/215/133 for the same readings; GPT-6 Luna, allowed “none”, gives 60/257/83. For the later deciders a
+threshold chosen on dev answers even less: at 0.95, Clef answers 12 of 400 requests and rizzo-flow 52.
 
 ### 4. Does the order of the candidates matter?
 
 A common criticism of decision models is that shuffling the options changes the answer. We asked the same
 200 questions with the 20 candidates in five orders: search order and four shuffles.
 
-![Pairwise agreement: Jev 96% same order, 76.5% shuffled; GPT-4.1 mini 98% and 60.5%; GPT-6 Luna 92.1% and 62.9%](https://raw.githubusercontent.com/dfm88/toolhunch/main/docs/assets/order-sensitivity.svg)
+![Pairwise agreement when shuffled: Clef 98.5%, Clef-flash 98.0%, Jev 76.5%, GPT-6 Luna 62.9%, GPT-4.1 mini 60.5%, Laya wide 52.2%, Strands Decider 2B 50.2%, rizzo-flow 46.9%](https://raw.githubusercontent.com/dfm88/toolhunch/main/docs/assets/order-sensitivity.svg)
 
-- **All three change their pick.** Two orders agree on the top tool 76.5% of the time for Jev, 60.5%
-  for GPT-4.1 mini logprobs and 62.9% for GPT-6 Luna, against 92–98% when the same order is repeated.
-- **GPT-4.1 mini's precision moved most.** A relevant tool came first 30.5% → 31.2% (mean of the shuffles)
-  for Jev, 34.3% → 33.0% for Luna, and 33.0% → 29.0% for GPT-4.1 mini, lower in all four shuffles.
+- **Most change their pick.** Two orders agree on the top tool 76.5% of the time for Jev, 62.9% for GPT-6 Luna
+  and 60.5% for GPT-4.1 mini logprobs, against 92–98% when the same order is repeated; the models run on the
+  Mac agree only 47–52% of the time (rizzo-flow, Strands Decider 2B, Laya wide). Clef and Clef-flash are the
+  exception: 98.5% and 98.0%.
+- **Precision moved little, except for two.** A relevant tool came first 30.5% → 31.2% (mean of the shuffles)
+  for Jev, 34.3% → 33.0% for Luna and 31.0% → 30.9% for Clef; it fell for GPT-4.1 mini (33.0% → 29.0%) and
+  rizzo-flow (30.5% → 26.5%), which do best in search order.
 - **Position bias.** GPT-4.1 mini and Luna picked one of the first three slots 23% of the time, Jev 18.2%;
   a uniform pick gives 15%.
 - **Averaging five orders did not help** (31.5% Jev, 31.0% GPT-4.1 mini) and costs five decisions per search.
 
-The same-order repeats come from a separate run, so this is an observational comparison. Luna's figures use the
-198 tasks it answered in every order (it returned an empty answer on 3 of 1,000 asks).
+The same-order repeats come from a separate run, so this is an observational comparison; the later deciders
+gave identical probabilities when a search was repeated, so they have none. Luna's figures use the 198 tasks it
+answered in every order (it returned an empty answer on 3 of 1,000 asks).
 
 ### 5. Cost and latency
 
-![Precision against median latency and cost: Luna most precise on small catalogs but slowest; at 44,453 tools all deciders tie and Jev is fastest and cheapest](https://raw.githubusercontent.com/dfm88/toolhunch/main/docs/assets/cost-latency.svg)
+![Precision against median decision latency and cost: Clef and the Luna agent most precise on small catalogs but slow; at 44,453 tools most deciders tie and Jev is the fastest and cheapest hosted one; local models drawn hollow](https://raw.githubusercontent.com/dfm88/toolhunch/main/docs/assets/cost-latency.svg)
 
-On small catalogs the GPT-6 Luna agent was the most precise and, with its prompt cache, cheap, but took
-1.45 s against Jev's 0.32 s. At 44,453 tools the deciders tie on precision, and Jev is both the fastest
-and the cheapest.
+On small catalogs Clef and the GPT-6 Luna agent were the most precise, Luna cheap with its prompt cache and
+Clef the most expensive, both taking about 1.4 s against Jev's 0.32 s. Clef-flash after search is the
+compromise: 76.9% at $0.17 per 1,000 and 0.46 s. rizzo-flow, free on a Mac, comes close to Jev after search
+(69.7%, 0.57 s), and Strands Decider 2B answers in 0.12–0.16 s at 61–62%. At 44,453 tools most deciders
+tie on precision, and Jev is the fastest and cheapest hosted one.
 
 For the agents given the whole catalog, OpenAI served most input tokens from its prompt cache on warm
 requests: 92% for GPT-4.1 mini ($0.79 per 1,000 instead of $2.43 at list price) and 99.6% for GPT-6 Luna
@@ -155,8 +184,25 @@ requests: 92% for GPT-4.1 mini ($0.79 per 1,000 instead of $2.43 at list price) 
 ($0.68 and $0.18). Jev's provider-side caching was not measured.
 Multi-turn agent loops, where caching and tool reveal interact, come next.
 
+### Limits of these runs
+
+- **Local models ran on one Mac** (Apple M5 Max, 128 GB, macOS 26.6.2); their latency is that machine's, and
+  rizzo-flow's speed varied between runs.
+- **Laya ran zero-shot**, with wider budgets than its English checkpoint ships (512/1,024 tokens instead of
+  192/512, which cannot hold 50 candidates); its authors present it as a base to specialise. About a quarter of
+  its options were shown by name only, because their description was over its 48-token option cap, and 1.6–2.1%
+  by their key alone; 10 of 1,600 searches failed on a tool name over that cap and are left out of its precision;
+  reading the whole catalog, one MetaTool list of 198 tools did not fit two rounds, so MetaTool is left out for it
+  (outside the four catalogs above anyway). Its checkpoint ships an uncalibrated temperature for questions of 11
+  or more options, which half of its searches asked.
+- **rizzo-flow refuses an option over 8,000 characters:** one 9,700-character tool was shown by its first
+  sentence instead.
+- **Clef and Clef-flash have no pinned version**: Cloudflare may change them under the same name.
+- **CLM** ran too, but its figures wait for its authors to confirm our deployments match theirs.
+
 The [technical page](https://github.com/dfm88/toolhunch/blob/main/docs/experiments/toolret.md) has the protocol, every table, per-catalog results,
-latency, thresholds and limitations.
+latency, thresholds and limitations. toolhunch is an independent project, not affiliated with TypeSafe, OpenAI,
+Cloudflare, AWS, ConvAI Innovations or Rizzo AI Academy.
 
 ## Quickstart
 
@@ -219,35 +265,23 @@ A complete script, run offline by the tests, is in [`examples/pydantic_ai_tool_s
 
 ### With a Jev-compatible server
 
-Swap the decision model; everything else stays. For a local Laya server (`laya-serve`, English checkpoint):
+Swap the decision model; everything else stays. Each factory declares its server's limits (options, token
+windows, a source and a date), so the planner fits every question before anything is sent:
 
 ```python
-from datetime import date
+from toolhunch.decision import clef, laya, rizzo_flow, strands_decider
 
-from toolhunch import JevWireModel, ModelLimits
-
-laya = JevWireModel(
-    "english",
-    base_url="http://127.0.0.1:8000/v1",
-    api_key_env=None,  # local server, no key
-    limits=ModelLimits(  # declared, with their source and date
-        max_options_per_choice=100,
-        max_state_plus_question_tokens=512,
-        max_questions_per_request=64,
-        source="laya-serve 0.3.22",
-        checked=date(2026, 9, 30),
-    ),
-)
-pipeline = ToolSearchPipeline(BM25Retriever(), decider=ChoiceDecider(laya, abstention=Abstention()), k=20, top_n=1)
+decider = ChoiceDecider(rizzo_flow(), abstention=Abstention())  # `rizzo serve` on http://127.0.0.1:8017
+# clef("clef-flash")    Cloudflare Workers AI; CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_KEY in the environment
+# strands_decider()     `strands-decider serve --strict-window` on http://127.0.0.1:8000
+# laya()                `laya-serve`, English checkpoint, on http://127.0.0.1:8010
+pipeline = ToolSearchPipeline(BM25Retriever(), decider=decider, k=20, top_n=1)
 ```
 
-For rizzo-flow, use `model="rizzo-latest"`, its URL, 26 options including “none”
-and `max_state_plus_question_tokens=8192` at `--ctx 8192`.
-Both servers were smoke-tested on 2026-09-30 with a two-tool example and were not benchmarked
-([protocol](https://github.com/dfm88/toolhunch/blob/main/docs/experiments/toolret.md#compatible-server-smoke-tests),
-[summary](https://github.com/dfm88/toolhunch/blob/main/bench/results/2026-09-jev-compatible-smoke/summary.json));
-a small token window can make the planner lower card detail or split a choice.
-`OpenAILogprobModel` covers OpenAI-compatible endpoints that return `top_logprobs`.
+Small windows make the planner lower card detail or split a choice into rounds; Laya's 48-token option cap is
+counted with the planner's tokenizer, so pass one that reads Laya's own `tokenizer.json` for an exact fit.
+`JevWireModel` covers any other Jev-shaped endpoint, and `OpenAILogprobModel` OpenAI-compatible endpoints that
+return `top_logprobs`.
 
 ## Status and roadmap
 
@@ -271,7 +305,8 @@ uv run toolhunch-bench readme-charts
 ```
 
 The [technical page](https://github.com/dfm88/toolhunch/blob/main/docs/experiments/toolret.md#reproduce) gives report regeneration and paid rerun commands:
-about $2 for the main 44,453-tool decision calls, $1 for the small-catalog run and under $1 for the GPT-6 Luna runs.
+about $2 for the main 44,453-tool decision calls, $1 for the small-catalog run, under $1 for the GPT-6 Luna runs
+and about $4 for Clef and Clef-flash; the local deciders cost nothing but time.
 Every paid command prints an estimate first. See [AGENTS.md](https://github.com/dfm88/toolhunch/blob/main/AGENTS.md) for development conventions.
 
 ## License

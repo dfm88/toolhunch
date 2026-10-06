@@ -3,6 +3,8 @@
 A relevant tool appeared first on 22.0% of held-out requests with hybrid retrieval, 32.0%
 with Jev and 33.0% with a GPT-4.1 mini logprob decision stage, at 20 candidates; GPT-6 Luna,
 answering as structured output in a later run, reached 34.0%.
+Later runs added Clef, Clef-flash, Strands Decider 2B, rizzo-flow and Laya, and asked GPT-6 Luna's searched
+arm again ([Later deciders](#later-deciders)).
 These are ranking measurements. Abstention changes which requests get a tool, and the observed
 thresholds sacrifice many useful picks as well as preventing wrong ones.
 
@@ -569,9 +571,112 @@ Luna returned no content, with an empty refusal and `finish_reason` `stop`, on 3
 (2 tasks) and 1 of 600 repeats; one of them reproduced on a direct retry. Those searches are
 counted as errors and their tasks left out of the order and noise comparisons.
 
+## Later deciders
+
+Two later rounds put five more deciders through the same three tests, on the same tasks, catalogs and
+retrieval, each at the configuration its dev runs chose under a fixed rule (the higher P@1 at K20 on `plain`;
+a tie goes to the configuration the model ships with). Every number below is copied from the generated
+summaries: re-ranking in [decision P2](https://github.com/dfm88/toolhunch/blob/main/bench/results/2026-10-toolret-decision-p2/summary.json) and
+[decision P3](https://github.com/dfm88/toolhunch/blob/main/bench/results/2026-10-toolret-decision-p3/summary.json), direct choice in
+[direct P3](https://github.com/dfm88/toolhunch/blob/main/bench/results/2026-10-toolret-direct-p3/summary.json), which holds every arm so far, and candidate order in
+`bench/results/2026-10-toolret-order-p2/` and `bench/results/2026-10-toolret-order-p3/`.
+
+| Decider | Where it ran | Configuration |
+|---|---|---|
+| Clef, Clef-flash | Cloudflare Workers AI, 2026-10-04; no pinned version (API version `2026-10-01.epoch` at the probe) | BRIEF cards |
+| Strands Decider 2B | `strands-decider-2B-hobson-v19` on MLX, one Mac, 2026-10-04 | FULL cards |
+| rizzo-flow | `rizzoaiacademy/rizzo-flow` 4B q8_0 at source `b9ba007`, llama.cpp `b11081` (Metal), one Mac, 2026-10-05 | FULL cards |
+| Laya wide | laya 0.3.27, English checkpoint `55cf4c4`, PyTorch on MPS, one Mac, 2026-10-05 | 512-token question and 1,024-token sequence budgets, BRIEF cards and a BRIEF floor |
+
+The Mac is an Apple M5 Max with 128 GB under macOS 26.6.2; local runs have no money cost, and their latency is
+that machine's. rizzo-flow and Laya answer one request at a time, so their latency adds every call of a search.
+CLM also ran on the Mac; its figures wait for its authors to confirm that our deployments match theirs.
+
+### Re-ranking 44,453 tools
+
+Held-out, `plain` queries, hybrid alone 22.0% (ceilings 59% at K=20 and 71.5% at K=50):
+
+| Decider | P@1 K=20 (95% CI) | Δ vs hybrid K=20 (95% CI) | P@1 K=50 | $ / 1,000 searches K=20 | Decision p50 K=20 |
+|---|---:|---:|---:|---:|---:|
+| Clef | 31.0% (24.5 to 37.0) | +9.0 pp (+3.5 to +14.5) | 36.5% | $0.27 | 517 ms |
+| rizzo-flow | 30.5% (24.0 to 36.5) | +8.5 pp (+4.0 to +13.0) | 33.5% | local | 434 ms |
+| Strands Decider 2B | 28.5% (22.5 to 34.5) | +6.5 pp (+0.5 to +12.5) | 28.0% | local | 81 ms |
+| Clef-flash | 24.0% (18.0 to 30.0) | +2.0 pp (−4.0 to +7.5) | 28.0% | $0.10 | 341 ms |
+| Laya wide | 20.0% (15.0 to 25.5) | −2.0 pp (−9.0 to +4.0) | 17.8% | local | 104 ms |
+
+Clef and rizzo-flow join Jev (32.0%), GPT-4.1 mini logprobs (33.0%) and GPT-6 Luna (34.0%) within the
+intervals. Laya wide's dev P@1 (28.0% on 50 tasks) did not hold. Every later decider gave identical
+probabilities when a dev search was repeated three times, so none has held-out repeats. The dev thresholds
+(0.90 to 0.95) leave them little coverage: at τ = 0.95 Clef answers 12 of 400 held-out requests and
+rizzo-flow 52 (selective accuracy 42.3%).
+
+### Direct choice on the same four catalogs
+
+Pooled over the 290 positives and 145 negatives of the primary population; warm requests, decision latency
+alone:
+
+| Arm | Relevant picks (95% CI) | Δ vs hybrid (95% CI) | Negatives answered “none” | $ / 1,000 | Decision p50 |
+|---|---:|---:|---:|---:|---:|
+| clef-all | 79.7% (75.2 to 84.1) | +25.2 pp (+19.7 to +31.0) | 26% | $1.63 | 1,428 ms |
+| clef-flash-all | 78.6% (73.8 to 83.1) | +24.1 pp (+18.6 to +30.0) | 16% | $0.61 | 685 ms |
+| hybrid@20+clef | 76.9% (72.1 to 81.7) | +22.4 pp (+16.6 to +28.3) | 31% | $0.44 | 612 ms |
+| hybrid@20+clef-flash | 76.9% (72.1 to 81.7) | +22.4 pp (+16.9 to +28.3) | 25% | $0.17 | 463 ms |
+| hybrid@20+rizzo-flow | 69.7% (64.5 to 74.5) | +15.2 pp (+9.3 to +21.0) | 29% | local | 573 ms |
+| rizzo-flow-all | 69.0% (63.4 to 74.1) | +14.5 pp (+9.0 to +20.3) | 28% | local | 2,945 ms |
+| strands-all | 62.1% (56.2 to 67.6) | +7.6 pp (+1.4 to +13.4) | 26% | local | 116 ms |
+| hybrid@20+strands | 61.4% (55.9 to 66.9) | +6.9 pp (+1.4 to +13.1) | 37% | local | 157 ms |
+| hybrid@20+laya-wide | 40.7% (34.8 to 46.2) | −13.8 pp (−19.7 to −7.9) | 58% | local | 108 ms |
+| laya-wide-all | 34.8% (29.3 to 40.3) | −19.7 pp (−25.5 to −13.8) | 43% | local | 303 ms |
+
+Search alone picks 54.5%; Jev 74.1% (whole catalog) and 71.4% (20 searched tools); the GPT-6 Luna agent 79.7%
+and 77.6%. rizzo-flow's whole-catalog arm asks about six questions a request, one at a time. Strands Decider 2B
+fit its 4,096-token window by lowering card detail on 375 whole-catalog requests. Laya wide says “none” to
+37–40% of the requests that do have a relevant tool.
+
+**GPT-6 Luna asked again.** `agent-luna@20` ran again on 2026-10-05 with query embeddings computed fresh, as
+every other searching arm's were, and replaces the earlier run's arm in the
+[P1](https://github.com/dfm88/toolhunch/blob/main/bench/results/2026-09-toolret-direct/summary.json) and
+[P2](https://github.com/dfm88/toolhunch/blob/main/bench/results/2026-10-toolret-direct-p2/summary.json) direct summaries. Its pooled
+pick rate is the same, 77.6% (72.4 to 82.1); the median request, search included, is now 1,465 ms against the
+earlier run's 1,237 ms, whose search was served from cached embeddings.
+
+### Candidate order
+
+Held-out, K=20, `plain`, identity order and four task-seeded shuffles:
+
+| Decider | Identity P@1 | Shuffle mean | Five-order top-card stability | Pairwise agreement (95% CI) |
+|---|---:|---:|---:|---:|
+| Clef | 31.0% | 30.9% | 96.5% | 98.5% (97.3 to 99.6) |
+| Clef-flash | 24.0% | 23.9% | 96.0% | 98.0% (96.5 to 99.3) |
+| Laya wide | 20.0% | 18.6% | 26.0% | 52.2% (47.7 to 56.7) |
+| Strands Decider 2B | 28.5% | 27.6% | 24.0% | 50.2% (46.0 to 54.6) |
+| rizzo-flow | 30.5% | 26.5% | 24.0% | 46.9% (42.1 to 51.6) |
+
+Clef and Clef-flash barely move when the candidates are shuffled; the three models run on the Mac change their
+top card more often than any hosted model measured (Jev 76.5%, GPT-6 Luna 62.9%, GPT-4.1 mini 60.5%).
+rizzo-flow does best in search order.
+
+### Limits of the later runs
+
+- **Laya wide** is a configuration of ours: the English checkpoint ships 192-token question and 512-token
+  sequence budgets, which hold no 50-candidate list and not every 20-candidate one. Its options are capped at
+  48 tokens: 25–28% of the held-out options were shown by name only, because their BRIEF text was over the cap
+  (5–41% by catalog in direct choice), and 1.6–2.1% by their key alone; 10 of 1,600 held-out searches failed on
+  a tool whose key alone is over the cap, and are left out of P@1. Reading the whole catalog, one MetaTool list
+  of 198 tools did not fit two rounds, so `laya-wide-all` is not applicable there. The checkpoint ships an
+  uncalibrated temperature for questions of 11 or more options: 798 of the 1,590 held-out searches it was asked
+  held one. Its authors present the base checkpoints as a base to specialise; we ran it zero-shot.
+- **rizzo-flow** refuses an option over 8,000 characters, its key and text together. One held-out tool of about
+  9,700 characters is shown at BRIEF alone (4 options of 40,000); its seconds per 1,000 input tokens varied
+  between 0.30 and 0.79 across runs on the same machine.
+- **Strands Decider 2B** lowered card detail to fit its window on 375 whole-catalog requests and 161 of 400 K=50
+  `plain` searches.
+- **Clef and Clef-flash** have no pinned version; Cloudflare may change them under the same name.
+
 ## Compatible-server smoke tests
 
-Smoke-tested on 2026-09-30 with laya-serve 0.3.22 and rizzo-flow 0.1.0 on a two-tool example; not benchmarked.
+Smoke-tested on 2026-09-30 with laya-serve 0.3.22 and rizzo-flow 0.1.0 on a two-tool example; benchmarked
+later at newer versions ([Later deciders](#later-deciders)).
 The [generated smoke summary](https://github.com/dfm88/toolhunch/blob/main/bench/results/2026-09-jev-compatible-smoke/summary.json)
 records accepted requests, parsed answers and `get_weather` ranked first for both servers,
 without sending an Authorization header. The question was “What's the weather in Milan?”,
@@ -612,7 +717,9 @@ the recorded private raw evidence and audit metadata.
 - Jev and logprob card detail differs in F2a. The separate direct-choice comparison aligns full card text.
 - The GPT-6 Luna runs came after the others, on 2026-09-30, on the same tasks; a structured answer carries no
   probabilities, so its readings are fewer.
-- Cost and latency are tied to the models, routing, caching state and date of these runs.
+- Cost and latency are tied to the models, routing, caching state and date of these runs; local models' latency
+  is one machine's.
+- The later deciders' limits are listed under [Limits of the later runs](#limits-of-the-later-runs).
 - Searches that raised `DecisionError` are excluded from rates, latency and costs; the published dev and
   main held-out configurations reported no errors.
 
@@ -630,6 +737,9 @@ uv run toolhunch-bench decision-report \
   --out bench/results/2026-09-toolret-decision/
 uv run toolhunch-bench decision-charts bench/results/2026-09-toolret-decision/summary.json --out docs/assets
 ```
+
+The later summaries regenerate the same way: each lists its runs in `manifest`, `runs` or `added_runs`, and
+`uv run toolhunch-bench readme-charts` redraws the README figures from every published summary.
 
 The Luna summary regenerates from its three runs with
 `uv run toolhunch-bench luna-report --orders bench/runs/20260930T171259Z --none bench/runs/20260930T170022Z --repeats bench/runs/20260930T170024Z`;
