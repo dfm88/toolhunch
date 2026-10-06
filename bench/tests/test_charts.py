@@ -152,3 +152,30 @@ def test_cost_latency_marks_local_deciders(tmp_path: Path, monkeypatch: pytest.M
     # whose cards were sent below full detail to fit a window.
     assert "Apple M5 Max, 128 GB, macOS 26.1" in text
     assert "Lower detail: Strands Decider 2B (all tools)" in text
+
+
+def test_readme_charts_draw_every_published_decider(tmp_path: Path) -> None:
+    # The README figures read every published summary, so a decider added to the registry and the results appears
+    # in each without an edit of its own; CLM, unpublished, appears in none.
+    result = CliRunner().invoke(app, ["readme-charts", "--out", str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    direct = (tmp_path / "direct-choice.svg").read_text()
+    for arm in ("agent-luna-all", "hybrid-20-jev", "clef-all", "strands-all", "rizzo-flow-all", "hybrid-20-laya-wide"):
+        assert f'id="bar-{arm}"' in direct
+    assert 'id="bar-hybrid-20"' in direct
+    rerank = (tmp_path / "rerank-44k.svg").read_text()
+    for arm in (
+        "hybrid-jev-20",
+        "hybrid-luna-20",
+        "hybrid-clef-flash-20",
+        "hybrid-rizzo-flow-20",
+        "hybrid-laya-wide-20",
+    ):
+        assert f'id="bar-{arm}"' in rerank
+    order = (tmp_path / "order-sensitivity.svg").read_text()
+    assert 'id="order-jev-same"' in order
+    assert 'id="order-rizzo-flow-shuffled"' in order
+    assert 'id="order-clef-same"' not in order  # no same-order repeats for a decider that never varied
+    for text in (direct, rerank, order):
+        assert "clm" not in text

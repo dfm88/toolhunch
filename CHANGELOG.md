@@ -43,6 +43,8 @@ All notable changes to this project are documented here. The format follows
   differences, P@1 per cell and answer-or-abstain agreement.
 - `toolhunch-bench cost-latency-chart`: precision against the decision's latency and cost for every published
   decider, local ones drawn hollow with their machine in the caption.
+- `toolhunch-bench readme-charts` draws every decider the registry publishes, read from every published summary
+  (`--decision` and `--order` repeat, earliest first); the direct-choice figures give the decision's latency.
 - `DecisionError.status`: the HTTP status a server refused the call with, after any retries; `None` for every other
   failure.
 - `ModelLimits.max_question_tokens` and `ModelLimits.max_option_tokens`: the tokens one question may take (its

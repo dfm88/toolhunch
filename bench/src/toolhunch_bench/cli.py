@@ -586,19 +586,41 @@ def readme_charts(
     ] = "svg",
     direct: Annotated[
         Path, typer.Option(help="Generated direct-choice summary.", exists=True, dir_okay=False)
-    ] = BENCH_DIR / "results/2026-09-toolret-direct/summary.json",
-    decision: Annotated[Path, typer.Option(help="Generated decision summary.", exists=True, dir_okay=False)] = BENCH_DIR
-    / "results/2026-09-toolret-decision/summary.json",
-    order: Annotated[Path, typer.Option(help="Generated order summary.", exists=True, dir_okay=False)] = BENCH_DIR
-    / "results/2026-09-toolret-order/summary.json",
+    ] = BENCH_DIR / "results/2026-10-toolret-direct-p3/summary.json",
+    decision: Annotated[
+        list[Path] | None,
+        typer.Option(help="A generated decision summary; repeat, earliest first.", exists=True, dir_okay=False),
+    ] = None,
+    order: Annotated[
+        list[Path] | None,
+        typer.Option(help="A generated order summary; repeat, earliest first.", exists=True, dir_okay=False),
+    ] = None,
     luna: Annotated[Path, typer.Option(help="Generated Luna summary.", exists=True, dir_okay=False)] = BENCH_DIR
     / "results/2026-09-toolret-luna/summary.json",
 ) -> None:
-    """Draw the README figures from the published summaries without calling a provider."""
+    """Draw the README figures from the published summaries without calling a provider.
+
+    Without `--decision` or `--order`, every published decision and order summary is read, earliest first.
+    """
     from toolhunch_bench.readme_charts import build_readme_charts
 
+    results = BENCH_DIR / "results"
+    decisions = decision or [
+        results / f"{name}/summary.json"
+        for name in ("2026-09-toolret-decision", "2026-10-toolret-decision-p2", "2026-10-toolret-decision-p3")
+    ]
+    orders = order or [
+        results / "2026-09-toolret-order/summary.json",
+        *sorted(results.glob("2026-10-toolret-order-p2/*/summary.json")),
+        *sorted(results.glob("2026-10-toolret-order-p3/*/summary.json")),
+    ]
     paths = build_readme_charts(
-        direct_summary=direct, decision_summary=decision, order_summary=order, luna_summary=luna, out_dir=out, fmt=fmt
+        direct_summary=direct,
+        decision_summaries=decisions,
+        order_summaries=orders,
+        luna_summary=luna,
+        out_dir=out,
+        fmt=fmt,
     )
     for path in paths:
         typer.echo(f"chart written to {path}")

@@ -38,28 +38,18 @@ _STYLE = {
 
 
 @dataclass(frozen=True, slots=True)
-class _Row:
+class _Bar:
+    """One row of a bar figure: an arm, its share and interval, and the cost and latency printed beside it."""
+
     key: str
     name: str
     detail: str
     color: str
+    value: float
+    interval: list[float]
+    side: str
 
 
-# Top to bottom in the direct-choice figures.
-_DIRECT = (
-    _Row("agent-luna-all", "GPT-6 Luna agent", "gets the whole catalog as functions", _LUNA),
-    _Row("agent-luna@20", "GPT-6 Luna agent", "gets 20 searched tools as functions", _LUNA),
-    _Row("jev-all", "Jev", "reads the whole catalog", _JEV),
-    _Row("hybrid@20+jev", "Jev", "reads 20 searched tools", _JEV),
-    _Row("agent-all", "GPT-4.1 mini agent", "gets the whole catalog as functions", _GPT),
-    _Row("agent@20", "GPT-4.1 mini agent", "gets 20 searched tools as functions", _GPT),
-    _Row("hybrid@20", "Search only", "BM25 + embeddings, top result", _SEARCH),
-)
-_ORDER_NOTE = (
-    "All three change their pick",
-    "when the candidates are shuffled;",
-    "pale bars: the same order, repeated.",
-)
 # Name, detail and offset in points from the point, per arm of the precision-latency figure.
 _TRADEOFF_LABELS: dict[str, tuple[str, str, float, float]] = {
     "agent-luna-all": ("Luna agent", "all tools", 12, 4),
@@ -73,73 +63,80 @@ _TRADEOFF_LABELS: dict[str, tuple[str, str, float, float]] = {
     "hybrid+luna@20": ("GPT-6 Luna", "", -12, 4),
     "hybrid+logprob@20": ("GPT-4.1 mini", "", 12, -4),
 }
-_RERANK = (
-    _Row("hybrid@20", "Search only", "BM25 + embeddings, top result", _SEARCH),
-    _Row("hybrid+jev@20", "Jev picks", "one choice question", _JEV),
-    _Row("hybrid+logprob@20", "GPT-4.1 mini picks", "logprobs over option letters", _GPT),
-    _Row("hybrid+luna@20", "GPT-6 Luna picks", "one letter, structured output", _LUNA),
-)
+# The agents of the direct-choice test, by arm prefix: they are not registry deciders.
+_AGENTS = {"agent-luna": ("GPT-6 Luna agent", _LUNA), "agent": ("GPT-4.1 mini agent", _GPT)}
+# How each kind of 44,453-tool decider is asked, under its name.
+_RERANK_DETAILS = {"logprob": "logprobs over option letters", "luna": "one letter, structured output"}
+# Inches of a frame: the title's and the subtitle's tops below the figure's top, the footer above its bottom.
+_TITLE_IN, _SUBTITLE_IN, _FOOTER_IN = 0.54, 1.09, 0.22
+
+
+# A decider's name, color, same-order and shuffled pairwise agreement, P@1 in search order and shuffled (mean).
+type _OrderRow = tuple[str, str, dict[str, Any] | None, dict[str, Any], float, float]
+
+
+def _agent(arm: str) -> tuple[str, str] | None:
+    """An agent arm's name and color, or `None` for a decider's arm."""
+    prefix = arm.removesuffix("-all").split("@")[0]
+    return _AGENTS.get(prefix) if arm.startswith("agent") else None
+
+
+def _run_dates(started: Sequence[str]) -> str:
+    return ", ".join(sorted({day[:10] for day in started}))
 
 
 class _ReadmeCharts:
+    """The README figures, every published decider in each: rows come from the summaries and the registry."""
+
     def __init__(
         self,
         *,
         direct: dict[str, Any],
-        decision: dict[str, Any],
-        order: dict[str, Any],
+        decisions: Sequence[dict[str, Any]],
+        orders: Sequence[dict[str, Any]],
         luna: dict[str, Any],
         out_dir: Path,
         fmt: str,
     ) -> None:
+        self.direct, self.decisions, self.orders, self.luna = direct, decisions, orders, luna
         self.pooled = {row["arm"]: row for row in direct["rows"] if row["catalog"] == "pooled"}
-        self.rerank = {row["arm"]: row for row in decision["heldout"]["rows"] if row["source"] == "plain"}
-        first = luna["first_pick"]
-        self.rerank["hybrid+luna@20"] = {
-            "decider": "luna",
-            "p_at_1": first["p_at_1"]["value"],
-            "p_at_1_ci95": first["p_at_1"]["ci95"],
-            "cost": first["cost"],
-            "latency_ms": {"decision": first["cost"]["latency_ms"]},
-        }
-        self.order, self.luna = order, luna
+        self.search = next(
+            row
+            for summary in decisions
+            for row in summary["heldout"]["rows"]
+            if row["arm"] == "hybrid@20" and row["source"] == "plain"
+        )
         self.out_dir = out_dir
         self.fmt = fmt
-        manifest = direct["manifest"]
-        added = [run["manifest"] for run in direct.get("added_runs", [])]
-        self.direct_footer = self._footer(
-            [manifest["started"], *(run["started"] for run in added)],
-            manifest["jev"]["model"].split("@")[0],
-            manifest["agent"]["model"],
-            *(run["agent"]["model"] for run in added),
-        )
-        arms = order["manifest"]["arms"]
-        models = (arms["hybrid+jev@20"]["model_id"].split("@")[0], arms["hybrid+logprob@20"]["model_id"].split("@")[0])
-        heldout = next(run for run in decision["runs"] if run["run_id"] == decision["heldout"]["run_id"])
-        runs = luna["runs"]
-        self.rerank_footer = self._footer(
-            [heldout["manifest"]["started"], runs["orders"]["started"]], *models, luna["model"]
-        )
-        self.order_footer = self._footer(
-            [order["manifest"]["started"], runs["orders"]["started"]], *models, luna["model"]
-        )
-
-    @staticmethod
-    def _footer(started: list[str], *models: str) -> str:
-        dates = sorted({day[:10] for day in started})
-        # Each model once, in order: a run that measures an earlier run's arm again asks the same model.
-        return f"toolhunch · ToolRet · runs of {' and '.join(dates)} · {', '.join(dict.fromkeys(models))}"
+        hardware = _hardware(direct)
+        self.machine = f"Local: one machine ({hardware}), no money cost. " if hardware else ""
+        arms = [*self.pooled, *(row["arm"] for summary in decisions for row in summary["heldout"]["rows"])]
+        if any("clef" in arm for arm in arms):
+            self.machine += "Clef and Clef-flash have no pinned version."
+        started = [direct["manifest"]["started"], *(run["manifest"]["started"] for run in direct.get("added_runs", []))]
+        self.direct_footer = f"toolhunch · ToolRet · runs of {_run_dates(started)}"
+        started = [run["manifest"]["started"] for summary in decisions for run in summary["runs"]]
+        started.append(luna["runs"]["orders"]["started"])
+        self.rerank_footer = f"toolhunch · ToolRet · runs of {_run_dates(started)}"
+        started = [summary["manifest"]["started"] for summary in orders] + [luna["runs"]["orders"]["started"]]
+        self.order_footer = f"toolhunch · ToolRet · runs of {_run_dates(started)}"
 
     def write(self) -> list[Path]:
         self.out_dir.mkdir(parents=True, exist_ok=True)
         with cast("Any", matplotlib).rc_context(_STYLE):
-            return [self._direct(), self._none_option(), self._rerank(), self._order(), self._tradeoff()]
+            paths = [self._direct(), self._none_option(), self._rerank(), self._order()]
+        return [*paths, _draw_cost_latency(self.direct, self.decisions, self.luna, out_dir=self.out_dir, fmt=self.fmt)]
 
-    def _frame(self, title: str, subtitle: str, footer: str) -> Any:
-        figure: Any = Figure(figsize=(16, 9), dpi=100)
-        figure.text(0.04, 0.94, title, fontsize=28, weight="bold", va="top")
-        figure.text(0.04, 0.879, subtitle, fontsize=16, color=_MUTED, va="top")
-        figure.text(0.04, 0.025, footer, fontsize=11, color=_MUTED)
+    @staticmethod
+    def _height(rows: int) -> float:
+        """A figure tall enough for `rows` two-line labels: 9 inches up to 7 rows, as P1's figures were."""
+        return max(9.0, 3.6 + 0.78 * rows)
+
+    def _frame(self, title: str, subtitle: str, footer: str, *, height: float = 9.0) -> Any:
+        figure: Any = Figure(figsize=(16, height), dpi=100)
+        figure.text(0.04, 1 - _TITLE_IN / height, title, fontsize=28, weight="bold", va="top")
+        figure.text(0.04, 1 - _SUBTITLE_IN / height, subtitle, fontsize=16, color=_MUTED, va="top")
+        figure.text(0.04, _FOOTER_IN / height, footer, fontsize=11, color=_MUTED, linespacing=1.5)
         return figure
 
     def _save(self, figure: Any, *, name: str) -> Path:
@@ -150,15 +147,16 @@ class _ReadmeCharts:
         return path
 
     @staticmethod
-    def _label(figure: Any, row: _Row, *, y: float) -> None:
-        figure.text(0.29, y + 0.012, row.name, ha="right", weight="bold", fontsize=17)
-        figure.text(0.29, y - 0.03, row.detail, ha="right", color=_MUTED, fontsize=13)
+    def _label(figure: Any, bar: _Bar, *, y: float, height: float) -> None:
+        figure.text(0.29, y + 0.11 / height, bar.name, ha="right", weight="bold", fontsize=17)
+        figure.text(0.29, y - 0.27 / height, bar.detail, ha="right", color=_MUTED, fontsize=13)
 
     @staticmethod
-    def _bar(axes: Any, *, y: float, value: float, interval: list[float], color: str) -> None:
-        axes.barh(y, value, color=color, height=0.62)
-        axes.errorbar(value, y, xerr=[[value - interval[0]], [interval[1] - value]], color=_INK, capsize=4, lw=1.2)
-        axes.text(0.012, y, f"{value:.0%}", color="white", weight="bold", va="center", fontsize=20)
+    def _bar(axes: Any, bar: _Bar, *, y: float) -> None:
+        axes.barh(y, bar.value, color=bar.color, height=0.62, gid=f"bar-{_slug(bar.key)}")
+        low, high = bar.interval
+        axes.errorbar(bar.value, y, xerr=[[bar.value - low], [high - bar.value]], color=_INK, capsize=4, lw=1.2)
+        axes.text(0.012, y, f"{bar.value:.0%}", color="white", weight="bold", va="center", fontsize=20)
 
     @staticmethod
     def _percent_axis(axes: Any, *, top: float, rows: int) -> None:
@@ -173,40 +171,86 @@ class _ReadmeCharts:
             axes.spines[side].set_visible(False)
         axes.tick_params(axis="y", length=0)
 
+    def _direct_bars(self) -> list[_Bar]:
+        """Every published arm of the direct-choice test, grouped by model, the best model first; search last."""
+        groups: dict[str, list[_Bar]] = {}
+        for arm, row in self.pooled.items():
+            agent = _agent(arm)
+            decider = arm_decider(arm)
+            if agent is None and (decider is None or not _spec(decider).published):
+                continue
+            warm = row["positive_cost"]["warm"]
+            if warm.get("decision_latency_p50_ms") is None:
+                continue
+            whole = arm.endswith("-all")
+            if agent is not None:
+                name, color = agent
+                detail = f"gets {'the whole catalog' if whole else '20 searched tools'} as functions"
+            else:
+                spec = _spec(cast("str", decider))
+                name, color = spec.label, spec.color
+                detail = f"reads {'the whole catalog' if whole else '20 searched tools'}"
+            local = bool(warm.get("local"))
+            cost = _usd(warm.get("billed_usd_per_1000"), local=local)
+            cached = f"  ({warm['cache_share']:.1%} cached)" if warm.get("cache_share") else ""
+            side = f"{cost}{cached}\n{warm['decision_latency_p50_ms'] / 1000:.2f} s"
+            rate = row["relevant_pick_rate"]
+            bar = _Bar(arm, name, detail, color, rate["value"], rate["ci95"], side)
+            groups.setdefault(name, []).append(bar)
+        ordered = sorted(groups.values(), key=lambda bars: -max(bar.value for bar in bars))
+        bars = [bar for group in ordered for bar in sorted(group, key=lambda bar: not bar.key.endswith("-all"))]
+        search = self.pooled["hybrid@20"]
+        warm = search["positive_cost"]["warm"]
+        side = f"{_usd(warm['billed_usd_per_1000'], local=False)}\nsearch {warm['latency_p50_ms'] / 1000:.2f} s"
+        rate = search["relevant_pick_rate"]
+        bars.append(
+            _Bar(
+                "hybrid@20", "Search only", "BM25 + embeddings, top result", _SEARCH, rate["value"], rate["ci95"], side
+            )
+        )
+        return bars
+
     def _direct(self) -> Path:
+        bars = self._direct_bars()
+        height = self._height(len(bars))
+        top, bottom = 2.0 / height, 1.1 / height
         figure = self._frame(
             "Which tool should the agent call?",
             "290 requests, catalogs of 40–101 tools: share where a relevant tool was picked. “None” counts as a miss.",  # noqa: RUF001
-            f"Whiskers: 95% interval. Cost and latency: warm requests, median latency. {self.direct_footer}",
+            f"Whiskers: 95% interval. Warm requests; latency of the decision alone, median. {self.machine}\n"
+            f"{self.direct_footer}",
+            height=height,
         )
-        axes: Any = figure.add_axes((0.30, 0.12, 0.47, 0.66))
-        for index, row in enumerate(_DIRECT):
-            y = len(_DIRECT) - 1 - index
-            rate = self.pooled[row.key]["relevant_pick_rate"]
-            self._bar(axes, y=y, value=rate["value"], interval=rate["ci95"], color=row.color)
-            centre = 0.12 + 0.66 * (y + 0.5) / len(_DIRECT)
-            self._label(figure, row, y=centre)
-            warm = self.pooled[row.key]["positive_cost"]["warm"]
-            usd = warm["billed_usd_per_1000"]
-            cost = "≈ $0" if usd < 0.01 else f"${usd:.2f}"
-            cached = f"  ({warm['cache_share']:.1%} cached)" if warm["cache_share"] else ""
-            latency = warm["latency_p50_ms"] / 1000
-            figure.text(0.785, centre - 0.008, f"{cost}{cached}\n{latency:.2f} s", fontsize=14, va="center")
-        figure.text(0.785, 0.80, "Per 1,000 requests · latency", fontsize=14, weight="bold", color=_MUTED)
-        self._percent_axis(axes, top=1.0, rows=len(_DIRECT))
+        span = 1 - top - bottom
+        axes: Any = figure.add_axes((0.30, bottom, 0.47, span))
+        for index, bar in enumerate(bars):
+            y = len(bars) - 1 - index
+            self._bar(axes, bar, y=y)
+            centre = bottom + span * (y + 0.5) / len(bars)
+            self._label(figure, bar, y=centre, height=height)
+            figure.text(0.785, centre - 0.07 / height, bar.side, fontsize=14, va="center")
+        figure.text(
+            0.785, 1 - top + 0.25 / height, "Per 1,000 requests · latency", fontsize=14, weight="bold", color=_MUTED
+        )
+        self._percent_axis(axes, top=1.0, rows=len(bars))
         return self._save(figure, name="direct-choice")
 
     def _none_option(self) -> Path:
+        bars = self._direct_bars()
+        height = self._height(len(bars))
+        top, bottom = 2.3 / height, 1.0 / height
         figure = self._frame(
             "When the right tool is missing, who says “none”?",
             "Left: 290 requests with a relevant tool in the catalog. Right: 145 with it removed.",
-            f"Removed tools leave approximate negatives: an unlabelled tool might still help. {self.direct_footer}",
+            f"Removed tools leave approximate negatives: an unlabelled tool might still help.\n{self.direct_footer}",
+            height=height,
         )
-        left: Any = figure.add_axes((0.30, 0.14, 0.31, 0.62))
-        right: Any = figure.add_axes((0.65, 0.14, 0.31, 0.62))
-        for index, row in enumerate(_DIRECT):
-            y = len(_DIRECT) - 1 - index
-            none = self.pooled[row.key]["none_option"]
+        span = 1 - top - bottom
+        left: Any = figure.add_axes((0.30, bottom, 0.31, span))
+        right: Any = figure.add_axes((0.65, bottom, 0.31, span))
+        for index, bar in enumerate(bars):
+            y = len(bars) - 1 - index
+            none = self.pooled[bar.key]["none_option"]
             negatives = none["negative_requests"]
             positives = none["requests"] - negatives
             recall = none["abstention_recall"]
@@ -215,10 +259,10 @@ class _ReadmeCharts:
             negative_pick = negatives - negative_none
             positive_wrong = none["wrong"] - negative_pick
             if none["correct"] + positive_wrong + positive_none != positives:
-                raise ValueError(f"{row.key}: outcome counts do not split into positives and negatives")
+                raise ValueError(f"{bar.key}: outcome counts do not split into positives and negatives")
             self._stack(left, y=y, parts=((none["correct"], _GOOD), (positive_wrong, _BAD), (positive_none, _NEUTRAL)))
             self._stack(right, y=y, parts=((negative_none, _GOOD), (negative_pick, _BAD)))
-            self._label(figure, row, y=0.14 + 0.62 * (y + 0.5) / len(_DIRECT))
+            self._label(figure, bar, y=bottom + span * (y + 0.5) / len(bars), height=height)
         panels = (
             (
                 left,
@@ -229,7 +273,7 @@ class _ReadmeCharts:
         )
         for axes, head, legend in panels:
             axes.set_xlim(0, 1)
-            axes.set_ylim(-0.6, len(_DIRECT) - 0.4)
+            axes.set_ylim(-0.6, len(bars) - 0.4)
             axes.set_axis_off()
             axes.set_title(head, loc="left", fontsize=18, weight="bold", pad=34)
             handles = [Rectangle((0, 0), 1, 1, color=color) for color, _ in legend]
@@ -267,57 +311,85 @@ class _ReadmeCharts:
                 )
             start += share
 
+    def _rerank_bars(self) -> list[_Bar]:
+        """Every published decider's held-out K20 plain P@1, the best first; search last."""
+        bars: list[_Bar] = []
+        for point in _rerank_points(self.decisions, self.luna):
+            decider = point.key.removeprefix("hybrid+").split("@")[0]  # a re-ranking arm is hybrid+<decider>@<K>
+            spec = _spec(decider)
+            detail = _RERANK_DETAILS.get(decider, "one choice question") + (" · on one machine" if point.local else "")
+            mark = "*" if point.summed else ""
+            side = f"{point.cost}\n{point.milliseconds / 1000:.2f} s{mark}"
+            bars.append(_Bar(point.key, f"{spec.label} picks", detail, point.color, point.value, point.interval, side))
+        bars.sort(key=lambda bar: -bar.value)
+        search = self.search
+        side = f"search: {search['latency_ms']['retrieval']['p50'] / 1000:.2f} s\n(shared by all rows)"
+        bars.append(
+            _Bar(
+                "hybrid@20",
+                "Search only",
+                "BM25 + embeddings, top result",
+                _SEARCH,
+                search["p_at_1"],
+                search["p_at_1_ci95"],
+                side,
+            )
+        )
+        return bars
+
     def _rerank(self) -> Path:
-        search = self.rerank["hybrid@20"]
+        bars = self._rerank_bars()
+        height = self._height(len(bars))
+        top, bottom = 2.0 / height, 1.2 / height
+        summed = any(bar.side.endswith("*") for bar in bars)
         figure = self._frame(
             "44,453 tools: search 20 candidates, then pick one",
             "200 held-out requests: share with a relevant tool ranked first.",
-            f"Whiskers: 95% interval. Decision cost and median latency exclude the shared search. {self.rerank_footer}",
+            "Whiskers: 95% interval. Decision cost and median latency exclude the shared search."
+            + (" *Asked one request at a time: the latency adds every call." if summed else "")
+            + f"\n{self.machine}{self.rerank_footer}",
+            height=height,
         )
-        axes: Any = figure.add_axes((0.30, 0.14, 0.47, 0.62))
-        for y, row in enumerate(reversed(_RERANK)):
-            data = self.rerank[row.key]
-            self._bar(axes, y=y, value=data["p_at_1"], interval=data["p_at_1_ci95"], color=row.color)
-            centre = 0.14 + 0.62 * (y + 0.5) / len(_RERANK)
-            self._label(figure, row, y=centre)
-            if data["decider"]:
-                usd = data["cost"]["usd_per_1000_searches"]
-                text = f"${usd:.2f}\n{data['latency_ms']['decision']['p50'] / 1000:.2f} s"
-            else:
-                text = f"search: {data['latency_ms']['retrieval']['p50'] / 1000:.2f} s\n(shared by all rows)"
-            figure.text(0.785, centre - 0.008, text, fontsize=14, va="center")
-        figure.text(0.785, 0.78, "Per 1,000 searches · latency", fontsize=14, weight="bold", color=_MUTED)
-        ceiling = search["ceiling"]
+        span = 1 - top - bottom
+        axes: Any = figure.add_axes((0.30, bottom, 0.47, span))
+        for index, bar in enumerate(bars):
+            y = len(bars) - 1 - index
+            self._bar(axes, bar, y=y)
+            centre = bottom + span * (y + 0.5) / len(bars)
+            self._label(figure, bar, y=centre, height=height)
+            figure.text(0.785, centre - 0.07 / height, bar.side, fontsize=14, va="center")
+        figure.text(
+            0.785, 1 - top + 0.25 / height, "Per 1,000 searches · latency", fontsize=14, weight="bold", color=_MUTED
+        )
+        ceiling = self.search["ceiling"]
         axes.axvline(ceiling, color=_INK, ls="--", lw=1.4)
         axes.text(
-            ceiling + 0.012, 2.55, f"ceiling {ceiling:.0%}:\na relevant tool is\namong the 20", fontsize=13, va="top"
+            ceiling + 0.012,
+            len(bars) - 0.45,
+            f"ceiling {ceiling:.0%}:\na relevant tool is\namong the 20",
+            fontsize=13,
+            va="top",
         )
-        self._percent_axis(axes, top=0.8, rows=len(_RERANK))
+        self._percent_axis(axes, top=0.8, rows=len(bars))
         return self._save(figure, name="rerank-44k")
 
-    def _order(self) -> Path:
-        figure = self._frame(
-            "Shuffle the 20 candidates: does the top pick change?",
-            "How often two runs rank the same tool first, on 200 requests (pairwise agreement).",
-            f"Whiskers: 95% interval. “Same order” repeats come from a separate run. {self.order_footer}",
-        )
-        axes: Any = figure.add_axes((0.07, 0.20, 0.60, 0.54))
-        baseline = self.order["same_order_noise_baseline"]["deciders"]
+    def _order_rows(self) -> list[_OrderRow]:
+        """Each published decider: name, color, same-order agreement where measured, shuffled agreement, P@1."""
+        rows: list[_OrderRow] = []
+        for summary in self.orders:
+            baseline = summary["same_order_noise_baseline"]["deciders"]
+            for key, decider in summary["deciders"].items():
+                spec = _spec(key)
+                if not spec.published:
+                    continue
+                same = baseline[key]["pairwise_agreement"] if baseline[key].get("comparable") else None
+                identity = decider["p_at_1"]["0"]["value"]
+                shuffled = decider["shuffle_p_at_1"]["mean"]["value"]
+                rows.append((spec.label, spec.color, same, decider["pairwise_agreement"], identity, shuffled))
         luna = self.luna["order"]
-        deciders = [
+        rows.append(
             (
-                name,
-                color,
-                baseline[key]["pairwise_agreement"],
-                self.order["deciders"][key]["pairwise_agreement"],
-                self.order["deciders"][key]["p_at_1"]["0"]["value"],
-                self.order["deciders"][key]["shuffle_p_at_1"]["mean"]["value"],
-            )
-            for key, name, color in (("jev", "Jev", _JEV), ("logprob", "GPT-4.1 mini", _GPT))
-        ]
-        deciders.append(
-            (
-                "GPT-6 Luna",
+                _spec("luna").label,
                 _LUNA,
                 self.luna["same_order_noise"]["pairwise_agreement"],
                 luna["pairwise_agreement"],
@@ -325,23 +397,43 @@ class _ReadmeCharts:
                 luna["shuffle_p_at_1"]["value"],
             )
         )
-        lines = ["Relevant tool ranked first,", "original → shuffled (mean):", ""]
-        for group, (name, color, same, shuffled_agreement, identity, shuffled) in enumerate(deciders):
-            for offset, (stat, label, alpha) in enumerate(
-                ((same, "same order", 0.45), (shuffled_agreement, "shuffled", 1.0))
-            ):
-                x = group * 2.6 + offset
+        return sorted(rows, key=lambda row: -row[3]["value"])
+
+    def _order(self) -> Path:
+        rows = self._order_rows()
+        figure = self._frame(
+            "Shuffle the 20 candidates: does the top pick change?",
+            "How often two orders rank the same tool first, on 200 requests (pairwise agreement).",
+            f"Whiskers: 95% interval. “Same order” repeats come from a separate run.\n{self.order_footer}",
+        )
+        axes: Any = figure.add_axes((0.07, 0.24, 0.62, 0.50))
+        lines = ["Relevant tool ranked first,", "search order → shuffled (mean):", ""]
+        x = 0.0
+        for name, color, same, shuffled_agreement, identity, shuffled in rows:
+            stats = [(same, "same", 0.45)] if same is not None else []
+            stats.append((shuffled_agreement, "shuffled", 1.0))
+            start = x
+            for stat, label, alpha in stats:
                 value, (low, high) = stat["value"], stat["ci95"]
-                axes.bar(x, value, color=color, alpha=alpha, width=0.85)
-                axes.errorbar(x, value, yerr=[[value - low], [high - value]], color=_INK, capsize=4, lw=1.2)
-                axes.text(x, 0.04, f"{value:.1%}", ha="center", color="white", weight="bold", fontsize=20)
-                axes.text(x, -0.07, label, ha="center", fontsize=14, color=_MUTED)
-            axes.text(group * 2.6 + 0.5, -0.15, name, ha="center", fontsize=17, weight="bold")
+                axes.bar(x, value, color=color, alpha=alpha, width=0.85, gid=f"order-{_slug(name)}-{label}")
+                axes.errorbar(x, value, yerr=[[value - low], [high - value]], color=_INK, capsize=3, lw=1.1)
+                axes.text(x, 0.03, f"{value:.0%}", ha="center", color="white", weight="bold", fontsize=13)
+                axes.text(x, -0.06, label, ha="center", fontsize=11, color=_MUTED)
+                x += 1
+            wrapped = name.replace(" ", "\n", 1) if len(name) > 13 else name
+            axes.text((start + x - 1) / 2, -0.11, wrapped, ha="center", va="top", fontsize=13, weight="bold")
+            x += 0.6
             lines.append(f"{name}: {identity:.1%} → {shuffled:.1%}")
-        lines += ["", *_ORDER_NOTE]
-        figure.text(0.71, 0.72, "\n".join(lines), fontsize=16, va="top", linespacing=1.5)
+        lines += [
+            "",
+            "Pale bars: the same order asked",
+            "again (Jev, GPT-4.1 mini, GPT-6 Luna).",
+            "The others gave the same probabilities",
+            "when a search was repeated.",
+        ]
+        figure.text(0.72, 0.76, "\n".join(lines), fontsize=14, va="top", linespacing=1.45)
         axes.set_ylim(0, 1.05)
-        axes.set_xlim(-0.7, 6.9)
+        axes.set_xlim(-0.7, x - 0.9)
         axes.set_xticks([])
         ticks = [0, 0.25, 0.5, 0.75, 1]
         axes.set_yticks(ticks, [f"{tick:.0%}" for tick in ticks])
@@ -351,108 +443,36 @@ class _ReadmeCharts:
             axes.spines[side].set_visible(False)
         return self._save(figure, name="order-sensitivity")
 
-    def _tradeoff(self) -> Path:
-        search = self.rerank["hybrid@20"]
-        figure = self._frame(
-            "Precision, latency and cost",
-            "Higher and further left is better. Labels: cost per 1,000 requests.",
-            "Median latency, warm requests. Left includes search; right excludes the search every row shares "
-            f"({search['latency_ms']['retrieval']['p50'] / 1000:.2f} s). Whiskers: 95% interval.\n{self.rerank_footer}",
-        )
-        panels = (
-            (
-                (0.08, 0.14, 0.40, 0.62),
-                "Catalogs of 40–101 tools (290 requests)",  # noqa: RUF001
-                [
-                    (
-                        row,
-                        self.pooled[row.key]["relevant_pick_rate"]["value"],
-                        self.pooled[row.key]["relevant_pick_rate"]["ci95"],
-                        self.pooled[row.key]["positive_cost"]["warm"]["latency_p50_ms"],
-                        self.pooled[row.key]["positive_cost"]["warm"]["billed_usd_per_1000"],
-                    )
-                    for row in _DIRECT
-                ],
-                (0.5, 0.9),
-            ),
-            (
-                (0.57, 0.14, 0.40, 0.62),
-                "44,453 tools, 20 candidates (200 requests)",
-                [
-                    (
-                        row,
-                        self.rerank[row.key]["p_at_1"],
-                        self.rerank[row.key]["p_at_1_ci95"],
-                        self.rerank[row.key]["latency_ms"]["decision"]["p50"],
-                        self.rerank[row.key]["cost"]["usd_per_1000_searches"],
-                    )
-                    for row in _RERANK[1:]
-                ],
-                (0.15, 0.45),
-            ),
-        )
-        for box, head, points, (low, high) in panels:
-            axes: Any = figure.add_axes(box)
-            for row, value, interval, milliseconds, usd in points:
-                x = milliseconds / 1000
-                axes.errorbar(
-                    x, value, yerr=[[value - interval[0]], [interval[1] - value]], color=row.color, alpha=0.35, lw=2
-                )
-                axes.scatter(x, value, s=170, color=row.color, zorder=3, edgecolors="white", linewidths=1.5)
-                name, detail, dx, dy = _TRADEOFF_LABELS[row.key]
-                cost = "≈ $0" if usd < 0.01 else f"${usd:.2f}"
-                align = "left" if dx > 0 else "right"
-                for text, shift, va, style in (
-                    (name, 1, "bottom", {"weight": "bold", "color": _INK}),
-                    (f"{detail} · {cost}" if detail else cost, -1, "top", {"color": _MUTED}),
-                ):
-                    axes.annotate(
-                        text,
-                        (x, value),
-                        xytext=(dx, dy + shift),
-                        textcoords="offset points",
-                        ha=align,
-                        va=va,
-                        fontsize=13,
-                        **style,
-                    )
-            if box[0] > 0.5:
-                axes.axhline(search["p_at_1"], color=_SEARCH, ls="--", lw=1.4)
-                axes.text(0.105, search["p_at_1"] + 0.006, f"search only {search['p_at_1']:.0%}", color=_MUTED)
-            axes.set_xscale("log")
-            axes.set_xlim(0.1, 3)
-            ticks = [0.1, 0.2, 0.5, 1, 2]
-            axes.set_xticks(ticks, [f"{tick:g} s" for tick in ticks])
-            axes.minorticks_off()
-            axes.set_ylim(low, high)
-            steps = [low + step * 0.1 for step in range(round((high - low) / 0.1) + 1)]
-            axes.set_yticks(steps, [f"{step:.0%}" for step in steps])
-            axes.grid(color=_GRID)
-            axes.set_axisbelow(True)
-            for side in ("top", "right"):
-                axes.spines[side].set_visible(False)
-            axes.set_title(head, loc="left", fontsize=17, weight="bold", pad=14)
-        return self._save(figure, name="cost-latency")
-
 
 def build_readme_charts(
     *,
     direct_summary: Path,
-    decision_summary: Path,
-    order_summary: Path,
+    decision_summaries: Sequence[Path],
+    order_summaries: Sequence[Path],
     luna_summary: Path,
     out_dir: Path,
     fmt: str = "svg",
 ) -> list[Path]:
     """Write the README figures: direct choice, "none", re-ranking at 44,453 tools, order, precision against latency.
 
-    Every number comes from the generated summaries; `fmt` is `svg` for the docs or `png` for social posts.
+    Each figure shows every decider the registry publishes, read from the summaries: `decision_summaries` and
+    `order_summaries` earliest first, the first holding an arm wins. Every number comes from the generated summaries;
+    `fmt` is `svg` for the docs or `png` for social posts.
     """
     if fmt not in ("svg", "png"):
         raise ValueError("fmt must be 'svg' or 'png'")
-    paths = (direct_summary, decision_summary, order_summary, luna_summary)
-    direct, decision, order, luna = [json.loads(path.read_text(encoding="utf-8")) for path in paths]
-    return _ReadmeCharts(direct=direct, decision=decision, order=order, luna=luna, out_dir=out_dir, fmt=fmt).write()
+
+    def read(path: Path) -> dict[str, Any]:
+        return json.loads(path.read_text(encoding="utf-8"))
+
+    return _ReadmeCharts(
+        direct=read(direct_summary),
+        decisions=[read(path) for path in decision_summaries],
+        orders=[read(path) for path in order_summaries],
+        luna=read(luna_summary),
+        out_dir=out_dir,
+        fmt=fmt,
+    ).write()
 
 
 @dataclass(frozen=True, slots=True)
@@ -545,7 +565,6 @@ def _slug(arm: str) -> str:
 
 
 def _direct_points(direct: dict[str, Any]) -> list[_Point]:
-    colors = {row.key: row.color for row in _DIRECT}
     points: list[_Point] = []
     for row in direct["rows"]:
         arm = row["arm"]
@@ -564,7 +583,7 @@ def _direct_points(direct: dict[str, Any]) -> list[_Point]:
                 key=arm,
                 name=name,
                 detail=detail,
-                color=colors.get(arm) or _spec(decider or "luna").color,
+                color=agent[1] if (agent := _agent(arm)) else _spec(decider or "luna").color,
                 value=row["relevant_pick_rate"]["value"],
                 interval=row["relevant_pick_rate"]["ci95"],
                 milliseconds=warm["decision_latency_p50_ms"],
@@ -728,6 +747,17 @@ def build_cost_latency(
     direct = json.loads(direct_summary.read_text(encoding="utf-8"))
     decisions = [json.loads(path.read_text(encoding="utf-8")) for path in decision_summaries]
     luna = None if luna_summary is None else json.loads(luna_summary.read_text(encoding="utf-8"))
+    return _draw_cost_latency(direct, decisions, luna, out_dir=out_dir, fmt=fmt)
+
+
+def _draw_cost_latency(
+    direct: dict[str, Any],
+    decisions: Sequence[dict[str, Any]],
+    luna: dict[str, Any] | None,
+    *,
+    out_dir: Path,
+    fmt: str,
+) -> Path:
     direct_points, rerank_points = _direct_points(direct), _rerank_points(decisions, luna)
     [direct_search] = [row for row in direct["rows"] if row["arm"] == "hybrid@20" and row["catalog"] == "pooled"]
     rerank_search = next(
