@@ -11,7 +11,6 @@ from typing import Any
 
 import anyio
 import pytest
-import tiktoken
 from pydantic_ai.exceptions import ModelHTTPError
 from pydantic_ai.messages import ModelMessage, ModelResponse, ModelResponsePart, TextPart, ToolCallPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
@@ -61,18 +60,6 @@ from toolhunch_bench.embedding_cache import CachedEmbedder
 from toolhunch_bench.ledger import LedgerEntry, append_ledger, f2a_spend, read_ledger
 
 pytestmark = pytest.mark.anyio
-
-
-@pytest.fixture(autouse=True)
-def offline_encoding(monkeypatch: pytest.MonkeyPatch) -> None:
-    class WordEncoding:
-        def encode(self, text: str, *, disallowed_special: Any = ()) -> list[int]:
-            return list(range(len(text.split())))
-
-    def encoding(name: str) -> Any:
-        return WordEncoding()
-
-    monkeypatch.setattr(tiktoken, "get_encoding", encoding)
 
 
 def data(*, sources: dict[str, str] | None = None, count: int = 3) -> ToolRetData:

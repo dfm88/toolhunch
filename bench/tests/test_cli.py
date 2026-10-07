@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-import tiktoken
 from genai_prices import Usage, calc_price
 from inline_snapshot import snapshot
 from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, TextPart, ToolCallPart, UserPromptPart
@@ -83,19 +82,6 @@ def test_sample_leaves_out_the_ids_of_an_exclude_file(tmp_path: Path, monkeypatc
     assert not dev_ids & heldout_ids
 
 
-class WordEncoding:
-    """A stand-in for a tiktoken encoding, so that the estimate never downloads a vocabulary."""
-
-    name = "words"
-
-    def encode(self, text: str, *, disallowed_special: Any = ()) -> list[int]:
-        return list(range(len(text.split())))
-
-
-def word_encoding(name: str) -> WordEncoding:
-    return WordEncoding()
-
-
 def no_dotenv(*args: object, **kwargs: object) -> bool:
     return False
 
@@ -111,7 +97,6 @@ def writer_ledger(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setattr(cli, "load_toolret", load_toolret)
     monkeypatch.setattr(cli, "LEDGER_PATH", ledger)
     monkeypatch.setattr(cli, "load_dotenv", no_dotenv)
-    monkeypatch.setattr(tiktoken, "get_encoding", word_encoding)
     return ledger
 
 
@@ -335,7 +320,6 @@ def decision_setup(
     monkeypatch.setattr(cli, "EMBEDDING_CACHE_PATH", tmp_path / "embeddings.sqlite")
     monkeypatch.setattr(cli, "DECISION_CACHE_PATH", setup.decision_cache)
     monkeypatch.setattr(cli, "load_dotenv", no_dotenv)
-    monkeypatch.setattr(tiktoken, "get_encoding", word_encoding)
 
     def model(name: DeciderName, *, max_retries: int = 3) -> Any:
         # Deciders without a fake are built for real: building one contacts nothing.

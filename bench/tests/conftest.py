@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import tiktoken
 
 from toolhunch import ToolCard, ToolCatalog
 from toolhunch.decision import (
@@ -167,6 +168,29 @@ class FakeDecisionModel:
         if (key, text) == (NONE_KEY, NONE_TEXT):
             return self._none_weight
         return 8.0 if key == self._favourite else 1.0
+
+
+class WordEncoding:
+    """A stand-in for a tiktoken encoding: one token per word."""
+
+    name = "words"
+
+    def encode(self, text: str, *, disallowed_special: Any = ()) -> list[int]:
+        return list(range(len(text.split())))
+
+
+@pytest.fixture(autouse=True)
+def offline_encoding(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Count tokens with `WordEncoding` in every bench test.
+
+    tiktoken downloads a vocabulary the first time it is asked for one; with sockets blocked that passes only on a
+    machine that has it cached, and fails on a fresh CI runner.
+    """
+
+    def word_encoding(name: str) -> WordEncoding:
+        return WordEncoding()
+
+    monkeypatch.setattr(tiktoken, "get_encoding", word_encoding)
 
 
 @pytest.fixture
