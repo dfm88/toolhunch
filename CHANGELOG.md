@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+
+ ## [0.2.0] - 2026-10-07
+
 ### Added
 
 - `strands_decider()`: AWS Strands Labs' Strands Decider 2B served locally (`strands-decider serve`), with
