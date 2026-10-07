@@ -298,7 +298,7 @@ Small windows make the planner lower card detail or split a choice into rounds; 
 counted with the planner's tokenizer, so pass one that reads Laya's own `tokenizer.json` for an exact fit.
 `JevWireModel` covers any other Jev-shaped endpoint, and `OpenAILogprobModel` OpenAI-compatible endpoints that
 return `top_logprobs`. `OpenAIDecisionModel()` asks OpenAI's Decisions API (`gpt-6-luna`, public beta, with
-`OPENAI_API_KEY`); it is on `main` and comes with the next release.
+`OPENAI_API_KEY`).
 
 ## Status and roadmap
 
