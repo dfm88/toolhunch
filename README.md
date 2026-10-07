@@ -198,11 +198,9 @@ Multi-turn agent loops, where caching and tool reveal interact, come next.
 - **rizzo-flow refuses an option over 8,000 characters:** one 9,700-character tool was shown by its first
   sentence instead.
 - **Clef and Clef-flash have no pinned version**: Cloudflare may change them under the same name.
-- **CLM** ran too, but its figures wait for its authors to confirm our deployments match theirs.
 
 The [technical page](https://github.com/dfm88/toolhunch/blob/main/docs/experiments/toolret.md) has the protocol, every table, per-catalog results,
-latency, thresholds and limitations. toolhunch is an independent project, not affiliated with TypeSafe, OpenAI,
-Cloudflare, AWS, ConvAI Innovations or Rizzo AI Academy.
+latency, thresholds and limitations.
 
 ## Quickstart
 

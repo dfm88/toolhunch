@@ -590,7 +590,6 @@ summaries: re-ranking in [decision P2](https://github.com/dfm88/toolhunch/blob/m
 
 The Mac is an Apple M5 Max with 128 GB under macOS 26.6.2; local runs have no money cost, and their latency is
 that machine's. rizzo-flow and Laya answer one request at a time, so their latency adds every call of a search.
-CLM also ran on the Mac; its figures wait for its authors to confirm that our deployments match theirs.
 
 ### Re-ranking 44,453 tools
 
