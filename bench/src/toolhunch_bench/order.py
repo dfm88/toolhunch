@@ -32,6 +32,8 @@ from toolhunch_bench.direct_cost import (
     SpendGuard,
     attempt_failure,
     openai_usd,
+    reply_model,
+    reply_models,
 )
 from toolhunch_bench.embedding_cache import (
     EMBEDDING_CACHE_PATH,
@@ -97,7 +99,7 @@ class OrderDecisionModel:
     async def _ask(self, request: DecisionRequest, /, **options: Any) -> DecisionResponse:
         spec = REGISTRY[DeciderName(self._decider)]
         provider = spec.provider
-        if spec.provider == "openai":
+        if spec.priced_by == "genai-prices":
             # ASCII JSON bytes bound BPE tokens, including escaping and the fixed letter prompt.
             upper = openai_usd(
                 model=spec.model, input_tokens=len(json.dumps(asdict(request)).encode()) + 4096, output_tokens=1
@@ -114,6 +116,25 @@ class OrderDecisionModel:
             response = await self._inner.ask(request, **options)
         except Exception as error:
             status, reached = attempt_failure(error)
+            if isinstance(error, DecisionError) and error.usage is not None:
+                # A refused question: the provider answered and may bill it, so its usage is charged, not a reserve.
+                usd = self.limits.estimate_usd(error.usage) or 0.0
+                self._guard.record(
+                    ProviderCall(
+                        provider=provider,
+                        model=self.model_id,
+                        input_tokens=error.usage.input_tokens,
+                        output_tokens=error.usage.output_tokens,
+                        cache_read_tokens=None,
+                        seconds=time.perf_counter() - started,
+                        usd=usd,
+                        list_usd=usd,
+                        budget_charge_usd=usd,
+                        error=type(error).__name__,
+                        status=status,
+                    )
+                )
+                raise DecisionError(f"order decision failed: {type(error).__name__}") from None
             self._guard.record(
                 ProviderCall(
                     provider=provider,
@@ -153,7 +174,7 @@ class OrderDecisionModel:
         cached = cast("dict[str, Any]", details).get("cached_tokens") if isinstance(details, dict) else None
         if not isinstance(cached, int) or not 0 <= cached <= response.usage.input_tokens:
             cached = None
-        if spec.provider == "openai":
+        if spec.priced_by == "genai-prices":
             usd = openai_usd(
                 model=spec.model,
                 input_tokens=response.usage.input_tokens,
@@ -176,6 +197,7 @@ class OrderDecisionModel:
                 usd=usd,
                 list_usd=list_usd,
                 budget_charge_usd=usd,
+                reply_model=reply_model(response),
             )
         )
         return response
@@ -414,7 +436,10 @@ async def order_experiment(
             before_search=lambda context: setattr(guard, "context", context),
         )
         manifest_path = run_dir / "manifest.json"
-        manifest = json.loads(manifest_path.read_text()) | {"completed": True}
+        manifest = json.loads(manifest_path.read_text()) | {
+            "completed": True,
+            "reply_models": reply_models(guard.calls),
+        }
         manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
         gates = pilot_gates(run_dir)
         echo("Pilot gates: " + json.dumps(gates))

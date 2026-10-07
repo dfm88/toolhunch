@@ -439,13 +439,13 @@ def test_a_decision_run_warms_clm_up_and_records_what_it_billed(
         ("typesafe", "jev-1.13.0"),
     ]
     jev = by_model["typesafe", "jev-1.13.0"]
-    # Jev bills per declared token, so its asks go through the spend guard, which retries a failed attempt once:
-    # its 8 failed searches are 16 failed attempts.
-    assert jev.input_tokens == 10 * (len(jev_model.asks) - 16)  # 10 input tokens for every ask it answered
+    # Jev bills per declared token, so its asks go through the spend guard, which retries only a transient failure:
+    # an unusable answer is not one, so its 8 failed searches are 8 failed attempts.
+    assert jev.input_tokens == 10 * (len(jev_model.asks) - 8)  # 10 input tokens for every ask it answered
     # The guard charged each failed attempt its reservation, which the ledger keeps, as direct and order runs do: the
     # provider may have billed those attempts, and the next run's cap check reads the ledger.
     reservation = JEV_LIMITS.estimate_usd(DecisionUsage(1, JEV_LIMITS.max_request_tokens or 0, 0)) or 0.0
-    assert jev.usd == pytest.approx(jev.input_tokens * 0.042 / 1_000_000 + 16 * reservation)
+    assert jev.usd == pytest.approx(jev.input_tokens * 0.042 / 1_000_000 + 8 * reservation)
     assert ", 8 failed," in jev.note
     logprob = by_model["openai", "gpt-4.1-mini-2025-04-14"]
     assert logprob.input_tokens == 10 * (len(logprob_model.asks) - 12)

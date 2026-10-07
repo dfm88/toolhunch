@@ -21,7 +21,9 @@ import httpx2
 
 from toolhunch import DetailLevel, HeuristicTokenizer
 from toolhunch.decision import (
+    OPENAI_DECISIONS_LIMITS,
     ChoiceDecider,
+    OpenAIDecisionModel,
     OpenAILogprobModel,
     clef,
     clm,
@@ -66,6 +68,7 @@ __all__ = [
     "Billing",
     "DeciderName",
     "DeciderSpec",
+    "PricedBy",
     "SerialDecisionModel",
     "choice_decider",
     "decision_model",
@@ -90,10 +93,15 @@ class DeciderName(StrEnum):
     LAYA = "laya"
     LAYA_WIDE = "laya-wide"
     RIZZO_FLOW = "rizzo-flow"
+    LUNA_DECISIONS = "luna-decisions"
 
 
 type Billing = Literal["tokens", "gpu-time", "local"]
 """How a decider's use is paid: per token, per second of a rented GPU, or not at all (a local machine)."""
+
+type PricedBy = Literal["limits", "genai-prices"]
+"""Where a token-billed decider's price comes from: its model's declared limits, which the spend guard reserves from,
+or genai-prices, for an OpenAI chat model whose price depends on cache reads and tiers."""
 
 JEV_MODEL = "jev-1.13.0"
 """The pinned Jev version: `jev-latest` would move under a run."""
@@ -131,6 +139,12 @@ _LAYA_CAVEAT = (
     "run the English one zero-shot. Its questions are planned with Laya's own tokenizer, and an option whose name "
     f"would repeat its key past {OPTION_CAP} tokens is sent as its key alone."
 )
+# The P4 probe (20261007T170220Z): 221 billed tokens for 180 heuristic ones at 5 options, 2,672 for 1,829 at 255, so
+# about 3.2 more per option and 25 per request; a further question in one request adds about 140. Estimates only.
+_DECISIONS_REQUEST_OVERHEAD = 25
+_DECISIONS_OPTION_OVERHEAD = 4
+_DECISIONS_REQUEST_TOKENS = 32_768
+"""The bench's cap on one Decisions request: the API states no window, and the guard needs a cap to reserve from."""
 # The P2 probe (20261004T170651Z): 265 billed tokens for 180 heuristic ones at 5 options, 6,638 for 1,829 at 255,
 # so about 19 more per option and none per request. Estimates only; the guard prices what each reply reports.
 _CLEF_OPTION_OVERHEAD = 19
@@ -147,6 +161,7 @@ class DeciderSpec:
         provider: Who bills it in the cost ledger; `local` for a model on this machine.
         model: The pinned model id it asks.
         billing: How its use is paid.
+        priced_by: Where its price comes from, when it is billed per token.
         make: Builds the model with the given number of internal retries; reads the environment when called.
         color: Its color in figures.
         published: Whether figures show it. CLM's figures wait for its authors to confirm our deployments match theirs.
@@ -168,6 +183,7 @@ class DeciderSpec:
     model: str
     billing: Billing
     make: Callable[[int], DecisionModel]
+    priced_by: PricedBy = "limits"
     color: str
     published: bool = True
     required_env: tuple[str, ...] = ()
@@ -220,6 +236,7 @@ DECIDERS: Mapping[DeciderName, DeciderSpec] = {
             model=LOGPROB_MODEL,
             billing="tokens",
             make=lambda retries: OpenAILogprobModel(LOGPROB_MODEL, max_retries=retries),
+            priced_by="genai-prices",
             color="#C0652B",
             required_env=("OPENAI_API_KEY",),
             provenance={"endpoint": "api.openai.com"},
@@ -233,6 +250,7 @@ DECIDERS: Mapping[DeciderName, DeciderSpec] = {
             model=LUNA_MODEL,
             billing="tokens",
             make=lambda retries: StructuredChoiceModel(LUNA_MODEL, max_retries=retries),
+            priced_by="genai-prices",
             color="#7A4FB5",
             required_env=("OPENAI_API_KEY",),
             provenance={"endpoint": "api.openai.com", "reasoning": "off"},
@@ -384,6 +402,33 @@ DECIDERS: Mapping[DeciderName, DeciderSpec] = {
             local_url=_RIZZO_URL,
             caveat="The authors' fine-tune, 4B at q8_0 on llama.cpp with Metal; quantization and hardware change its "
             "probabilities, by its authors' account.",
+        ),
+        DeciderSpec(
+            name=DeciderName.LUNA_DECISIONS,
+            label="GPT-6 Luna (Decisions)",
+            provider="openai",
+            model=LUNA_MODEL,
+            billing="tokens",
+            make=lambda retries: OpenAIDecisionModel(
+                LUNA_MODEL,
+                limits=OPENAI_DECISIONS_LIMITS.model_copy(update={"max_request_tokens": _DECISIONS_REQUEST_TOKENS}),
+                max_retries=retries,
+            ),
+            color="#4A2380",
+            required_env=("OPENAI_API_KEY",),
+            provenance={
+                "endpoint": "api.openai.com /v1/decisions",
+                "version_pinned": False,
+                "status": "public beta",
+                "max_request_tokens": _DECISIONS_REQUEST_TOKENS,
+                "max_request_tokens_reason": "the bench's cap, for the spend guard: the API states no window",
+            },
+            request_overhead_tokens=_DECISIONS_REQUEST_OVERHEAD,
+            option_overhead_tokens=_DECISIONS_OPTION_OVERHEAD,
+            caveat="OpenAI serves the current `gpt-6-luna` behind its Decisions API, in public beta, and no version "
+            "can be pinned: a later run may answer differently from the one reported here. The API rounds its "
+            "probabilities to two decimals.",
+            cache_namespace=DeciderName.LUNA_DECISIONS.value,
         ),
     )
 }

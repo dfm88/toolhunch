@@ -39,9 +39,9 @@ class Budget:
     cap_usd: float
 
 
-BUDGET = Budget("P3:", 1.0, 2.0)
-"""The current phase: P3, local deciders and Luna's searched arm again (spec 2026-10-05 §6.5). Paid runs stop before
-the cap."""
+BUDGET = Budget("P4:", 2.0, 3.0)
+"""The current phase: P4, OpenAI's Decisions API in every test (spec 2026-10-07 §5.5). Paid runs stop before the
+cap."""
 
 
 class LedgerEntry(BaseModel):

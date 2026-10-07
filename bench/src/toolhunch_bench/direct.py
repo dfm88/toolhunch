@@ -37,6 +37,7 @@ from toolhunch_bench.direct_cost import (
     RunStopped,
     SpendGuard,
     openai_usd,
+    reply_models,
 )
 from toolhunch_bench.embedding_cache import estimate_embedding_cost
 
@@ -604,6 +605,7 @@ class DirectRunner:
                 "errors": errors,
                 "provider_errors": provider_errors,
                 "budget_charge_usd": self.guard.run_usd,
+                "reply_models": reply_models(self.guard.calls),
             }
             (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
             with (run_dir / "calls.jsonl").open("w") as calls:

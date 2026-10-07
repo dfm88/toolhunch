@@ -86,6 +86,7 @@ from toolhunch_bench.direct_cost import (
     GuardedEmbedder,
     RunStopped,
     SpendGuard,
+    reply_models,
 )
 from toolhunch_bench.direct_report import build_direct_report
 from toolhunch_bench.embedding_cache import (
@@ -238,10 +239,11 @@ def write_model_queries(
 _DIRECT_DECIDERS = tuple(
     name
     for name, spec in REGISTRY.items()
-    if spec.billing == "local" or (spec.billing == "tokens" and spec.provider != "openai")
+    if spec.billing == "local" or (spec.billing == "tokens" and spec.priced_by == "limits")
 )
 """The deciders `direct --deciders` runs: local ones, and the ones billed per declared token, which its guard prices
-and its ledger records. OpenAI's would spend without a cap or a ledger line, Modal's CLM credits unledgered."""
+and its ledger records. OpenAI's chat models would spend without a cap or a ledger line, Modal's CLM credits
+unledgered."""
 
 
 @app.command()
@@ -513,6 +515,9 @@ def decision(
                 )
             for model in models.values():
                 model.close()
+            if (seen := reply_models(guard.calls)) and (manifest_path := RUNS_DIR / run_id / "manifest.json").exists():
+                manifest = json.loads(manifest_path.read_text()) | {"reply_models": seen}
+                manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
     finally:
         cache.close()
     typer.echo(f"run written to {RUNS_DIR / run_id}")
@@ -711,6 +716,28 @@ def clef_probe_command() -> None:
 
     try:
         run_dir = asyncio.run(clef_probe(runs_dir=RUNS_DIR, fixtures_dir=BENCH_DIR.parent / "tests/decision/fixtures"))
+    except UsageMissing as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=2) from None
+    except ValueError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=1) from None
+    typer.echo(f"probe written to {run_dir / 'probe.json'}")
+
+
+@app.command("decisions-probe")
+def decisions_probe_command() -> None:
+    """P4 Stop 0: probe OpenAI's Decisions API (paid, under $0.01) and save scrubbed fixtures."""
+    from toolhunch_bench.decisions_probe import UsageMissing, decisions_probe
+
+    try:
+        run_dir = asyncio.run(
+            decisions_probe(
+                load_toolret(cache_dir=TOOLRET_CACHE),
+                runs_dir=RUNS_DIR,
+                fixtures_dir=BENCH_DIR.parent / "tests/decision/fixtures",
+            )
+        )
     except UsageMissing as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(code=2) from None
@@ -1281,7 +1308,7 @@ def _decision_models(
     asked: dict[str, DecisionModel] = {}
     for name in names:
         spec = REGISTRY[name]
-        guarded = spec.billing == "tokens" and spec.provider != "openai"
+        guarded = _guarded(name)
         raw[name] = decision_model(name, max_retries=0 if guarded else 3)
         asked[name] = GuardedDecisionModel(raw[name], guard=guard, provider=spec.provider) if guarded else raw[name]
     return raw, asked
@@ -1290,7 +1317,7 @@ def _decision_models(
 def _guarded(name: str) -> bool:
     """Whether a decider bills per declared token, so that its every attempt goes through the spend guard."""
     spec = REGISTRY[DeciderName(name)]
-    return spec.billing == "tokens" and spec.provider != "openai"
+    return spec.billing == "tokens" and spec.priced_by == "limits"
 
 
 def _print_decision_estimate(lines: Sequence[EstimateLine], *, searches: int, retrieval: CacheOnlyRetrieval) -> None:
@@ -1410,7 +1437,7 @@ def _decision_ledger_entries(
             asks = f"Modal credits: {seconds:,.0f} s of the CLM arms' wall time at ${price:.2f}/h; {asks}"
         elif not model.misses and not model.failures:
             continue
-        elif spec.provider == "openai":
+        elif spec.priced_by == "genai-prices":
             billed_model = spec.model
             # Priced on the sum: a tier meant for one long request (gpt-6-luna above 272K) overstates, never under.
             usage = Usage(input_tokens=billed.input_tokens, output_tokens=billed.output_tokens)
@@ -1420,8 +1447,10 @@ def _decision_ledger_entries(
             charged = [call for call in guard.calls if call["model"] == model.model_id]
             provider, billed_model = spec.provider, spec.model
             usd = sum(call["budget_charge_usd"] for call in charged)
-            reserved = sum(call["error"] is not None for call in charged)
+            reserved = sum(call["error"] is not None and call["input_tokens"] is None for call in charged)
             asks += f"; {reserved:,} failed attempts charged at their reservation" if reserved else ""
+            if cached := sum(call["cache_read_tokens"] or 0 for call in charged):
+                asks += f"; {cached:,} input tokens read from cache, priced in full"
         else:
             provider, billed_model, usd = spec.provider, spec.model, model.limits.estimate_usd(billed) or 0.0
         entries.append(

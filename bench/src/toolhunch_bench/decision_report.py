@@ -793,7 +793,7 @@ def _cost(
         deciders: dict[str, Any] = manifest.get("deciders") or {}
         entry: dict[str, Any] = deciders.get(spec.name) or {}
         local = {"local": entry.get("hardware") or {"chip": None}}
-    elif spec.provider == "openai":
+    elif spec.priced_by == "genai-prices":
         model = config["model_id"].partition("@")[0]
         with contextlib.suppress(LookupError):  # a model genai-prices does not know stays unpriced
             # Per search: price tiers (gpt-6-luna: 2x above 272K input tokens) apply to one request.

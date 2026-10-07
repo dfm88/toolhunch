@@ -631,7 +631,7 @@ def _decider_line(name: str, *, calls: int, tokens: int, options: int, limits: M
             f"{_CLM_GPU_SECONDS_PER_CALL} s per ask, about ${clm_usd(seconds):.4f} of Modal credits"
         )
         return EstimateLine("modal", spec.model, calls, tokens, None, note)
-    if spec.provider == "openai":
+    if spec.priced_by == "genai-prices":
         output = spec.estimate_output_tokens
         price = calc_price(
             Usage(input_tokens=priced, output_tokens=output * calls), model_ref=spec.model, provider_id="openai"

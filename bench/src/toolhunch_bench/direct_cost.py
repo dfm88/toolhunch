@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import time
 from dataclasses import asdict, dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
+import anyio
 import httpx2
 from genai_prices import Usage, calc_price
 from openai import APIConnectionError
@@ -14,7 +15,7 @@ from toolhunch.decision import DecisionError, DecisionUsage
 from toolhunch_bench.ledger import BUDGET
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping, Sequence
+    from collections.abc import Awaitable, Callable, Mapping, Sequence
 
     from toolhunch.decision import DecisionModel, DecisionRequest, DecisionResponse, ModelLimits, QuestionKind
     from toolhunch.retrieval import Embedder, EmbeddingBatch, EmbeddingKind
@@ -76,7 +77,8 @@ class ProviderCall:
 
     Failed attempts have unknown usage and price. Their reservation remains charged to the guard, so a timeout
     cannot free budget that may have been spent upstream. The ledger reports these reserves separately in its note.
-    A failed attempt also records the HTTP status it ended with, if any, and whether a reply arrived at all.
+    A failed attempt also records the HTTP status it ended with, if any, and whether a reply arrived at all. A reply
+    records the `model` member it named, when it has one.
     """
 
     provider: str
@@ -91,6 +93,7 @@ class ProviderCall:
     error: str | None = None
     status: int | None = None
     reached: bool = True
+    reply_model: str | None = None
 
 
 class SpendGuard:
@@ -147,6 +150,26 @@ class SpendGuard:
 
 
 _UNPRICED = "priced reply without input tokens"
+_BACKOFF_SECONDS = 0.5
+
+
+def reply_model(response: DecisionResponse) -> str | None:
+    """The `model` member of a reply's body, which names what answered; `None` when the body has none."""
+    model = response.raw.get("model")
+    return model if isinstance(model, str) else None
+
+
+def cached_tokens(response: DecisionResponse) -> int:
+    """The input tokens a reply says its provider read from cache (OpenAI's `usage.input_tokens_details`), else 0."""
+    usage: object = response.raw.get("usage")
+    details: object = cast("dict[str, object]", usage).get("input_tokens_details") if isinstance(usage, dict) else None
+    cached = cast("dict[str, object]", details).get("cached_tokens") if isinstance(details, dict) else None
+    return cached if isinstance(cached, int) and not isinstance(cached, bool) and cached >= 0 else 0
+
+
+def reply_models(calls: Sequence[Mapping[str, Any]]) -> list[str]:
+    """The distinct `model` members the replies of `calls` named, sorted."""
+    return sorted({model for call in calls if isinstance(model := call.get("reply_model"), str)})
 
 
 class GuardedDecisionModel:
@@ -154,14 +177,23 @@ class GuardedDecisionModel:
 
     The price comes from the wrapped model's declared limits, and each attempt reserves what its largest declared
     request would cost. The wrapped adapter must have internal retries disabled; the optional retry here obtains its
-    own reservation. A priced reply that reports no input tokens is a failure: it could not be priced, so the guard
-    cannot account for it.
+    own reservation. Only an attempt that ended with HTTP 429, a server fault or no reply is retried, after the wait
+    its reply asked for (`DecisionError.retry_after`) or else a backoff from 0.5 s; another refusal or an unusable
+    answer would fail the same way. A priced reply that reports no input tokens is a failure: it could not be priced,
+    so the guard cannot account for it. A failure that carries the reply's usage (`DecisionError.usage`, a question
+    the provider refused) is charged at that usage and not retried: the provider answered, and may bill it.
     """
 
     def __init__(
-        self, inner: DecisionModel, *, guard: SpendGuard, provider: str = "typesafe", retries: int = 1
+        self,
+        inner: DecisionModel,
+        *,
+        guard: SpendGuard,
+        provider: str = "typesafe",
+        retries: int = 1,
+        sleep: Callable[[float], Awaitable[None]] = anyio.sleep,
     ) -> None:
-        """Wrap `inner`, billed by `provider`.
+        """Wrap `inner`, billed by `provider`; `sleep` waits between attempts.
 
         Raises:
             ValueError: `inner` declares no input price, or a price without a request token cap to reserve from.
@@ -173,6 +205,7 @@ class GuardedDecisionModel:
         if limits.max_request_tokens is None and (limits.price_input_per_mtok or 0) > 0 and not self._local:
             raise ValueError(f"{inner.model_id} declares no request token cap to reserve from")
         self._inner, self._guard, self._provider, self._retries = inner, guard, provider, retries
+        self._sleep = sleep
 
     @property
     def model_id(self) -> str:
@@ -207,12 +240,31 @@ class GuardedDecisionModel:
         for attempt in range(self._retries + 1):
             self._guard.before(upper)
             started = time.perf_counter()
-            status, reached = None, True
+            status, reached, wait = None, True, None
             try:
                 response = await self._inner.ask(request, **options)
             except DecisionError as error:
                 failure = type(error).__name__
                 status, reached = attempt_failure(error)
+                wait = error.retry_after
+                if error.usage is not None:
+                    usd = self._usd(error.usage)
+                    self._guard.record(
+                        ProviderCall(
+                            provider=self._provider,
+                            model=self.model_id,
+                            input_tokens=error.usage.input_tokens,
+                            output_tokens=error.usage.output_tokens,
+                            cache_read_tokens=0,
+                            seconds=time.perf_counter() - started,
+                            usd=usd,
+                            list_usd=usd,
+                            budget_charge_usd=usd,
+                            error=failure,
+                            status=status,
+                        )
+                    )
+                    raise ProviderFailure(failure) from None
             else:
                 if not (priced and response.usage.input_tokens <= 0):
                     usd = self._usd(response.usage)
@@ -222,11 +274,12 @@ class GuardedDecisionModel:
                             model=self.model_id,
                             input_tokens=response.usage.input_tokens,
                             output_tokens=response.usage.output_tokens,
-                            cache_read_tokens=0,
+                            cache_read_tokens=cached_tokens(response),
                             seconds=time.perf_counter() - started,
                             usd=usd,
                             list_usd=usd,
                             budget_charge_usd=usd,
+                            reply_model=reply_model(response),
                         )
                     )
                     return response
@@ -248,8 +301,10 @@ class GuardedDecisionModel:
                 )
             )
             # A reply the provider billed but did not account for is not retried: a retry would be billed again.
-            if attempt == self._retries or failure == _UNPRICED:
+            transient = failure != _UNPRICED and (not reached or status == 429 or (status or 0) >= 500)
+            if attempt == self._retries or not transient:
                 raise ProviderFailure(failure)
+            await self._sleep(_BACKOFF_SECONDS * 2**attempt if wait is None else wait)
         raise AssertionError("unreachable")
 
     async def aclose(self) -> None:
