@@ -1,0 +1,77 @@
+{
+  "source": "api.openai.com /v1/decisions, gpt-6-luna, recorded 2026-10-07",
+  "request": {
+    "model": "gpt-6-luna",
+    "input": "Request: Book me a table for two at an Italian place tonight at 8.",
+    "questions": [
+      {
+        "type": "score",
+        "name": "urgency",
+        "instructions": "How urgent is the request?",
+        "levels": [
+          {
+            "label": "Not urgent"
+          },
+          {
+            "label": "Today"
+          },
+          {
+            "label": "Within the hour"
+          }
+        ]
+      }
+    ]
+  },
+  "status": 200,
+  "headers": {
+    "content-type": "application/json",
+    "x-ratelimit-limit-requests": "30000",
+    "x-ratelimit-limit-tokens": "180000000",
+    "x-ratelimit-remaining-requests": "29999",
+    "x-ratelimit-remaining-tokens": "179999868",
+    "x-ratelimit-reset-requests": "2ms",
+    "x-ratelimit-reset-tokens": "0s",
+    "server-timing-total": "127.743",
+    "openai-processing-ms": "127"
+  },
+  "response": {
+    "model": "gpt-6-luna",
+    "answers": [
+      {
+        "type": "score",
+        "name": "urgency",
+        "score": 1.0,
+        "probabilities": [
+          {
+            "value": 0,
+            "label": "Not urgent",
+            "probability": 0.0
+          },
+          {
+            "value": 1,
+            "label": "Today",
+            "probability": 1.0
+          },
+          {
+            "value": 2,
+            "label": "Within the hour",
+            "probability": 0.0
+          }
+        ],
+        "confidence": 1.0
+      }
+    ],
+    "usage": {
+      "input_tokens": 131,
+      "input_tokens_details": {
+        "cached_tokens": 0,
+        "cache_write_tokens": 0
+      },
+      "output_tokens": 0,
+      "output_tokens_details": {
+        "reasoning_tokens": 0
+      },
+      "total_tokens": 131
+    }
+  }
+}

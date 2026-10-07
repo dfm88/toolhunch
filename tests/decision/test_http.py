@@ -88,6 +88,13 @@ async def test_backoff_doubles_then_gives_up() -> None:
     assert (sleeps, len(requests)) == ([0.5, 1.0, 2.0], 4)
 
 
+async def test_the_final_error_carries_the_wait_its_reply_asked_for() -> None:
+    poster, _, _ = make([httpx2.Response(429, headers={"Retry-After": "7"})], max_retries=0)
+    with pytest.raises(DecisionError) as caught:
+        await poster.post({})
+    assert (caught.value.status, caught.value.retry_after) == (429, 7.0)
+
+
 @pytest.mark.parametrize("status", [400, 401, 403, 422])
 async def test_client_errors_are_final(status: int) -> None:
     poster, requests, sleeps = make([httpx2.Response(status, json={"detail": "no"})])

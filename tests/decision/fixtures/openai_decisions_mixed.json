@@ -1,0 +1,103 @@
+{
+  "source": "api.openai.com /v1/decisions, gpt-6-luna, recorded 2026-10-07",
+  "request": {
+    "model": "gpt-6-luna",
+    "input": "Request: Book me a table for two at an Italian place tonight at 8.",
+    "questions": [
+      {
+        "type": "choice",
+        "name": "tool",
+        "instructions": "Which tool should the assistant call next to fulfil the request?",
+        "choices": [
+          {
+            "value": "get_weather",
+            "description": "get_weather: Get the current weather and the forecast for a city."
+          },
+          {
+            "value": "book_restaurant",
+            "description": "book_restaurant: Reserve a table at a restaurant for a given date, time and party size."
+          },
+          {
+            "value": "order_food_delivery",
+            "description": "order_food_delivery: Order food for home delivery from a nearby restaurant."
+          },
+          {
+            "value": "send_email",
+            "description": "send_email: Send an email to a recipient with a subject and a body."
+          },
+          {
+            "value": "none",
+            "description": "None of these tools can fulfil the request."
+          }
+        ]
+      },
+      {
+        "type": "predicate",
+        "name": "dinner",
+        "instructions": "Is the request about dinner?"
+      }
+    ]
+  },
+  "status": 200,
+  "headers": {
+    "content-type": "application/json",
+    "x-ratelimit-limit-requests": "30000",
+    "x-ratelimit-limit-tokens": "180000000",
+    "x-ratelimit-remaining-requests": "29997",
+    "x-ratelimit-remaining-tokens": "179996733",
+    "x-ratelimit-reset-requests": "6ms",
+    "x-ratelimit-reset-tokens": "1ms",
+    "server-timing-total": "325.165",
+    "openai-processing-ms": "325"
+  },
+  "response": {
+    "model": "gpt-6-luna",
+    "answers": [
+      {
+        "type": "choice",
+        "name": "tool",
+        "choice": "book_restaurant",
+        "probabilities": [
+          {
+            "value": "get_weather",
+            "probability": 0.02
+          },
+          {
+            "value": "book_restaurant",
+            "probability": 0.79
+          },
+          {
+            "value": "order_food_delivery",
+            "probability": 0.01
+          },
+          {
+            "value": "send_email",
+            "probability": 0.02
+          },
+          {
+            "value": "none",
+            "probability": 0.16
+          }
+        ],
+        "confidence": 0.74
+      },
+      {
+        "type": "predicate",
+        "name": "dinner",
+        "probability": 1.0
+      }
+    ],
+    "usage": {
+      "input_tokens": 371,
+      "input_tokens_details": {
+        "cached_tokens": 0,
+        "cache_write_tokens": 0
+      },
+      "output_tokens": 0,
+      "output_tokens_details": {
+        "reasoning_tokens": 0
+      },
+      "total_tokens": 371
+    }
+  }
+}

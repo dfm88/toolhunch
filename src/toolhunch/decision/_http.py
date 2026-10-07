@@ -147,11 +147,13 @@ class JsonPoster:
                 if response.is_success:
                     return self._reply(response, key=key, seconds=time.perf_counter() - started)
                 status = response.status_code
+                retry_after = self._retry_after(response)
                 if status not in RETRY_STATUSES or attempt >= self._max_retries:
                     raise DecisionError(
-                        f"{self._model_id}: HTTP {status}: {self._shown(response.text, key)}", status=status
+                        f"{self._model_id}: HTTP {status}: {self._shown(response.text, key)}",
+                        status=status,
+                        retry_after=retry_after,
                     )
-                retry_after = self._retry_after(response)
                 delay = backoff if retry_after is None else retry_after
             await self._sleep(delay)
             attempt += 1

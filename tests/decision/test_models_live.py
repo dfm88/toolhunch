@@ -6,6 +6,7 @@ from toolhunch.decision import (
     DecisionModel,
     DecisionRequest,
     DecisionResponse,
+    OpenAIDecisionModel,
     OpenAILogprobModel,
     clef,
     clm,
@@ -69,6 +70,16 @@ async def test_logprob_model_answers_a_tool_choice(openai_api_key: str) -> None:
         assert response.usage.input_tokens > 0
         assert response.usage.output_tokens == 1  # max_tokens is 1
         assert response.server_seconds is None  # this adapter has no server-side timing
+    finally:
+        await model.aclose()
+
+
+async def test_openai_decisions_answers_a_tool_choice(openai_api_key: str) -> None:
+    model = OpenAIDecisionModel()  # gpt-6-luna; the key is read from OPENAI_API_KEY
+    try:
+        response = await check_a_tool_choice(model)
+        assert response.usage.input_tokens > 0
+        assert response.server_seconds is not None
     finally:
         await model.aclose()
 

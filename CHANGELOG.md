@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `OpenAIDecisionModel`: OpenAI's Decisions API (`POST /v1/decisions`, `gpt-6-luna`, public beta), choice, binary
+  and score questions with full distributions, and `OPENAI_DECISIONS_LIMITS` (255 options and 64 questions accepted
+  on 2026-10-07, $0.10 per million input tokens, no output charge). The API rounds probabilities to two decimals.
+- `DecisionRefused`, a `DecisionError` for questions the server declined to answer, naming them and carrying the
+  reply's usage; `DecisionError.usage` and `DecisionError.retry_after` (the wait the final reply asked for).
+- Benchmark: `luna-decisions`, GPT-6 Luna through the Decisions API, as a registry entry; `toolhunch-bench
+  decisions-probe`, the API's reply shape, caps, headers and billed overhead, with scrubbed fixtures.
+
+### Changed
+
+- Benchmark: the spend guard retries an attempt only after HTTP 429, a server fault or no reply, waiting what the
+  reply asked for; a question the provider refused is charged at the usage its reply reported. Runs record the
+  `model` member of each reply.
+
 ## [0.2.0] - 2026-10-07
 
 ### Added

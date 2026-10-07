@@ -20,6 +20,7 @@ __all__ = [
     "ChoiceQuestion",
     "DecisionError",
     "DecisionModel",
+    "DecisionRefused",
     "DecisionRequest",
     "DecisionResponse",
     "DecisionUsage",
@@ -207,11 +208,38 @@ class DecisionError(Exception):
     Attributes:
         status: The HTTP status of the reply that ended the call, when a server refused it after any
             retries; `None` for every other failure, an unusable answer or no reply at all.
+        usage: What a reply the server answered, and may bill, reported when its answer is unusable;
+            `None` when there was no such reply. Only a refusal sets it today.
+        retry_after: The seconds the final reply asked to wait (`Retry-After`, capped at 30); `None`
+            when it asked nothing.
     """
 
-    def __init__(self, *args: object, status: int | None = None) -> None:
+    def __init__(
+        self,
+        *args: object,
+        status: int | None = None,
+        usage: DecisionUsage | None = None,
+        retry_after: float | None = None,
+    ) -> None:
         super().__init__(*args)
         self.status = status
+        self.usage = usage
+        self.retry_after = retry_after
+
+
+class DecisionRefused(DecisionError):
+    """The server declined to answer one or more questions, as OpenAI's Decisions API may.
+
+    Its message names the refused questions and never quotes the state; `usage` is what the reply
+    reported, since a refused reply may still be billed.
+
+    Attributes:
+        names: The ids of the refused questions, in question order.
+    """
+
+    def __init__(self, *args: object, names: Sequence[str], usage: DecisionUsage | None = None) -> None:
+        super().__init__(*args, usage=usage)
+        self.names = tuple(names)
 
 
 class ModelLimits(BaseModel):

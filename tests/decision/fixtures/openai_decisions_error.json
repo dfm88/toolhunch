@@ -1,0 +1,34 @@
+{
+  "source": "api.openai.com /v1/decisions, gpt-6-luna, recorded 2026-10-07",
+  "request": {
+    "model": "gpt-6-luna",
+    "input": "Request: Book me a table for two at an Italian place tonight at 8.",
+    "questions": [
+      {
+        "type": "choice",
+        "name": "tool",
+        "instructions": "Which tool should the assistant call next to fulfil the request?",
+        "choices": [
+          {
+            "value": "only",
+            "description": "The only option."
+          }
+        ]
+      }
+    ]
+  },
+  "status": 400,
+  "headers": {
+    "content-type": "application/json",
+    "server-timing-total": "1.081",
+    "openai-processing-ms": "1"
+  },
+  "response": {
+    "error": {
+      "message": "Invalid 'questions[0].choices': array too short. Expected an array with minimum length 2, but got an array with length 1 instead.",
+      "type": "invalid_request_error",
+      "param": "questions[0].choices",
+      "code": "array_below_min_length"
+    }
+  }
+}
