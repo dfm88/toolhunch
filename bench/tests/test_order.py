@@ -54,7 +54,7 @@ def order_data(toolret_data: ToolRetData) -> ToolRetData:
 
 
 async def recorded_run(
-    tmp_path: Path, data: ToolRetData, fake_factory: Any, *, fail: bool = False
+    tmp_path: Path, data: ToolRetData, fake_factory: Any, *, fail: bool = False, refuse: bool = False
 ) -> tuple[Path, SpendGuard]:
     task_file = tmp_path / "tasks.json"
     write_task_file(task_file, data.tasks, seed=0)
@@ -67,7 +67,11 @@ async def recorded_run(
     guard = SpendGuard(prior_usd=1.3, sink=persist)
     fakes = {
         "jev": fake_factory(
-            model_id=JEV_MODEL, limits=JEV_LIMITS, favourite="get_weather", fail_on="Rome" if fail else None
+            model_id=JEV_MODEL,
+            limits=JEV_LIMITS,
+            favourite="get_weather",
+            fail_on="Rome" if fail else None,
+            refuse_on="Rome" if refuse else None,
         ),
         "logprob": fake_factory(model_id=LOGPROB_MODEL, limits=LOGPROB_LIMITS, favourite="get_weather"),
     }
@@ -207,6 +211,30 @@ async def test_order_failure_stops_immediately_and_keeps_unknown_usage_reserve(
     assert calls[0]["request"]["questions"]
     assert json.loads((run_dir / "manifest.json").read_text())["completed"] is False
     assert pilot_gates(run_dir)["passed"] is False
+
+
+@pytest.mark.anyio
+async def test_a_refusal_is_the_model_s_answer_the_run_goes_on_and_the_report_leaves_its_task_out(
+    tmp_path: Path,
+    order_data: ToolRetData,
+    fake_decision_model: Any,
+) -> None:
+    run_dir, guard = await recorded_run(tmp_path, order_data, fake_decision_model, refuse=True)
+
+    records = [json.loads(line) for line in (run_dir / "run.jsonl").read_text().splitlines()]
+    refused = [row for row in records if row.get("refused")]
+    assert {(row["decider"], row["task"]) for row in refused} == {("jev", refused[0]["task"])}
+    assert {row["order_seed"] for row in refused} == set(ORDER_SEEDS)  # every order of that task, and the run went on
+    refusals = [call for call in guard.calls if call["error"] == "DecisionRefused"]
+    assert len(refusals) == len(refused)
+    assert all(call["usd"] is not None and call["input_tokens"] == 10 for call in refusals)  # billed at its usage
+    gates = pilot_gates(run_dir)
+    assert gates["passed"] is True
+    assert (gates["errors"], gates["refused"]) == (0, len(refused))
+    summary = build_order_report(run_dir, out_dir=tmp_path / "report", published_summary=None)
+    assert summary["refused_groups"] == len({(row["task"], row["variant"]) for row in refused})
+    assert summary["excluded_incomplete_or_error_groups"] == summary["refused_groups"]
+    assert "refused by the model in at least one order" in (tmp_path / "report/README.md").read_text()
 
 
 @pytest.mark.anyio

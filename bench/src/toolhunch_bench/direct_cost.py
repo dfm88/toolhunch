@@ -11,7 +11,7 @@ import httpx2
 from genai_prices import Usage, calc_price
 from openai import APIConnectionError
 
-from toolhunch.decision import DecisionError, DecisionUsage
+from toolhunch.decision import DecisionError, DecisionRefused, DecisionUsage
 from toolhunch_bench.ledger import BUDGET
 
 if TYPE_CHECKING:
@@ -181,7 +181,8 @@ class GuardedDecisionModel:
     its reply asked for (`DecisionError.retry_after`) or else a backoff from 0.5 s; another refusal or an unusable
     answer would fail the same way. A priced reply that reports no input tokens is a failure: it could not be priced,
     so the guard cannot account for it. A failure that carries the reply's usage (`DecisionError.usage`, a question
-    the provider refused) is charged at that usage and not retried: the provider answered, and may bill it.
+    the provider refused) is charged at that usage and not retried: the provider answered, and may bill it. A refusal
+    is raised again as `DecisionRefused`, naming the refused questions only.
     """
 
     def __init__(
@@ -264,6 +265,10 @@ class GuardedDecisionModel:
                             status=status,
                         )
                     )
+                    if isinstance(error, DecisionRefused):
+                        raise DecisionRefused(
+                            f"{self.model_id}: refused {list(error.names)}", names=error.names, usage=error.usage
+                        ) from None
                     raise ProviderFailure(failure) from None
             else:
                 if not (priced and response.usage.input_tokens <= 0):

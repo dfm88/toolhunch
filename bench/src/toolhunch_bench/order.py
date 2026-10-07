@@ -13,7 +13,7 @@ import anyio
 import httpx2
 
 from toolhunch import BM25Retriever, DetailLevel, OpenAIEmbedder
-from toolhunch.decision import DecisionError, DecisionUsage
+from toolhunch.decision import DecisionError, DecisionRefused, DecisionUsage
 from toolhunch_bench import BENCH_DIR
 from toolhunch_bench.datasets.toolret import TOOLRET_SUBTASKS, load_toolret, read_task_file
 from toolhunch_bench.deciders import DECIDERS as REGISTRY
@@ -134,6 +134,10 @@ class OrderDecisionModel:
                         status=status,
                     )
                 )
+                if isinstance(error, DecisionRefused):
+                    raise DecisionRefused(
+                        f"order decision refused: {list(error.names)}", names=error.names, usage=error.usage
+                    ) from None
                 raise DecisionError(f"order decision failed: {type(error).__name__}") from None
             self._guard.record(
                 ProviderCall(

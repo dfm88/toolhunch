@@ -6,7 +6,14 @@ from collections.abc import Mapping
 import httpx2
 import pytest
 
-from toolhunch.decision import ChoiceQuestion, DecisionRequest, OpenAIDecisionModel, clef
+from toolhunch.decision import (
+    ChoiceQuestion,
+    DecisionError,
+    DecisionRefused,
+    DecisionRequest,
+    OpenAIDecisionModel,
+    clef,
+)
 from toolhunch_bench.deciders import (
     DECIDERS,
     DeciderName,
@@ -134,7 +141,7 @@ async def test_the_guard_retries_only_transient_failures_and_bills_a_refusal_at_
         model = GuardedDecisionModel(inner, guard=guard, provider="openai", sleep=sleep)
         try:
             await model.ask(REQUEST)
-        except ProviderFailure as error:
+        except DecisionError as error:
             return guard, calls, waits, error
         return guard, calls, waits, None
 
@@ -152,6 +159,7 @@ async def test_the_guard_retries_only_transient_failures_and_bills_a_refusal_at_
 
     # A refused question: the provider answered, so the attempt is charged at the usage it reported, not retried.
     guard, calls, waits, error = await ask(decided({"type": "refusal", "name": "tool"}, input_tokens=500))
-    assert (str(error), len(calls), waits) == ("DecisionRefused", 1, [])
+    assert isinstance(error, DecisionRefused)
+    assert (error.names, len(calls), waits) == (("tool",), 1, [])
     [refused] = guard.calls
     assert (refused["input_tokens"], refused["budget_charge_usd"]) == (500, pytest.approx(500 * 0.10 / 1_000_000))

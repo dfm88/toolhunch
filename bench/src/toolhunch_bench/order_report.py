@@ -59,7 +59,8 @@ def pilot_gates(run_dir: Path) -> dict[str, Any]:
     groups = _groups(records)
     searches = [row for row in records if row.get("record") == "search" and row.get("decider") is not None]
     expected = len(manifest.get("task_ids", [])) * len(_deciders(manifest)) * 2 * len(ORDER_SEEDS)
-    errors = sum(row.get("error") is not None for row in searches)
+    refused = sum(bool(row.get("refused")) for row in searches)
+    errors = sum(row.get("error") is not None and not row.get("refused") for row in searches)
     mappings_valid = True
     orders_valid = True
     asks = 0
@@ -78,6 +79,8 @@ def pilot_gates(run_dir: Path) -> dict[str, Any]:
             orders_valid &= row["candidates"] == expected_order
             if variant == "negative" and set(row["candidates"]) & set(row["relevant"]):
                 orders_valid = False
+            if row.get("refused"):
+                continue  # the model declined to answer: there is no exchange to check
             exchanges: list[dict[str, Any]] = row.get("exchanges") or []
             asks += len(exchanges)
             if not exchanges or row.get("replayed") is not False:
@@ -122,7 +125,7 @@ def pilot_gates(run_dir: Path) -> dict[str, Any]:
                 mappings_valid &= asked_order == row["candidates"]
     known = all(
         call.get("usd") is not None
-        and call.get("error") is None
+        and call.get("error") in (None, "DecisionRefused")  # a refusal reports the usage it is billed for
         and call.get("input_tokens") is not None
         and call.get("output_tokens") is not None
         for call in calls
@@ -132,7 +135,7 @@ def pilot_gates(run_dir: Path) -> dict[str, Any]:
         for call in calls
         if call.get("arm", "").startswith("hybrid+") and call.get("model") != "text-embedding-3-small"
     ]
-    physical = len(decision_calls) == asks
+    physical = len([call for call in decision_calls if call.get("error") is None]) == asks
     estimate = manifest["estimate"]["usd"]
     verified = sum(call.get("usd") or 0 for call in calls)
     charge = sum(call.get("budget_charge_usd", 0) for call in calls)
@@ -157,6 +160,7 @@ def pilot_gates(run_dir: Path) -> dict[str, Any]:
         "passed": passed,
         "complete": complete,
         "errors": errors,
+        "refused": refused,
         "searches": len(searches),
         "expected_searches": expected,
         "five_different_orders": orders_valid,
@@ -438,6 +442,7 @@ def build_order_report(
         "bootstrap": {"resamples": _RESAMPLES, "seed": 0, "unit": "task cluster", "level": 0.95},
         "gates": pilot_gates(run_dir),
         "excluded_incomplete_or_error_groups": len(groups) - len(complete),
+        "refused_groups": sum(any(row.get("refused") for row in rows) for rows in groups.values()),
         "deciders": {},
         "same_order_noise_baseline": _noise_baseline(manifest, complete, reference_run=noise_reference_run),
     }
@@ -534,7 +539,12 @@ def _readme(summary: Mapping[str, Any]) -> str:
         "95% intervals resample whole task clusters 2,000 times, seed 0.",
         "",
         f"Automatic gates passed: {summary['gates']['passed']}. "
-        f"Excluded incomplete/error groups: {summary['excluded_incomplete_or_error_groups']}.",
+        f"Excluded incomplete/error groups: {summary['excluded_incomplete_or_error_groups']}"
+        + (
+            f", {summary['refused_groups']} of them refused by the model in at least one order."
+            if summary["refused_groups"]
+            else "."
+        ),
         "",
         "| Decider | Identity P@1 | Shuffle mean | Shuffle min | Shuffle max | "
         "Five-order top-card stability | Pairwise agreement |",

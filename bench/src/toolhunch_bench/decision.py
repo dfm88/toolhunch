@@ -32,6 +32,7 @@ from toolhunch.decision import (
     ChoiceAnswer,
     ChoiceQuestion,
     DecisionError,
+    DecisionRefused,
     DecisionRequest,
     DecisionResponse,
     DecisionUsage,
@@ -753,9 +754,9 @@ async def run_decisions(
     `gold_in_candidates`), the decision (`ranked`, `probabilities`, `none_probability`, `abstained`, `key`, `shape`,
     `state_cut`, `exchanges`, each with the `key_only_options` it sent with an empty text), its cost and timing
     (`usage`, `decision_seconds` on the critical path, `decision_sequential_seconds` with every call added,
-    `server_seconds`, `retrieval_seconds`, the first retrieval's measured time), `not_applicable`, `failed_card` and
-    `error`. The retrieval-only arms rank by retrieval and have no probabilities and no decision; a search that failed
-    or was not applicable has no ranking.
+    `server_seconds`, `retrieval_seconds`, the first retrieval's measured time), `not_applicable`, `failed_card`,
+    `error` and `refused` (the model declined to answer, so the error is its answer). The retrieval-only arms rank by
+    retrieval and have no probabilities and no decision; a search that failed or was not applicable has no ranking.
 
     Args:
         arms: What to run, from `build_decision_arms`.
@@ -776,7 +777,8 @@ async def run_decisions(
         order_seeds: Opt-in identity and four task-seeded candidate shuffles, with fresh decisions for every order.
         manifest_extra: Additional experiment provenance written before the run starts.
         before_search: Receives each search's identity and presented candidates before its decision.
-        stop_on_error: In order mode, stop at the first failed search; off, record it and go on.
+        stop_on_error: In order mode, stop at the first failed search; off, record it and go on. A search the model
+            refused (`DecisionRefused`) never stops a run: the refusal is its answer, recorded as `refused`.
 
     Raises:
         ValueError: The `model` source has no queries or no queries file, or `repeat` is below 1.
@@ -869,7 +871,7 @@ async def run_decisions(
                             out.flush()
                         searches += 1
                         errors += record["error"] is not None
-                        if seed is not None and stop_on_error and record["error"] is not None:
+                        if seed is not None and stop_on_error and record["error"] is not None and not record["refused"]:
                             raise DecisionError("order experiment stopped after an errored search")
                 wall_seconds = time.perf_counter() - started
                 summary = {
@@ -912,13 +914,14 @@ async def _search_record(
     queries = list(search.queries)
     decision: Decision | None = None
     error: str | None = None
+    refused = False
     not_applicable: str | None = None
     failed_card: str | None = None
     asks = None if arm.asked is None else arm.asked()
     try:
         decision = (await pipeline.search(queries, data.catalog, context=search.task.query)).decision
     except DecisionError as failure:
-        error = str(failure)
+        error, refused = str(failure), isinstance(failure, DecisionRefused)
     except CandidatesDoNotFit as unfit:
         if unfit.card_id is None and (arm.asked is None or arm.asked() == asks):
             not_applicable = str(unfit)
@@ -950,6 +953,7 @@ async def _search_record(
         "not_applicable": not_applicable,
         "failed_card": failed_card,
         "error": error,
+        "refused": refused,
     }
 
 

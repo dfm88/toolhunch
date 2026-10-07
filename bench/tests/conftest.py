@@ -14,6 +14,7 @@ from toolhunch.decision import (
     Answer,
     ChoiceQuestion,
     DecisionError,
+    DecisionRefused,
     DecisionRequest,
     DecisionResponse,
     DecisionUsage,
@@ -108,7 +109,8 @@ class FakeDecisionModel:
 
     Every option weighs 1, the tool whose option key is `favourite` 8, and the reserved option `none_weight`; the
     answer is those weights normalised. A request whose state contains `fail_on` raises `DecisionError` instead, as a
-    model that answers nothing usable does, or, with `fail_status`, as a server that refuses with that HTTP status.
+    model that answers nothing usable does, or, with `fail_status`, as a server that refuses with that HTTP status. A
+    request whose state contains `refuse_on` raises `DecisionRefused`, billed at 10 input tokens.
     Like the real adapters it checks each request against its `limits` first. Each call reports 10 input tokens,
     1 output token, 0.1 s of wall time (or what `seconds` gives for the request) and 0.01 s of server time.
 
@@ -127,6 +129,7 @@ class FakeDecisionModel:
         none_weight: float = 1.0,
         fail_on: str | None = None,
         fail_status: int | None = None,
+        refuse_on: str | None = None,
         seconds: Callable[[DecisionRequest], float] | None = None,
     ) -> None:
         self.model_id = model_id
@@ -139,6 +142,7 @@ class FakeDecisionModel:
         self._none_weight = none_weight
         self._fail_on = fail_on
         self._fail_status = fail_status
+        self._refuse_on = refuse_on
         self._seconds = seconds
 
     def __repr__(self) -> str:
@@ -151,6 +155,9 @@ class FakeDecisionModel:
             if self._fail_status is not None:
                 raise DecisionError(f"{self.model_id}: HTTP {self._fail_status}: refused", status=self._fail_status)
             raise DecisionError(f"{self.model_id}: no option letter among the top logprobs")
+        if self._refuse_on is not None and self._refuse_on in request.state:
+            usage = DecisionUsage(1, 10, 0)
+            raise DecisionRefused(f"{self.model_id}: refused", names=list(request.questions), usage=usage)
         answers: dict[str, Answer] = {}
         for key, question in request.questions.items():
             assert isinstance(question, ChoiceQuestion)

@@ -16,7 +16,7 @@ from toolhunch_bench.deciders import DECIDERS, DeciderName, DeciderSpec
 from toolhunch_bench.direct import arm_decider
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Iterable, Mapping, Sequence
     from pathlib import Path
 
 __all__ = ["build_cost_latency", "build_readme_charts"]
@@ -110,9 +110,9 @@ class _ReadmeCharts:
         self.fmt = fmt
         hardware = _hardware(direct)
         self.machine = f"Local: one machine ({hardware}), no money cost. " if hardware else ""
-        arms = [*self.pooled, *(row["arm"] for summary in decisions for row in summary["heldout"]["rows"])]
-        if any("clef" in arm for arm in arms):
-            self.machine += "Clef and Clef-flash have no pinned version."
+        drawn = [arm_decider(arm) for arm in self.pooled]
+        drawn += [row["decider"] for summary in decisions for row in summary["heldout"]["rows"]]
+        self.machine += _unpinned(drawn)
         started = [direct["manifest"]["started"], *(run["manifest"]["started"] for run in direct.get("added_runs", []))]
         self.direct_footer = f"toolhunch · ToolRet · runs of {_run_dates(started)}"
         started = [run["manifest"]["started"] for summary in decisions for run in summary["runs"]]
@@ -488,6 +488,7 @@ class _Point:
     local: bool
     lowered: bool = False
     summed: bool = False
+    decider: str | None = None
 
 
 # Label offsets in points from the point, per arm of the P2 cost-latency figure; a far label gets a connector.
@@ -533,6 +534,16 @@ _P3_OFFSETS: dict[str, tuple[float, float]] = {
 _P3_LEFT_ALIGNED = frozenset({"hybrid@20+clef", "agent-luna@20"})
 _P3_ARMS = re.compile(r"laya|rizzo")
 
+# The P4 figure's offsets, over the P3 ones when the Decisions API is drawn: its two direct points fall among
+# Strands Decider 2B's and Jev's, and its re-ranking point on Jev's.
+_P4_OFFSETS: dict[str, tuple[float, float]] = {
+    "hybrid@20+luna-decisions": (-143, -169),
+    "luna-decisions-all": (140, -150),
+    "hybrid+luna-decisions@20": (96, -146),
+}
+_P4_LEFT_ALIGNED = frozenset({"hybrid@20+luna-decisions"})
+_P4_ARMS = re.compile(r"luna-decisions")
+
 
 def _usd(usd: float | None, *, local: bool) -> str:
     if local:
@@ -558,6 +569,20 @@ def _named(arm: str, decider: str) -> tuple[str, str, float, float]:
 def _spec(decider: str) -> DeciderSpec:
     """A decider's registry entry, which gives its color and whether figures show it."""
     return DECIDERS[DeciderName(decider)]
+
+
+def _unpinned(deciders: Iterable[str | None]) -> str:
+    """The note for the drawn deciders whose registry entry says no version can be pinned, in registry order."""
+    drawn = set(deciders)
+    labels = [
+        spec.label
+        for spec in DECIDERS.values()
+        if spec.name in drawn and spec.published and spec.provenance.get("version_pinned") is False
+    ]
+    if not labels:
+        return ""
+    names = labels[0] if len(labels) == 1 else f"{', '.join(labels[:-1])} and {labels[-1]}"
+    return f"{names} {'has' if len(labels) == 1 else 'have'} no pinned version."
 
 
 def _slug(arm: str) -> str:
@@ -590,6 +615,7 @@ def _direct_points(direct: dict[str, Any]) -> list[_Point]:
                 cost=_usd(warm.get("billed_usd_per_1000"), local=local),
                 local=local,
                 lowered=bool(row.get("lower_detail")),
+                decider=decider,
             )
         )
     return points
@@ -618,6 +644,7 @@ def _rerank_points(decisions: Sequence[dict[str, Any]], luna: dict[str, Any] | N
                 local=local,
                 lowered=bool(row.get("lower_detail_searches")),
                 summed=row["latency_ms"].get("decision_basis") == "sum of calls",
+                decider=decider,
             )
     if luna is not None:
         first = luna["first_pick"]
@@ -775,14 +802,14 @@ def _draw_cost_latency(
         "search is left out. Whiskers: 95% interval."
     ]
     points = [*direct_points, *rerank_points]
-    unpinned = any(point.key.startswith(("clef", "hybrid@20+clef", "hybrid+clef")) for point in points)
+    unpinned = _unpinned(point.decider for point in points)
     if any(point.local for point in points) and hardware:
         notes.append(
             f"Hollow: ran on one machine ({hardware}), no money cost; its latency is that machine's."
-            + (" Clef and Clef-flash have no pinned version." if unpinned else "")
+            + (f" {unpinned}" if unpinned else "")
         )
     elif unpinned:
-        notes.append("Clef and Clef-flash have no pinned version.")
+        notes.append(unpinned)
     if lowered := [point for point in points if point.lowered]:
         names = ", ".join(f"{point.name} ({point.detail})" if point.detail else point.name for point in lowered)
         notes.append(f"Lower detail: {names} sent cards below full detail to fit the model's window.")
@@ -790,8 +817,13 @@ def _draw_cost_latency(
         notes.append("Local deciders are asked one request at a time: their latency adds every call of a search.")
     footer = "\n".join([*notes, f"toolhunch · ToolRet · runs of {', '.join(dates)}"])
     p3 = any(_P3_ARMS.search(point.key) for point in points)
-    offsets = _P2_OFFSETS | (_P3_OFFSETS if p3 else {})
-    left_aligned = _P2_LEFT_ALIGNED | (_P3_LEFT_ALIGNED if p3 else frozenset[str]())
+    p4 = any(_P4_ARMS.search(point.key) for point in points)
+    offsets = _P2_OFFSETS | (_P3_OFFSETS if p3 else {}) | (_P4_OFFSETS if p4 else {})
+    left_aligned = (
+        _P2_LEFT_ALIGNED
+        | (_P3_LEFT_ALIGNED if p3 else frozenset[str]())
+        | (_P4_LEFT_ALIGNED if p4 else frozenset[str]())
+    )
     out_dir.mkdir(parents=True, exist_ok=True)
     with cast("Any", matplotlib).rc_context(_STYLE):
         figure: Any = Figure(figsize=(16, 9), dpi=100)

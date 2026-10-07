@@ -286,6 +286,7 @@ async def test_run_records_every_arm_source_variant_and_the_negatives_exclude_go
             "not_applicable": None,
             "failed_card": None,
             "error": None,
+            "refused": False,
         }
     )
 
