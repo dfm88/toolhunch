@@ -123,12 +123,23 @@ def pilot_gates(run_dir: Path) -> dict[str, Any]:
                     if index < len(cards)
                 ]
                 mappings_valid &= asked_order == row["candidates"]
-    known = all(
-        call.get("usd") is not None
-        and call.get("error") in (None, "DecisionRefused")  # a refusal reports the usage it is billed for
-        and call.get("input_tokens") is not None
-        and call.get("output_tokens") is not None
+    # A transient failure (HTTP 429, a server fault, no reply) was tried again and stays charged at its reservation;
+    # a refusal reports the usage it is billed for.
+    transient = [
+        call.get("error") is not None
+        and call.get("usd") is None
+        and (call.get("reached") is False or call.get("status") == 429 or (call.get("status") or 0) >= 500)
         for call in calls
+    ]
+    known = all(
+        retried
+        or (
+            call.get("usd") is not None
+            and call.get("error") in (None, "DecisionRefused")
+            and call.get("input_tokens") is not None
+            and call.get("output_tokens") is not None
+        )
+        for call, retried in zip(calls, transient, strict=True)
     )
     decision_calls = [
         call
@@ -161,6 +172,7 @@ def pilot_gates(run_dir: Path) -> dict[str, Any]:
         "complete": complete,
         "errors": errors,
         "refused": refused,
+        "transient_attempts": sum(transient),
         "searches": len(searches),
         "expected_searches": expected,
         "five_different_orders": orders_valid,

@@ -238,6 +238,34 @@ async def test_a_refusal_is_the_model_s_answer_the_run_goes_on_and_the_report_le
 
 
 @pytest.mark.anyio
+async def test_a_transient_failure_is_tried_again_and_both_attempts_are_charged(fake_decision_model: Any) -> None:
+    fake = fake_decision_model(model_id="clef-flash@api.cloudflare.com", limits=CLEF_FLASH_LIMITS, favourite="tool_1")
+    failures = [DecisionError("clef-flash@api.cloudflare.com: HTTP 503: busy", status=503, retry_after=2.0)]
+    waits: list[float] = []
+
+    class Busy:  # answers HTTP 503 once, then like `fake`
+        model_id, limits, question_kinds, prompt_version = fake.model_id, fake.limits, fake.question_kinds, None
+
+        async def ask(self, request: DecisionRequest, /, **options: Any) -> DecisionResponse:
+            if failures:
+                raise failures.pop()
+            return await fake.ask(request, **options)
+
+    async def sleep(seconds: float) -> None:
+        waits.append(seconds)
+
+    guard = SpendGuard(prior_usd=0.0, cap_usd=3.0)
+    model = OrderDecisionModel(Busy(), decider="clef-flash", guard=guard, sleep=sleep)
+    options = {"tool_1": "one", "tool_2": "two", "none": "none"}
+    await model.ask(DecisionRequest(state="s", questions={"q": ChoiceQuestion(instructions="Which?", options=options)}))
+
+    assert waits == [2.0]  # the wait the reply asked for
+    failed, answered = guard.calls
+    assert (failed["status"], failed["usd"], failed["budget_charge_usd"] > 0) == (503, None, True)
+    assert (answered["error"], answered["input_tokens"]) == (None, 10)
+
+
+@pytest.mark.anyio
 async def test_order_mode_refuses_decision_replays_before_any_asks(
     tmp_path: Path,
     order_data: ToolRetData,

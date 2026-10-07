@@ -44,7 +44,7 @@ from toolhunch_bench.ledger import Budget, LedgerEntry, append_ledger, f2a_spend
 from toolhunch_bench.retrieval import build_arms
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping
+    from collections.abc import Awaitable, Callable, Mapping
     from pathlib import Path
 
     from toolhunch.decision import DecisionModel, DecisionRequest, DecisionResponse, ModelLimits, QuestionKind
@@ -59,11 +59,36 @@ P1_BUDGET = Budget("P1:", P1_TARGET_USD, P1_CAP_USD)
 """The budget P1's order runs were charged to: the default of `order_experiment`."""
 
 
-class OrderDecisionModel:
-    """Account for each physical decision attempt, without local replay or hidden retries."""
+class _Transient(DecisionError):
+    """An attempt that ended with HTTP 429, a server fault or no reply: another attempt may succeed."""
 
-    def __init__(self, inner: DecisionModel, *, decider: str, guard: SpendGuard) -> None:
+    def __init__(self, message: str, *, wait: float | None) -> None:
+        super().__init__(message)
+        self.wait = wait
+
+
+_BACKOFF_SECONDS = 0.5
+
+
+class OrderDecisionModel:
+    """Account for each physical decision attempt, without local replay.
+
+    An attempt that ended with HTTP 429, a server fault or no reply is tried again, up to `retries` times, after the
+    wait the reply asked for or a backoff from 0.5 s; each attempt is reserved and recorded on its own. Any other
+    failure ends the ask.
+    """
+
+    def __init__(
+        self,
+        inner: DecisionModel,
+        *,
+        decider: str,
+        guard: SpendGuard,
+        retries: int = 2,
+        sleep: Callable[[float], Awaitable[None]] = anyio.sleep,
+    ) -> None:
         self._inner, self._decider, self._guard = inner, decider, guard
+        self._retries, self._sleep = retries, sleep
         self._lock = anyio.Lock()
 
     @property
@@ -97,6 +122,16 @@ class OrderDecisionModel:
                 self._guard.context = context
 
     async def _ask(self, request: DecisionRequest, /, **options: Any) -> DecisionResponse:
+        for attempt in range(self._retries + 1):
+            try:
+                return await self._attempt(request, **options)
+            except _Transient as transient:
+                if attempt == self._retries:
+                    raise DecisionError(str(transient)) from None
+                await self._sleep(_BACKOFF_SECONDS * 2**attempt if transient.wait is None else transient.wait)
+        raise AssertionError("unreachable")
+
+    async def _attempt(self, request: DecisionRequest, /, **options: Any) -> DecisionResponse:
         spec = REGISTRY[DeciderName(self._decider)]
         provider = spec.provider
         if spec.priced_by == "genai-prices":
@@ -155,6 +190,9 @@ class OrderDecisionModel:
                     reached=reached,
                 )
             )
+            if not reached or status == 429 or (status or 0) >= 500:
+                wait = error.retry_after if isinstance(error, DecisionError) else None
+                raise _Transient(f"order decision failed: {type(error).__name__}", wait=wait) from None
             raise DecisionError(f"order decision failed: {type(error).__name__}") from None
         if upper > 0 and response.usage.input_tokens <= 0:
             # A priced reply without input tokens cannot be accounted for: its reservation is charged, never $0.
