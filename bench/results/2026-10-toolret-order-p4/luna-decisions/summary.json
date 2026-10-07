@@ -1,0 +1,711 @@
+{
+  "manifest": {
+    "run_id": "20261007T183112Z-order",
+    "started": "2026-10-07T18:34:24+00:00",
+    "git": {
+      "commit": "5a297a647a06b13b26bdc6f9b3727d28400e3717",
+      "dirty": true
+    },
+    "versions": {
+      "python": "3.14.3",
+      "toolhunch": "0.2.0",
+      "toolhunch-bench": "0.0.0",
+      "pydantic-ai-slim": "2.50.0",
+      "bm25s": "0.3.11",
+      "tiktoken": "0.14.0",
+      "genai-prices": "0.1.9"
+    },
+    "platform": {
+      "system": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+      "machine": "arm64"
+    },
+    "dataset": {
+      "name": "mteb/ToolRetrieval",
+      "revision": "76d45e560059754e289ea202462865a585679619",
+      "corpus_sha256": "774aa8c5263eed9870fb6eefc47491c67d3998e7eda1d897f9b359e20be67efb",
+      "tools": 44453,
+      "catalog_fingerprint": "sha256:7d56b70f34151288b0351d0764064e2d9852b9c2f1ef4e5ed076f1edb83debbf",
+      "mapping_stats": {
+        "name": 0.9999550086608328,
+        "description": 0.97766180010348,
+        "properties": 0.8109014014802151
+      }
+    },
+    "tasks": {
+      "file": "bench/tasks/toolret-heldout-200.json",
+      "sha256": "b632db8a5cb328b3d793a6491b0893e7fa62770dff1fd7285dc495e5adf8b3f3",
+      "count": 200
+    },
+    "seeds": {
+      "sample": 1
+    },
+    "split": "heldout",
+    "sources": [
+      "plain"
+    ],
+    "negatives": true,
+    "repeat": 1,
+    "model_queries": null,
+    "embedding_model": "text-embedding-3-small",
+    "retriever": {
+      "retriever": "HybridRetriever(bm25, dense)",
+      "rrf_k": 60,
+      "depth": 100,
+      "embedding_model": "text-embedding-3-small",
+      "embedder": "CachedEmbedder(<toolhunch_bench.direct_cost.GuardedEmbedder object at 0x11f8c70e0>)",
+      "text": "name, description and parameter names",
+      "instructed_format": "lexical for both halves",
+      "shared_depth": 100
+    },
+    "arms": {
+      "hybrid@20": {
+        "k": 20,
+        "decider": null,
+        "model_id": null,
+        "model": null,
+        "limits": null,
+        "prompt_version": null,
+        "max_detail": null,
+        "min_detail": null,
+        "tokenizer": null,
+        "reserved_option": null
+      },
+      "hybrid+luna-decisions@20": {
+        "k": 20,
+        "decider": "luna-decisions",
+        "model_id": "gpt-6-luna@api.openai.com",
+        "model": "<toolhunch_bench.order.OrderDecisionModel object at 0x1107d8050>",
+        "limits": {
+          "max_options_per_choice": 255,
+          "max_request_tokens": 32768,
+          "max_state_plus_question_tokens": null,
+          "max_text_tokens": null,
+          "max_question_tokens": null,
+          "max_option_tokens": null,
+          "max_questions_per_request": 64,
+          "score_levels": null,
+          "price_input_per_mtok": 0.1,
+          "price_output_per_mtok": 0.0,
+          "source": "developers.openai.com/api/docs/guides/decisions: $0.10 per M input tokens, no output charge, no caps stated; openai-python v3.26.0 types; probe 2026-10-07: a 255-option choice and 64 questions in one request accepted, more not tried; a choice needs 2 options",
+          "checked": "2026-10-07"
+        },
+        "prompt_version": "tool-choice-v1+decisions-v1",
+        "max_detail": "BRIEF",
+        "min_detail": "NAME",
+        "tokenizer": "HeuristicTokenizer(bytes_per_token=3.0)",
+        "reserved_option": true
+      }
+    },
+    "orders": {
+      "version": "tool-order-v1",
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "identity_seed": 0,
+      "seed_derivation": "SHA256(tool-order-v1:<task_id>:<seed>), Python Random.shuffle",
+      "cache_bypass": true,
+      "reserved_position": "last"
+    },
+    "task_ids": [
+      "apibank_query_29",
+      "apibank_query_62",
+      "apibank_query_98",
+      "apigen_query_101",
+      "apigen_query_134",
+      "apigen_query_248",
+      "apigen_query_370",
+      "apigen_query_497",
+      "apigen_query_499",
+      "apigen_query_502",
+      "apigen_query_597",
+      "apigen_query_613",
+      "apigen_query_653",
+      "apigen_query_66",
+      "apigen_query_680",
+      "apigen_query_695",
+      "apigen_query_724",
+      "apigen_query_732",
+      "apigen_query_746",
+      "apigen_query_792",
+      "apigen_query_820",
+      "apigen_query_852",
+      "apigen_query_883",
+      "apigen_query_893",
+      "apigen_query_965",
+      "appbench_query_12",
+      "appbench_query_13",
+      "craft_Math_algebra_query_119",
+      "craft_Math_algebra_query_133",
+      "craft_Math_algebra_query_53",
+      "craft_Math_algebra_query_54",
+      "craft_Math_algebra_query_65",
+      "craft_Math_algebra_query_71",
+      "craft_Math_algebra_query_89",
+      "craft_Tabmwp_query_100",
+      "craft_Tabmwp_query_26",
+      "craft_Tabmwp_query_50",
+      "craft_Tabmwp_query_87",
+      "craft_Tabmwp_query_90",
+      "craft_Vqa_query_127",
+      "craft_Vqa_query_194",
+      "craft_Vqa_query_195",
+      "craft_Vqa_query_38",
+      "craft_Vqa_query_99",
+      "gorilla_huggingface_query_107",
+      "gorilla_huggingface_query_110",
+      "gorilla_huggingface_query_211",
+      "gorilla_huggingface_query_227",
+      "gorilla_huggingface_query_282",
+      "gorilla_huggingface_query_302",
+      "gorilla_huggingface_query_319",
+      "gorilla_huggingface_query_323",
+      "gorilla_huggingface_query_368",
+      "gorilla_huggingface_query_439",
+      "gorilla_huggingface_query_485",
+      "gorilla_pytorch_query_2",
+      "gorilla_pytorch_query_39",
+      "gorilla_tensor_query_25",
+      "gorilla_tensor_query_43",
+      "gpt4tools_query_21",
+      "gpt4tools_query_27",
+      "gta_query_13",
+      "metatool_which_query_11",
+      "metatool_which_query_134",
+      "metatool_which_query_42",
+      "metatool_which_query_82",
+      "metatool_which_query_95",
+      "mnms_query_0",
+      "mnms_query_1",
+      "reversechain_query_134",
+      "reversechain_query_14",
+      "reversechain_query_180",
+      "reversechain_query_34",
+      "reversechain_query_95",
+      "rotbench_query_155",
+      "rotbench_query_271",
+      "rotbench_query_275",
+      "rotbench_query_382",
+      "rotbench_query_386",
+      "rotbench_query_440",
+      "rotbench_query_466",
+      "rotbench_query_467",
+      "rotbench_query_481",
+      "rotbench_query_520",
+      "rotbench_query_55",
+      "rotbench_query_61",
+      "t_eval_dialog_query_3",
+      "t_eval_dialog_query_9",
+      "t_eval_step_query_10",
+      "t_eval_step_query_26",
+      "taskbench_daily_query_8",
+      "taskbench_daily_query_9",
+      "taskbench_huggingface_query_1",
+      "taskbench_multimedia_query_29",
+      "taskbench_multimedia_query_9",
+      "toolACE_query_134",
+      "toolACE_query_243",
+      "toolACE_query_314",
+      "toolACE_query_319",
+      "toolACE_query_371",
+      "toolACE_query_439",
+      "toolACE_query_474",
+      "toolACE_query_522",
+      "toolACE_query_595",
+      "toolACE_query_673",
+      "toolACE_query_709",
+      "toolACE_query_732",
+      "toolACE_query_759",
+      "toolACE_query_764",
+      "toolACE_query_777",
+      "toolACE_query_789",
+      "toolACE_query_88",
+      "toolACE_query_886",
+      "toolACE_query_888",
+      "toolACE_query_901",
+      "toolACE_query_952",
+      "toolACE_query_969",
+      "toolLens_query_158",
+      "toolLens_query_178",
+      "toolLens_query_196",
+      "toolLens_query_215",
+      "toolLens_query_219",
+      "toolLens_query_225",
+      "toolLens_query_55",
+      "toolLens_query_62",
+      "tool_be_honest_query_146",
+      "tool_be_honest_query_269",
+      "tool_be_honest_query_283",
+      "tool_be_honest_query_289",
+      "tool_be_honest_query_38",
+      "tool_be_honest_query_59",
+      "tool_be_honest_query_6",
+      "tool_be_honest_query_62",
+      "toolalpaca_query_42",
+      "toolalpaca_query_43",
+      "toolalpaca_query_80",
+      "toolbench_query_1083",
+      "toolbench_query_130",
+      "toolbench_query_210",
+      "toolbench_query_380",
+      "toolbench_query_384",
+      "toolbench_query_428",
+      "toolbench_query_441",
+      "toolbench_query_463",
+      "toolbench_query_472",
+      "toolbench_query_558",
+      "toolbench_query_565",
+      "toolbench_query_605",
+      "toolbench_query_641",
+      "toolbench_query_734",
+      "toolbench_query_74",
+      "toolbench_query_750",
+      "toolbench_query_754",
+      "toolbench_query_788",
+      "toolbench_query_789",
+      "toolbench_query_82",
+      "toolbench_query_900",
+      "toolbench_query_909",
+      "toolbench_query_93",
+      "toolbench_query_984",
+      "toolbench_sam_query_104",
+      "toolbench_sam_query_146",
+      "toolbench_sam_query_31",
+      "toolbench_sam_query_82",
+      "toolbench_sam_query_89",
+      "toolemu_query_26",
+      "toolemu_query_9",
+      "tooleyes_query_40",
+      "tooleyes_query_45",
+      "tooleyes_query_76",
+      "toolink_query_1",
+      "toolink_query_14",
+      "toolink_query_176",
+      "toolink_query_207",
+      "toolink_query_277",
+      "toolink_query_316",
+      "toolink_query_331",
+      "toolink_query_384",
+      "toolink_query_432",
+      "toolink_query_437",
+      "toolink_query_86",
+      "ultraTool_query_122",
+      "ultraTool_query_191",
+      "ultraTool_query_220",
+      "ultraTool_query_246",
+      "ultraTool_query_262",
+      "ultraTool_query_277",
+      "ultraTool_query_368",
+      "ultraTool_query_384",
+      "ultraTool_query_39",
+      "ultraTool_query_424",
+      "ultraTool_query_96",
+      "webtools_food_query_9",
+      "webtools_music_query_0",
+      "webtools_music_query_21",
+      "webtools_spotify_query_1",
+      "webtools_spotify_query_28",
+      "webtools_tmdb_query_21",
+      "webtools_tmdb_query_38",
+      "webtools_weather_query_10"
+    ],
+    "experiment": "order-sensitivity-v1",
+    "pilot": false,
+    "completed": true,
+    "estimate": {
+      "tasks": 200,
+      "searches": 4000,
+      "lines": [
+        {
+          "provider": "openai",
+          "model": "gpt-6-luna",
+          "calls": 2000,
+          "input_tokens": 2437570,
+          "usd": 0.243757,
+          "note": "2,000 asks, 2,437,570 input tokens: the heuristic count plus 25 per ask and 4 per option, at the declared $0.1/M",
+          "not_applicable": 0,
+          "would_fail": 0
+        },
+        {
+          "provider": "openai",
+          "model": "text-embedding-3-small",
+          "calls": 0,
+          "input_tokens": 0,
+          "usd": 0.0,
+          "note": "0 query texts and 0 card texts not in the cache yet, 0 tokens by tiktoken cl100k_base, priced by genai-prices",
+          "not_applicable": 0,
+          "would_fail": 0
+        }
+      ],
+      "usd": 0.243757
+    },
+    "prior_p1_usd": 1.0446091000000002,
+    "budget": {
+      "prefix": "P4:",
+      "prior_usd": 1.0446091000000002,
+      "cap_usd": 3.0
+    },
+    "target_usd": 2.0,
+    "cap_usd": 3.0,
+    "order_configuration": {
+      "hybrid+luna-decisions@20": {
+        "model_id": "gpt-6-luna@api.openai.com",
+        "limits": {
+          "max_options_per_choice": 255,
+          "max_request_tokens": 32768,
+          "max_state_plus_question_tokens": null,
+          "max_text_tokens": null,
+          "max_question_tokens": null,
+          "max_option_tokens": null,
+          "max_questions_per_request": 64,
+          "score_levels": null,
+          "price_input_per_mtok": 0.1,
+          "price_output_per_mtok": 0.0,
+          "source": "developers.openai.com/api/docs/guides/decisions: $0.10 per M input tokens, no output charge, no caps stated; openai-python v3.26.0 types; probe 2026-10-07: a 255-option choice and 64 questions in one request accepted, more not tried; a choice needs 2 options",
+          "checked": "2026-10-07"
+        },
+        "prompt_version": "tool-choice-v1+decisions-v1",
+        "max_detail": "BRIEF",
+        "reserved_option": true,
+        "k": 20
+      }
+    },
+    "provider_retries": 0,
+    "pilot_run": "20261007T174510Z-order-pilot",
+    "scheduling": "arm-major, task, positive then negative, order seeds 0-4; physical asks serialized",
+    "task_mix": {
+      "positive": 200,
+      "negative": 200,
+      "negative_share": 0.5
+    },
+    "reply_models": [
+      "gpt-6-luna"
+    ]
+  },
+  "bootstrap": {
+    "resamples": 2000,
+    "seed": 0,
+    "unit": "task cluster",
+    "level": 0.95
+  },
+  "gates": {
+    "passed": true,
+    "complete": true,
+    "errors": 0,
+    "refused": 6,
+    "transient_attempts": 6,
+    "searches": 2000,
+    "expected_searches": 2000,
+    "five_different_orders": true,
+    "exchange_mappings_valid": true,
+    "physical_attempts_match": true,
+    "verified_cost": true,
+    "cost_gate": true,
+    "verified_usd": 0.176739,
+    "budget_charge_usd": 0.1963998,
+    "estimate_usd": 0.243757,
+    "actual_to_estimate": 0.7250622546224313
+  },
+  "excluded_incomplete_or_error_groups": 4,
+  "refused_groups": 4,
+  "deciders": {
+    "luna-decisions": {
+      "positive_tasks": 198,
+      "p_at_1": {
+        "0": {
+          "value": 0.3181818181818182,
+          "ci95": [
+            0.25252525252525254,
+            0.3787878787878788
+          ],
+          "tasks": 198
+        },
+        "1": {
+          "value": 0.30303030303030304,
+          "ci95": [
+            0.23737373737373738,
+            0.36363636363636365
+          ],
+          "tasks": 198
+        },
+        "2": {
+          "value": 0.2676767676767677,
+          "ci95": [
+            0.20202020202020202,
+            0.3282828282828283
+          ],
+          "tasks": 198
+        },
+        "3": {
+          "value": 0.30303030303030304,
+          "ci95": [
+            0.24229797979797982,
+            0.3686868686868687
+          ],
+          "tasks": 198
+        },
+        "4": {
+          "value": 0.3181818181818182,
+          "ci95": [
+            0.25252525252525254,
+            0.3838383838383838
+          ],
+          "tasks": 198
+        }
+      },
+      "shuffle_p_at_1": {
+        "mean": {
+          "value": 0.29797979797979796,
+          "ci95": [
+            0.24116161616161616,
+            0.35353535353535354
+          ],
+          "tasks": 198
+        },
+        "min": {
+          "value": 0.2676767676767677,
+          "ci95": [
+            0.20202020202020202,
+            0.32323232323232326
+          ]
+        },
+        "max": {
+          "value": 0.3181818181818182,
+          "ci95": [
+            0.26262626262626265,
+            0.3838383838383838
+          ]
+        }
+      },
+      "top_card_stability": {
+        "value": 0.30303030303030304,
+        "ci95": [
+          0.23737373737373738,
+          0.37373737373737376
+        ],
+        "tasks": 198
+      },
+      "pairwise_agreement": {
+        "value": 0.5328282828282829,
+        "ci95": [
+          0.48333333333333334,
+          0.5813131313131313
+        ],
+        "tasks": 198
+      },
+      "chosen_slots_positive": {
+        "definition": "outer presented candidate slot of the top card; reserved option ignored",
+        "searches": 792,
+        "counts": {
+          "1": 128,
+          "2": 68,
+          "3": 73,
+          "4": 50,
+          "5": 49,
+          "6": 48,
+          "7": 38,
+          "8": 36,
+          "9": 28,
+          "10": 37,
+          "11": 37,
+          "12": 25,
+          "13": 17,
+          "14": 31,
+          "15": 17,
+          "16": 26,
+          "17": 29,
+          "18": 18,
+          "19": 22,
+          "20": 15
+        },
+        "slot_1": {
+          "value": 0.16161616161616163,
+          "ci95": [
+            0.13131313131313133,
+            0.1919191919191919
+          ],
+          "tasks": 198
+        },
+        "slots_1_to_3": {
+          "value": 0.33964646464646464,
+          "ci95": [
+            0.29924242424242425,
+            0.3813446969696971
+          ],
+          "tasks": 198
+        },
+        "uniform_slot_1": 0.05,
+        "uniform_slots_1_to_3": 0.15,
+        "chi_square": 332.1919191919192,
+        "degrees_of_freedom": 19,
+        "p_value": null,
+        "caveat": "Descriptive diagnostic only; repeated tasks are correlated. No causal uniform-position claim."
+      },
+      "chosen_slots_50_50_mix": {
+        "definition": "outer presented candidate slot of the top card; reserved option ignored",
+        "searches": 1584,
+        "counts": {
+          "1": 254,
+          "2": 145,
+          "3": 151,
+          "4": 101,
+          "5": 92,
+          "6": 101,
+          "7": 80,
+          "8": 74,
+          "9": 61,
+          "10": 72,
+          "11": 68,
+          "12": 55,
+          "13": 36,
+          "14": 55,
+          "15": 35,
+          "16": 50,
+          "17": 57,
+          "18": 34,
+          "19": 35,
+          "20": 28
+        },
+        "slot_1": {
+          "value": 0.16035353535353536,
+          "ci95": [
+            0.13320707070707072,
+            0.18876262626262627
+          ],
+          "tasks": 198
+        },
+        "slots_1_to_3": {
+          "value": 0.3472222222222222,
+          "ci95": [
+            0.31248421717171715,
+            0.3838383838383838
+          ],
+          "tasks": 198
+        },
+        "uniform_slot_1": 0.05,
+        "uniform_slots_1_to_3": 0.15,
+        "chi_square": 689.9646464646465,
+        "degrees_of_freedom": 19,
+        "p_value": null,
+        "caveat": "Descriptive diagnostic only; repeated tasks are correlated. No causal uniform-position claim."
+      },
+      "answer_abstain_stability": {
+        "value": 0.803030303030303,
+        "ci95": [
+          0.7525252525252525,
+          0.851010101010101
+        ],
+        "tasks": 198
+      },
+      "abstention_by_order": {
+        "0": {
+          "correct": 59,
+          "wrong": 259,
+          "abstained": 78,
+          "searches": 396,
+          "negatives": 198,
+          "negative_share": 0.5
+        },
+        "1": {
+          "correct": 57,
+          "wrong": 261,
+          "abstained": 78,
+          "searches": 396,
+          "negatives": 198,
+          "negative_share": 0.5
+        },
+        "2": {
+          "correct": 52,
+          "wrong": 270,
+          "abstained": 74,
+          "searches": 396,
+          "negatives": 198,
+          "negative_share": 0.5
+        },
+        "3": {
+          "correct": 57,
+          "wrong": 253,
+          "abstained": 86,
+          "searches": 396,
+          "negatives": 198,
+          "negative_share": 0.5
+        },
+        "4": {
+          "correct": 60,
+          "wrong": 255,
+          "abstained": 81,
+          "searches": 396,
+          "negatives": 198,
+          "negative_share": 0.5
+        }
+      },
+      "permutation_averaging": {
+        "p_at_1": {
+          "value": 0.32323232323232326,
+          "ci95": [
+            0.25757575757575757,
+            0.3839646464646469
+          ],
+          "tasks": 198
+        },
+        "abstention": {
+          "correct": 63,
+          "wrong": 254,
+          "abstained": 79,
+          "searches": 396,
+          "negatives": 198,
+          "negative_share": 0.5
+        },
+        "production_decisions_per_search": 5,
+        "decision_usd_per_1000_searches": 0.4463106060606061,
+        "physical_attempts_per_search": 5.065656565656566,
+        "probabilities": "Average final distributions mapped to card ids; cards dropped in a logprob round get zero; identity breaks ties."
+      },
+      "physical_attempts": 2006,
+      "verified_decision_usd": 0.176739,
+      "budget_charge_usd": 0.1963998,
+      "planner_lowered_exchanges": 0,
+      "identity_drift": {
+        "comparable": false,
+        "reason": "model, prompt, limits, or configuration differs"
+      }
+    }
+  },
+  "same_order_noise_baseline": {
+    "reference_run": "20260929T162701Z",
+    "reference_git": {
+      "commit": "57fd48a7ce7744bcacc08c6288790de42d03ecee",
+      "dirty": true
+    },
+    "reference_manifest_sha256": "2eace69b6851c935e9d25f3dcbf50038a471fd6a4d8be8792c2f373b92b527e1",
+    "reference_records_sha256": "d00139290d8ff4ee67e060d1f5b0bfe42e10341a01626a8f6f4e4284ae206180",
+    "reference_dataset": {
+      "name": "mteb/ToolRetrieval",
+      "revision": "76d45e560059754e289ea202462865a585679619",
+      "corpus_sha256": "774aa8c5263eed9870fb6eefc47491c67d3998e7eda1d897f9b359e20be67efb",
+      "tools": 44453,
+      "catalog_fingerprint": "sha256:7d56b70f34151288b0351d0764064e2d9852b9c2f1ef4e5ed076f1edb83debbf",
+      "mapping_stats": {
+        "name": 0.9999550086608328,
+        "description": 0.97766180010348,
+        "properties": 0.8109014014802151
+      }
+    },
+    "reference_tasks": {
+      "file": "bench/tasks/toolret-heldout-200.json",
+      "sha256": "b632db8a5cb328b3d793a6491b0893e7fa62770dff1fd7285dc495e5adf8b3f3",
+      "count": 200
+    },
+    "repeat_count": 3,
+    "deciders": {
+      "luna-decisions": {
+        "comparable": false,
+        "reason": "model/config, population, repeat completeness, or identity payload differs"
+      }
+    },
+    "caveat": "Observed same-order run noise, not a causal order-effect experiment. Compare pairwise agreement; all-three-same and all-five-same are different statistics."
+  }
+}

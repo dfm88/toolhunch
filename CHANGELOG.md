@@ -15,12 +15,17 @@ All notable changes to this project are documented here. The format follows
   reply's usage; `DecisionError.usage` and `DecisionError.retry_after` (the wait the final reply asked for).
 - Benchmark: `luna-decisions`, GPT-6 Luna through the Decisions API, as a registry entry; `toolhunch-bench
   decisions-probe`, the API's reply shape, caps, headers and billed overhead, with scrubbed fixtures.
+- Benchmark: GPT-6 Luna through the Decisions API in the held-out re-ranking, direct-choice and candidate-order tests
+  (`bench/results/2026-10-toolret-{decision,direct,order}-p4/`).
 
 ### Changed
 
 - Benchmark: the spend guard retries an attempt only after HTTP 429, a server fault or no reply, waiting what the
   reply asked for; a question the provider refused is charged at the usage its reply reported. Runs record the
   `model` member of each reply.
+- Benchmark: a search the model refused records `refused`; an order run goes on after it, its gates count refusals
+  apart, and its report leaves that task out and says so. Order runs try an attempt again after HTTP 429, a server
+  fault or no reply. Figures name every decider with no pinned version, from the registry.
 
 ## [0.2.0] - 2026-10-07
 
