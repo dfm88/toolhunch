@@ -161,7 +161,15 @@ def test_readme_charts_draw_every_published_decider(tmp_path: Path) -> None:
 
     assert result.exit_code == 0, result.output
     direct = (tmp_path / "direct-choice.svg").read_text()
-    for arm in ("agent-luna-all", "hybrid-20-jev", "clef-all", "strands-all", "rizzo-flow-all", "hybrid-20-laya-wide"):
+    for arm in (
+        "agent-luna-all",
+        "hybrid-20-jev",
+        "clef-all",
+        "strands-all",
+        "rizzo-flow-all",
+        "hybrid-20-laya-wide",
+        "luna-decisions-all",
+    ):
         assert f'id="bar-{arm}"' in direct
     assert 'id="bar-hybrid-20"' in direct
     rerank = (tmp_path / "rerank-44k.svg").read_text()
@@ -171,11 +179,13 @@ def test_readme_charts_draw_every_published_decider(tmp_path: Path) -> None:
         "hybrid-clef-flash-20",
         "hybrid-rizzo-flow-20",
         "hybrid-laya-wide-20",
+        "hybrid-luna-decisions-20",
     ):
         assert f'id="bar-{arm}"' in rerank
     order = (tmp_path / "order-sensitivity.svg").read_text()
     assert 'id="order-jev-same"' in order
     assert 'id="order-rizzo-flow-shuffled"' in order
+    assert 'id="order-gpt-6-luna-decisions-shuffled"' in order
     assert 'id="order-clef-same"' not in order  # no same-order repeats for a decider that never varied
     for text in (direct, rerank, order):
         assert "clm" not in text

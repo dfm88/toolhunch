@@ -591,7 +591,7 @@ def readme_charts(
     ] = "svg",
     direct: Annotated[
         Path, typer.Option(help="Generated direct-choice summary.", exists=True, dir_okay=False)
-    ] = BENCH_DIR / "results/2026-10-toolret-direct-p3/summary.json",
+    ] = BENCH_DIR / "results/2026-10-toolret-direct-p4/summary.json",
     decision: Annotated[
         list[Path] | None,
         typer.Option(help="A generated decision summary; repeat, earliest first.", exists=True, dir_okay=False),
@@ -612,12 +612,20 @@ def readme_charts(
     results = BENCH_DIR / "results"
     decisions = decision or [
         results / f"{name}/summary.json"
-        for name in ("2026-09-toolret-decision", "2026-10-toolret-decision-p2", "2026-10-toolret-decision-p3")
+        for name in (
+            "2026-09-toolret-decision",
+            "2026-10-toolret-decision-p2",
+            "2026-10-toolret-decision-p3",
+            "2026-10-toolret-decision-p4",
+        )
     ]
     orders = order or [
         results / "2026-09-toolret-order/summary.json",
-        *sorted(results.glob("2026-10-toolret-order-p2/*/summary.json")),
-        *sorted(results.glob("2026-10-toolret-order-p3/*/summary.json")),
+        *(
+            path
+            for phase in ("p2", "p3", "p4")
+            for path in sorted(results.glob(f"2026-10-toolret-order-{phase}/*/summary.json"))
+        ),
     ]
     paths = build_readme_charts(
         direct_summary=direct,

@@ -388,96 +388,104 @@ z
     </g>
    </g>
    <g id="order-clef-shuffled">
-    <path d="M 93.230769 492.48 
-L 132.147692 492.48 
-L 132.147692 188.537143 
-L 93.230769 188.537143 
+    <path d="M 92.059535 492.48 
+L 127.356279 492.48 
+L 127.356279 188.537143 
+L 92.059535 188.537143 
 z
 " clip-path="url(#pdff3ae4e49)" style="fill: #b5306b"/>
    </g>
    <g id="order-clef-flash-shuffled">
-    <path d="M 166.486154 492.48 
-L 205.403077 492.48 
-L 205.403077 190.08 
-L 166.486154 190.08 
+    <path d="M 158.500465 492.48 
+L 193.797209 492.48 
+L 193.797209 190.08 
+L 158.500465 190.08 
 z
 " clip-path="url(#pdff3ae4e49)" style="fill: #d98bb2"/>
    </g>
    <g id="order-jev-same">
-    <path d="M 239.741538 492.48 
-L 278.658462 492.48 
-L 278.658462 196.251429 
-L 239.741538 196.251429 
+    <path d="M 224.941395 492.48 
+L 260.23814 492.48 
+L 260.23814 196.251429 
+L 224.941395 196.251429 
 z
 " clip-path="url(#pdff3ae4e49)" style="fill: #2f6db5; opacity: 0.45"/>
    </g>
    <g id="order-jev-shuffled">
-    <path d="M 285.526154 492.48 
-L 324.443077 492.48 
-L 324.443077 256.422857 
-L 285.526154 256.422857 
+    <path d="M 266.466977 492.48 
+L 301.763721 492.48 
+L 301.763721 256.422857 
+L 266.466977 256.422857 
 z
 " clip-path="url(#pdff3ae4e49)" style="fill: #2f6db5"/>
    </g>
    <g id="order-gpt-6-luna-same">
-    <path d="M 358.781538 492.48 
-L 397.698462 492.48 
-L 397.698462 208.201464 
-L 358.781538 208.201464 
+    <path d="M 332.907907 492.48 
+L 368.204651 492.48 
+L 368.204651 208.201464 
+L 332.907907 208.201464 
 z
 " clip-path="url(#pdff3ae4e49)" style="fill: #7a4fb5; opacity: 0.45"/>
    </g>
    <g id="order-gpt-6-luna-shuffled">
-    <path d="M 404.566154 492.48 
-L 443.483077 492.48 
-L 443.483077 298.454026 
-L 404.566154 298.454026 
+    <path d="M 374.433488 492.48 
+L 409.730233 492.48 
+L 409.730233 298.454026 
+L 374.433488 298.454026 
 z
 " clip-path="url(#pdff3ae4e49)" style="fill: #7a4fb5"/>
    </g>
    <g id="order-gpt-4-1-mini-same">
-    <path d="M 477.821538 492.48 
-L 516.738462 492.48 
-L 516.738462 190.08 
-L 477.821538 190.08 
+    <path d="M 440.874419 492.48 
+L 476.171163 492.48 
+L 476.171163 190.08 
+L 440.874419 190.08 
 z
 " clip-path="url(#pdff3ae4e49)" style="fill: #c0652b; opacity: 0.45"/>
    </g>
    <g id="order-gpt-4-1-mini-shuffled">
-    <path d="M 523.606154 492.48 
-L 562.523077 492.48 
-L 562.523077 305.794286 
-L 523.606154 305.794286 
+    <path d="M 482.4 492.48 
+L 517.696744 492.48 
+L 517.696744 305.794286 
+L 482.4 305.794286 
 z
 " clip-path="url(#pdff3ae4e49)" style="fill: #c0652b"/>
    </g>
+   <g id="order-gpt-6-luna-decisions-shuffled">
+    <path d="M 548.84093 492.48 
+L 584.137674 492.48 
+L 584.137674 328.064416 
+L 548.84093 328.064416 
+z
+" clip-path="url(#pdff3ae4e49)" style="fill: #4a2380"/>
+   </g>
    <g id="order-laya-wide-shuffled">
-    <path d="M 596.861538 492.48 
-L 635.778462 492.48 
-L 635.778462 331.251429 
-L 596.861538 331.251429 
+    <path d="M 615.28186 492.48 
+L 650.578605 492.48 
+L 650.578605 331.251429 
+L 615.28186 331.251429 
 z
 " clip-path="url(#pdff3ae4e49)" style="fill: #9bc46a"/>
    </g>
    <g id="order-strands-decider-2b-shuffled">
-    <path d="M 670.116923 492.48 
-L 709.033846 492.48 
-L 709.033846 337.422857 
-L 670.116923 337.422857 
+    <path d="M 681.722791 492.48 
+L 717.019535 492.48 
+L 717.019535 337.422857 
+L 681.722791 337.422857 
 z
 " clip-path="url(#pdff3ae4e49)" style="fill: #16877a"/>
    </g>
    <g id="order-rizzo-flow-shuffled">
-    <path d="M 743.372308 492.48 
-L 782.289231 492.48 
-L 782.289231 347.76 
-L 743.372308 347.76 
+    <path d="M 748.163721 492.48 
+L 783.460465 492.48 
+L 783.460465 347.76 
+L 748.163721 347.76 
 z
 " clip-path="url(#pdff3ae4e49)" style="fill: #c99a1c"/>
    </g>
    <g id="LineCollection_1">
-    <path d="M 112.689231 192.24 
-L 112.689231 185.142857 
+    <path d="M 109.707907 192.24 
+L 109.707907 185.142857 
 " clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1"/>
    </g>
    <g id="line2d_11">
@@ -487,206 +495,225 @@ L -3 -0
 " style="stroke: #1f2328"/>
     </defs>
     <g clip-path="url(#pdff3ae4e49)">
-     <use xlink:href="#m658ac749b4" x="112.689231" y="192.24" style="fill: #1f2328; stroke: #1f2328"/>
+     <use xlink:href="#m658ac749b4" x="109.707907" y="192.24" style="fill: #1f2328; stroke: #1f2328"/>
     </g>
    </g>
    <g id="line2d_12">
     <g clip-path="url(#pdff3ae4e49)">
-     <use xlink:href="#m658ac749b4" x="112.689231" y="185.142857" style="fill: #1f2328; stroke: #1f2328"/>
+     <use xlink:href="#m658ac749b4" x="109.707907" y="185.142857" style="fill: #1f2328; stroke: #1f2328"/>
     </g>
    </g>
    <g id="LineCollection_2">
-    <path d="M 185.944615 194.708571 
-L 185.944615 186.068571 
+    <path d="M 176.148837 194.708571 
+L 176.148837 186.068571 
 " clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1"/>
    </g>
    <g id="line2d_13">
     <g clip-path="url(#pdff3ae4e49)">
-     <use xlink:href="#m658ac749b4" x="185.944615" y="194.708571" style="fill: #1f2328; stroke: #1f2328"/>
+     <use xlink:href="#m658ac749b4" x="176.148837" y="194.708571" style="fill: #1f2328; stroke: #1f2328"/>
     </g>
    </g>
    <g id="line2d_14">
     <g clip-path="url(#pdff3ae4e49)">
-     <use xlink:href="#m658ac749b4" x="185.944615" y="186.068571" style="fill: #1f2328; stroke: #1f2328"/>
+     <use xlink:href="#m658ac749b4" x="176.148837" y="186.068571" style="fill: #1f2328; stroke: #1f2328"/>
     </g>
    </g>
    <g id="LineCollection_3">
-    <path d="M 259.2 203.451429 
-L 259.2 190.08 
+    <path d="M 242.589767 203.451429 
+L 242.589767 190.08 
 " clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1"/>
    </g>
    <g id="line2d_15">
     <g clip-path="url(#pdff3ae4e49)">
-     <use xlink:href="#m658ac749b4" x="259.2" y="203.451429" style="fill: #1f2328; stroke: #1f2328"/>
+     <use xlink:href="#m658ac749b4" x="242.589767" y="203.451429" style="fill: #1f2328; stroke: #1f2328"/>
     </g>
    </g>
    <g id="line2d_16">
     <g clip-path="url(#pdff3ae4e49)">
-     <use xlink:href="#m658ac749b4" x="259.2" y="190.08" style="fill: #1f2328; stroke: #1f2328"/>
+     <use xlink:href="#m658ac749b4" x="242.589767" y="190.08" style="fill: #1f2328; stroke: #1f2328"/>
     </g>
    </g>
    <g id="LineCollection_4">
-    <path d="M 304.984615 269.232429 
-L 304.984615 244.388571 
+    <path d="M 284.115349 269.232429 
+L 284.115349 244.388571 
 " clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1"/>
    </g>
    <g id="line2d_17">
     <g clip-path="url(#pdff3ae4e49)">
-     <use xlink:href="#m658ac749b4" x="304.984615" y="269.232429" style="fill: #1f2328; stroke: #1f2328"/>
+     <use xlink:href="#m658ac749b4" x="284.115349" y="269.232429" style="fill: #1f2328; stroke: #1f2328"/>
     </g>
    </g>
    <g id="line2d_18">
     <g clip-path="url(#pdff3ae4e49)">
-     <use xlink:href="#m658ac749b4" x="304.984615" y="244.388571" style="fill: #1f2328; stroke: #1f2328"/>
+     <use xlink:href="#m658ac749b4" x="284.115349" y="244.388571" style="fill: #1f2328; stroke: #1f2328"/>
     </g>
    </g>
    <g id="LineCollection_5">
-    <path d="M 378.24 218.021996 
-L 378.24 198.897803 
+    <path d="M 350.556279 218.021996 
+L 350.556279 198.897803 
 " clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1"/>
    </g>
    <g id="line2d_19">
     <g clip-path="url(#pdff3ae4e49)">
-     <use xlink:href="#m658ac749b4" x="378.24" y="218.021996" style="fill: #1f2328; stroke: #1f2328"/>
+     <use xlink:href="#m658ac749b4" x="350.556279" y="218.021996" style="fill: #1f2328; stroke: #1f2328"/>
     </g>
    </g>
    <g id="line2d_20">
     <g clip-path="url(#pdff3ae4e49)">
-     <use xlink:href="#m658ac749b4" x="378.24" y="198.897803" style="fill: #1f2328; stroke: #1f2328"/>
+     <use xlink:href="#m658ac749b4" x="350.556279" y="198.897803" style="fill: #1f2328; stroke: #1f2328"/>
     </g>
    </g>
    <g id="LineCollection_6">
-    <path d="M 424.024615 312.168312 
-L 424.024615 284.424156 
+    <path d="M 392.08186 312.168312 
+L 392.08186 284.424156 
 " clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1"/>
    </g>
    <g id="line2d_21">
     <g clip-path="url(#pdff3ae4e49)">
-     <use xlink:href="#m658ac749b4" x="424.024615" y="312.168312" style="fill: #1f2328; stroke: #1f2328"/>
+     <use xlink:href="#m658ac749b4" x="392.08186" y="312.168312" style="fill: #1f2328; stroke: #1f2328"/>
     </g>
    </g>
    <g id="line2d_22">
     <g clip-path="url(#pdff3ae4e49)">
-     <use xlink:href="#m658ac749b4" x="424.024615" y="284.424156" style="fill: #1f2328; stroke: #1f2328"/>
+     <use xlink:href="#m658ac749b4" x="392.08186" y="284.424156" style="fill: #1f2328; stroke: #1f2328"/>
     </g>
    </g>
    <g id="LineCollection_7">
-    <path d="M 497.28 195.222857 
-L 497.28 185.965714 
+    <path d="M 458.522791 195.222857 
+L 458.522791 185.965714 
 " clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1"/>
    </g>
    <g id="line2d_23">
     <g clip-path="url(#pdff3ae4e49)">
-     <use xlink:href="#m658ac749b4" x="497.28" y="195.222857" style="fill: #1f2328; stroke: #1f2328"/>
+     <use xlink:href="#m658ac749b4" x="458.522791" y="195.222857" style="fill: #1f2328; stroke: #1f2328"/>
     </g>
    </g>
    <g id="line2d_24">
     <g clip-path="url(#pdff3ae4e49)">
-     <use xlink:href="#m658ac749b4" x="497.28" y="185.965714" style="fill: #1f2328; stroke: #1f2328"/>
+     <use xlink:href="#m658ac749b4" x="458.522791" y="185.965714" style="fill: #1f2328; stroke: #1f2328"/>
     </g>
    </g>
    <g id="LineCollection_8">
-    <path d="M 543.064615 320.76 
-L 543.064615 291.6 
+    <path d="M 500.048372 320.76 
+L 500.048372 291.6 
 " clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1"/>
    </g>
    <g id="line2d_25">
     <g clip-path="url(#pdff3ae4e49)">
-     <use xlink:href="#m658ac749b4" x="543.064615" y="320.76" style="fill: #1f2328; stroke: #1f2328"/>
+     <use xlink:href="#m658ac749b4" x="500.048372" y="320.76" style="fill: #1f2328; stroke: #1f2328"/>
     </g>
    </g>
    <g id="line2d_26">
     <g clip-path="url(#pdff3ae4e49)">
-     <use xlink:href="#m658ac749b4" x="543.064615" y="291.6" style="fill: #1f2328; stroke: #1f2328"/>
+     <use xlink:href="#m658ac749b4" x="500.048372" y="291.6" style="fill: #1f2328; stroke: #1f2328"/>
     </g>
    </g>
    <g id="LineCollection_9">
-    <path d="M 616.32 345.291429 
-L 616.32 317.674286 
+    <path d="M 566.489302 343.337143 
+L 566.489302 313.103377 
 " clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1"/>
    </g>
    <g id="line2d_27">
     <g clip-path="url(#pdff3ae4e49)">
-     <use xlink:href="#m658ac749b4" x="616.32" y="345.291429" style="fill: #1f2328; stroke: #1f2328"/>
+     <use xlink:href="#m658ac749b4" x="566.489302" y="343.337143" style="fill: #1f2328; stroke: #1f2328"/>
     </g>
    </g>
    <g id="line2d_28">
     <g clip-path="url(#pdff3ae4e49)">
-     <use xlink:href="#m658ac749b4" x="616.32" y="317.674286" style="fill: #1f2328; stroke: #1f2328"/>
+     <use xlink:href="#m658ac749b4" x="566.489302" y="313.103377" style="fill: #1f2328; stroke: #1f2328"/>
     </g>
    </g>
    <g id="LineCollection_10">
-    <path d="M 689.575385 350.537143 
-L 689.575385 323.996143 
+    <path d="M 632.930233 345.291429 
+L 632.930233 317.674286 
 " clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1"/>
    </g>
    <g id="line2d_29">
     <g clip-path="url(#pdff3ae4e49)">
-     <use xlink:href="#m658ac749b4" x="689.575385" y="350.537143" style="fill: #1f2328; stroke: #1f2328"/>
+     <use xlink:href="#m658ac749b4" x="632.930233" y="345.291429" style="fill: #1f2328; stroke: #1f2328"/>
     </g>
    </g>
    <g id="line2d_30">
     <g clip-path="url(#pdff3ae4e49)">
-     <use xlink:href="#m658ac749b4" x="689.575385" y="323.996143" style="fill: #1f2328; stroke: #1f2328"/>
+     <use xlink:href="#m658ac749b4" x="632.930233" y="317.674286" style="fill: #1f2328; stroke: #1f2328"/>
     </g>
    </g>
    <g id="LineCollection_11">
-    <path d="M 762.830769 362.579143 
-L 762.830769 333.102857 
+    <path d="M 699.371163 350.537143 
+L 699.371163 323.996143 
 " clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1"/>
    </g>
    <g id="line2d_31">
     <g clip-path="url(#pdff3ae4e49)">
-     <use xlink:href="#m658ac749b4" x="762.830769" y="362.579143" style="fill: #1f2328; stroke: #1f2328"/>
+     <use xlink:href="#m658ac749b4" x="699.371163" y="350.537143" style="fill: #1f2328; stroke: #1f2328"/>
     </g>
    </g>
    <g id="line2d_32">
     <g clip-path="url(#pdff3ae4e49)">
-     <use xlink:href="#m658ac749b4" x="762.830769" y="333.102857" style="fill: #1f2328; stroke: #1f2328"/>
+     <use xlink:href="#m658ac749b4" x="699.371163" y="323.996143" style="fill: #1f2328; stroke: #1f2328"/>
     </g>
    </g>
+   <g id="LineCollection_12">
+    <path d="M 765.812093 362.579143 
+L 765.812093 333.102857 
+" clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1"/>
+   </g>
    <g id="line2d_33">
-    <path d="M 112.689231 188.537143 
-" clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1; stroke-linecap: square"/>
+    <g clip-path="url(#pdff3ae4e49)">
+     <use xlink:href="#m658ac749b4" x="765.812093" y="362.579143" style="fill: #1f2328; stroke: #1f2328"/>
+    </g>
    </g>
    <g id="line2d_34">
-    <path d="M 185.944615 190.08 
-" clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1; stroke-linecap: square"/>
+    <g clip-path="url(#pdff3ae4e49)">
+     <use xlink:href="#m658ac749b4" x="765.812093" y="333.102857" style="fill: #1f2328; stroke: #1f2328"/>
+    </g>
    </g>
    <g id="line2d_35">
-    <path d="M 259.2 196.251429 
+    <path d="M 109.707907 188.537143 
 " clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1; stroke-linecap: square"/>
    </g>
    <g id="line2d_36">
-    <path d="M 304.984615 256.422857 
+    <path d="M 176.148837 190.08 
 " clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1; stroke-linecap: square"/>
    </g>
    <g id="line2d_37">
-    <path d="M 378.24 208.201464 
+    <path d="M 242.589767 196.251429 
 " clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1; stroke-linecap: square"/>
    </g>
    <g id="line2d_38">
-    <path d="M 424.024615 298.454026 
+    <path d="M 284.115349 256.422857 
 " clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1; stroke-linecap: square"/>
    </g>
    <g id="line2d_39">
-    <path d="M 497.28 190.08 
+    <path d="M 350.556279 208.201464 
 " clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1; stroke-linecap: square"/>
    </g>
    <g id="line2d_40">
-    <path d="M 543.064615 305.794286 
+    <path d="M 392.08186 298.454026 
 " clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1; stroke-linecap: square"/>
    </g>
    <g id="line2d_41">
-    <path d="M 616.32 331.251429 
+    <path d="M 458.522791 190.08 
 " clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1; stroke-linecap: square"/>
    </g>
    <g id="line2d_42">
-    <path d="M 689.575385 337.422857 
+    <path d="M 500.048372 305.794286 
 " clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1; stroke-linecap: square"/>
    </g>
    <g id="line2d_43">
-    <path d="M 762.830769 347.76 
+    <path d="M 566.489302 328.064416 
+" clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_44">
+    <path d="M 632.930233 331.251429 
+" clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_45">
+    <path d="M 699.371163 337.422857 
+" clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_46">
+    <path d="M 765.812093 347.76 
 " clip-path="url(#pdff3ae4e49)" style="fill: none; stroke: #1f2328; stroke-width: 1.1; stroke-linecap: square"/>
    </g>
    <g id="patch_3">
@@ -701,7 +728,7 @@ L 794.88 492.48
    </g>
    <g id="text_6">
     <!-- 98% -->
-    <g style="fill: #ffffff" transform="translate(98.962043 483.222857) scale(0.13 -0.13)">
+    <g style="fill: #ffffff" transform="translate(95.980719 483.222857) scale(0.13 -0.13)">
      <defs>
       <path id="HelveticaNeue-Bold-20" d="M 1728 2157 
 Q 1555 2157 1424 2230 
@@ -900,7 +927,7 @@ z
    </g>
    <g id="text_7">
     <!-- shuffled -->
-    <g style="fill: #5b636b" transform="translate(93.214075 510.994286) scale(0.11 -0.11)">
+    <g style="fill: #5b636b" transform="translate(90.232751 510.994286) scale(0.11 -0.11)">
      <defs>
       <path id="HelveticaNeue-5a" d="M 742 1043 
 L 198 1043 
@@ -1137,7 +1164,7 @@ z
    </g>
    <g id="text_8">
     <!-- Clef -->
-    <g style="fill: #1f2328" transform="translate(100.300637 539.097857) scale(0.13 -0.13)">
+    <g style="fill: #1f2328" transform="translate(97.319313 539.097857) scale(0.13 -0.13)">
      <defs>
       <path id="HelveticaNeue-Bold-2a" d="M 3488 3034 
 L 4461 3034 
@@ -1244,7 +1271,7 @@ z
    </g>
    <g id="text_9">
     <!-- 98% -->
-    <g style="fill: #ffffff" transform="translate(172.217428 483.222857) scale(0.13 -0.13)">
+    <g style="fill: #ffffff" transform="translate(162.42165 483.222857) scale(0.13 -0.13)">
      <use xlink:href="#HelveticaNeue-Bold-20"/>
      <use xlink:href="#HelveticaNeue-Bold-1f" transform="translate(55.59375 0)"/>
      <use xlink:href="#HelveticaNeue-Bold-c" transform="translate(111.1875 0)"/>
@@ -1252,7 +1279,7 @@ z
    </g>
    <g id="text_10">
     <!-- shuffled -->
-    <g style="fill: #5b636b" transform="translate(166.469459 510.994286) scale(0.11 -0.11)">
+    <g style="fill: #5b636b" transform="translate(156.673681 510.994286) scale(0.11 -0.11)">
      <use xlink:href="#HelveticaNeue-5a"/>
      <use xlink:href="#HelveticaNeue-4f" transform="translate(50 0)"/>
      <use xlink:href="#HelveticaNeue-5c" transform="translate(105.59375 0)"/>
@@ -1263,7 +1290,7 @@ z
    </g>
    <g id="text_11">
     <!-- Clef-flash -->
-    <g style="fill: #1f2328" transform="translate(155.862819 539.097857) scale(0.13 -0.13)">
+    <g style="fill: #1f2328" transform="translate(146.06704 539.097857) scale(0.13 -0.13)">
      <defs>
       <path id="HelveticaNeue-Bold-14" d="M 339 2138 
 L 339 1357 
@@ -1442,7 +1469,7 @@ z
    </g>
    <g id="text_12">
     <!-- 96% -->
-    <g style="fill: #ffffff" transform="translate(245.472813 483.222857) scale(0.13 -0.13)">
+    <g style="fill: #ffffff" transform="translate(228.86258 483.222857) scale(0.13 -0.13)">
      <defs>
       <path id="HelveticaNeue-Bold-1d" d="M 1830 2323 
 Q 2003 2323 2134 2249 
@@ -1503,7 +1530,7 @@ z
    </g>
    <g id="text_13">
     <!-- same -->
-    <g style="fill: #5b636b" transform="translate(245.851328 510.994286) scale(0.11 -0.11)">
+    <g style="fill: #5b636b" transform="translate(229.241096 510.994286) scale(0.11 -0.11)">
      <defs>
       <path id="HelveticaNeue-48" d="M 3341 13 
 Q 3200 -70 2950 -70 
@@ -1609,7 +1636,7 @@ z
    </g>
    <g id="text_14">
     <!-- 76% -->
-    <g style="fill: #ffffff" transform="translate(291.257428 483.222857) scale(0.13 -0.13)">
+    <g style="fill: #ffffff" transform="translate(270.388161 483.222857) scale(0.13 -0.13)">
      <defs>
       <path id="HelveticaNeue-Bold-1e" d="M 3309 3699 
 L 3309 4480 
@@ -1633,7 +1660,7 @@ z
    </g>
    <g id="text_15">
     <!-- shuffled -->
-    <g style="fill: #5b636b" transform="translate(285.509459 510.994286) scale(0.11 -0.11)">
+    <g style="fill: #5b636b" transform="translate(264.640193 510.994286) scale(0.11 -0.11)">
      <use xlink:href="#HelveticaNeue-5a"/>
      <use xlink:href="#HelveticaNeue-4f" transform="translate(50 0)"/>
      <use xlink:href="#HelveticaNeue-5c" transform="translate(105.59375 0)"/>
@@ -1644,7 +1671,7 @@ z
    </g>
    <g id="text_16">
     <!-- Jev -->
-    <g style="fill: #1f2328" transform="translate(271.367308 539.097857) scale(0.13 -0.13)">
+    <g style="fill: #1f2328" transform="translate(252.627558 539.097857) scale(0.13 -0.13)">
      <defs>
       <path id="HelveticaNeue-Bold-31" d="M 3117 1440 
 L 3117 4570 
@@ -1690,7 +1717,7 @@ z
    </g>
    <g id="text_17">
     <!-- 92% -->
-    <g style="fill: #ffffff" transform="translate(364.512812 483.222857) scale(0.13 -0.13)">
+    <g style="fill: #ffffff" transform="translate(336.829092 483.222857) scale(0.13 -0.13)">
      <defs>
       <path id="HelveticaNeue-Bold-19" d="M 237 2758 
 L 1107 2758 
@@ -1735,7 +1762,7 @@ z
    </g>
    <g id="text_18">
     <!-- same -->
-    <g style="fill: #5b636b" transform="translate(364.891328 510.994286) scale(0.11 -0.11)">
+    <g style="fill: #5b636b" transform="translate(337.207607 510.994286) scale(0.11 -0.11)">
      <use xlink:href="#HelveticaNeue-5a"/>
      <use xlink:href="#HelveticaNeue-48" transform="translate(50 0)"/>
      <use xlink:href="#HelveticaNeue-54" transform="translate(103.703125 0)"/>
@@ -1744,7 +1771,7 @@ z
    </g>
    <g id="text_19">
     <!-- 63% -->
-    <g style="fill: #ffffff" transform="translate(410.297428 483.222857) scale(0.13 -0.13)">
+    <g style="fill: #ffffff" transform="translate(378.354673 483.222857) scale(0.13 -0.13)">
      <defs>
       <path id="HelveticaNeue-Bold-1a" d="M 1459 2669 
 L 1459 2029 
@@ -1799,7 +1826,7 @@ z
    </g>
    <g id="text_20">
     <!-- shuffled -->
-    <g style="fill: #5b636b" transform="translate(404.549459 510.994286) scale(0.11 -0.11)">
+    <g style="fill: #5b636b" transform="translate(372.606704 510.994286) scale(0.11 -0.11)">
      <use xlink:href="#HelveticaNeue-5a"/>
      <use xlink:href="#HelveticaNeue-4f" transform="translate(50 0)"/>
      <use xlink:href="#HelveticaNeue-5c" transform="translate(105.59375 0)"/>
@@ -1810,7 +1837,7 @@ z
    </g>
    <g id="text_21">
     <!-- GPT-6 Luna -->
-    <g style="fill: #1f2328" transform="translate(365.37012 539.097857) scale(0.13 -0.13)">
+    <g style="fill: #1f2328" transform="translate(335.556882 539.097857) scale(0.13 -0.13)">
      <defs>
       <path id="HelveticaNeue-Bold-2e" d="M 3744 518 
 L 3846 0 
@@ -1957,7 +1984,7 @@ z
    </g>
    <g id="text_22">
     <!-- 98% -->
-    <g style="fill: #ffffff" transform="translate(483.552813 483.222857) scale(0.13 -0.13)">
+    <g style="fill: #ffffff" transform="translate(444.795603 483.222857) scale(0.13 -0.13)">
      <use xlink:href="#HelveticaNeue-Bold-20"/>
      <use xlink:href="#HelveticaNeue-Bold-1f" transform="translate(55.59375 0)"/>
      <use xlink:href="#HelveticaNeue-Bold-c" transform="translate(111.1875 0)"/>
@@ -1965,7 +1992,7 @@ z
    </g>
    <g id="text_23">
     <!-- same -->
-    <g style="fill: #5b636b" transform="translate(483.931328 510.994286) scale(0.11 -0.11)">
+    <g style="fill: #5b636b" transform="translate(445.174119 510.994286) scale(0.11 -0.11)">
      <use xlink:href="#HelveticaNeue-5a"/>
      <use xlink:href="#HelveticaNeue-48" transform="translate(50 0)"/>
      <use xlink:href="#HelveticaNeue-54" transform="translate(103.703125 0)"/>
@@ -1974,7 +2001,7 @@ z
    </g>
    <g id="text_24">
     <!-- 60% -->
-    <g style="fill: #ffffff" transform="translate(529.337428 483.222857) scale(0.13 -0.13)">
+    <g style="fill: #ffffff" transform="translate(486.321185 483.222857) scale(0.13 -0.13)">
      <defs>
       <path id="HelveticaNeue-Bold-17" d="M 1043 2259 
 Q 1043 2374 1046 2537 
@@ -2025,7 +2052,7 @@ z
    </g>
    <g id="text_25">
     <!-- shuffled -->
-    <g style="fill: #5b636b" transform="translate(523.589459 510.994286) scale(0.11 -0.11)">
+    <g style="fill: #5b636b" transform="translate(480.573216 510.994286) scale(0.11 -0.11)">
      <use xlink:href="#HelveticaNeue-5a"/>
      <use xlink:href="#HelveticaNeue-4f" transform="translate(50 0)"/>
      <use xlink:href="#HelveticaNeue-5c" transform="translate(105.59375 0)"/>
@@ -2036,7 +2063,7 @@ z
    </g>
    <g id="text_26">
     <!-- GPT-4.1 mini -->
-    <g style="fill: #1f2328" transform="translate(481.187542 539.097857) scale(0.13 -0.13)">
+    <g style="fill: #1f2328" transform="translate(440.300816 539.097857) scale(0.13 -0.13)">
      <defs>
       <path id="HelveticaNeue-Bold-1b" d="M 1997 3341 
 L 1997 1786 
@@ -2148,8 +2175,8 @@ z
     </g>
    </g>
    <g id="text_27">
-    <!-- 52% -->
-    <g style="fill: #ffffff" transform="translate(602.592813 483.222857) scale(0.13 -0.13)">
+    <!-- 53% -->
+    <g style="fill: #ffffff" transform="translate(552.762115 483.222857) scale(0.13 -0.13)">
      <defs>
       <path id="HelveticaNeue-Bold-1c" d="M 3200 3731 
 L 3200 4480 
@@ -2190,13 +2217,13 @@ z
 " transform="scale(0.015625)"/>
      </defs>
      <use xlink:href="#HelveticaNeue-Bold-1c"/>
-     <use xlink:href="#HelveticaNeue-Bold-19" transform="translate(55.59375 0)"/>
+     <use xlink:href="#HelveticaNeue-Bold-1a" transform="translate(55.59375 0)"/>
      <use xlink:href="#HelveticaNeue-Bold-c" transform="translate(111.1875 0)"/>
     </g>
    </g>
    <g id="text_28">
     <!-- shuffled -->
-    <g style="fill: #5b636b" transform="translate(596.844844 510.994286) scale(0.11 -0.11)">
+    <g style="fill: #5b636b" transform="translate(547.014146 510.994286) scale(0.11 -0.11)">
      <use xlink:href="#HelveticaNeue-5a"/>
      <use xlink:href="#HelveticaNeue-4f" transform="translate(50 0)"/>
      <use xlink:href="#HelveticaNeue-5c" transform="translate(105.59375 0)"/>
@@ -2206,8 +2233,182 @@ z
     </g>
    </g>
    <g id="text_29">
+    <!-- GPT-6 -->
+    <g style="fill: #1f2328" transform="translate(547.828209 539.286357) scale(0.13 -0.13)">
+     <use xlink:href="#HelveticaNeue-Bold-2e"/>
+     <use xlink:href="#HelveticaNeue-Bold-37" transform="translate(75.90625 0)"/>
+     <use xlink:href="#HelveticaNeue-Bold-3b" transform="translate(142.609375 0)"/>
+     <use xlink:href="#HelveticaNeue-Bold-14" transform="translate(190.796875 0)"/>
+     <use xlink:href="#HelveticaNeue-Bold-1d" transform="translate(231.5 0)"/>
+    </g>
+    <!-- Luna (Decisions) -->
+    <g style="fill: #1f2328" transform="translate(515.101724 555.159357) scale(0.13 -0.13)">
+     <defs>
+      <path id="HelveticaNeue-Bold-f" d="M 1939 4678 
+L 1178 4678 
+Q 966 4371 809 4006 
+Q 653 3642 547 3251 
+Q 442 2861 387 2467 
+Q 333 2074 333 1715 
+Q 333 960 553 230 
+Q 774 -499 1178 -1158 
+L 1933 -1158 
+Q 1568 -461 1405 275 
+Q 1242 1011 1242 1779 
+Q 1242 2534 1408 3267 
+Q 1574 4000 1939 4678 
+z
+" transform="scale(0.015625)"/>
+      <path id="HelveticaNeue-Bold-2b" d="M 1446 845 
+L 1446 3725 
+L 2163 3725 
+Q 2534 3725 2787 3619 
+Q 3040 3514 3193 3315 
+Q 3347 3117 3414 2838 
+Q 3482 2560 3482 2214 
+Q 3482 1837 3386 1574 
+Q 3290 1312 3130 1149 
+Q 2970 986 2765 915 
+Q 2560 845 2342 845 
+L 1446 845 
+z
+M 442 4570 
+L 442 0 
+L 2413 0 
+Q 2938 0 3325 176 
+Q 3712 352 3971 659 
+Q 4230 966 4358 1388 
+Q 4486 1811 4486 2310 
+Q 4486 2880 4329 3302 
+Q 4173 3725 3894 4006 
+Q 3616 4288 3235 4429 
+Q 2854 4570 2413 4570 
+L 442 4570 
+z
+" transform="scale(0.015625)"/>
+      <path id="HelveticaNeue-Bold-4a" d="M 2598 2144 
+L 3488 2144 
+Q 3469 2464 3334 2697 
+Q 3200 2931 2985 3088 
+Q 2771 3245 2499 3321 
+Q 2227 3398 1933 3398 
+Q 1530 3398 1216 3264 
+Q 902 3130 684 2890 
+Q 467 2650 355 2320 
+Q 243 1990 243 1606 
+Q 243 1235 364 924 
+Q 486 614 704 390 
+Q 922 166 1232 41 
+Q 1542 -83 1914 -83 
+Q 2573 -83 2995 262 
+Q 3418 608 3507 1267 
+L 2630 1267 
+Q 2586 960 2410 777 
+Q 2234 595 1907 595 
+Q 1696 595 1549 691 
+Q 1402 787 1315 937 
+Q 1229 1088 1190 1273 
+Q 1152 1459 1152 1638 
+Q 1152 1824 1190 2013 
+Q 1229 2202 1321 2358 
+Q 1414 2515 1561 2614 
+Q 1709 2714 1926 2714 
+Q 2509 2714 2598 2144 
+z
+" transform="scale(0.015625)"/>
+      <path id="HelveticaNeue-Bold-56" d="M 1152 1651 
+Q 1152 1850 1190 2042 
+Q 1229 2234 1321 2381 
+Q 1414 2528 1568 2621 
+Q 1722 2714 1952 2714 
+Q 2182 2714 2339 2621 
+Q 2496 2528 2589 2381 
+Q 2682 2234 2720 2042 
+Q 2758 1850 2758 1651 
+Q 2758 1453 2720 1264 
+Q 2682 1075 2589 924 
+Q 2496 774 2339 684 
+Q 2182 595 1952 595 
+Q 1722 595 1568 684 
+Q 1414 774 1321 924 
+Q 1229 1075 1190 1264 
+Q 1152 1453 1152 1651 
+z
+M 243 1651 
+Q 243 1254 364 934 
+Q 486 614 710 387 
+Q 934 160 1248 38 
+Q 1562 -83 1952 -83 
+Q 2342 -83 2659 38 
+Q 2976 160 3200 387 
+Q 3424 614 3545 934 
+Q 3667 1254 3667 1651 
+Q 3667 2048 3545 2371 
+Q 3424 2694 3200 2921 
+Q 2976 3149 2659 3273 
+Q 2342 3398 1952 3398 
+Q 1562 3398 1248 3273 
+Q 934 3149 710 2921 
+Q 486 2694 364 2371 
+Q 243 2048 243 1651 
+z
+" transform="scale(0.015625)"/>
+      <path id="HelveticaNeue-Bold-10" d="M -38 -1158 
+L 717 -1158 
+Q 928 -858 1088 -493 
+Q 1248 -128 1353 259 
+Q 1459 646 1510 1040 
+Q 1562 1434 1562 1792 
+Q 1562 2547 1341 3283 
+Q 1120 4019 717 4678 
+L -32 4678 
+Q 320 3981 486 3238 
+Q 653 2496 653 1728 
+Q 653 973 483 246 
+Q 314 -480 -38 -1158 
+z
+" transform="scale(0.015625)"/>
+     </defs>
+     <use xlink:href="#HelveticaNeue-Bold-33"/>
+     <use xlink:href="#HelveticaNeue-Bold-5c" transform="translate(59.296875 0)"/>
+     <use xlink:href="#HelveticaNeue-Bold-55" transform="translate(118.59375 0)"/>
+     <use xlink:href="#HelveticaNeue-Bold-48" transform="translate(177.890625 0)"/>
+     <use xlink:href="#HelveticaNeue-Bold-3" transform="translate(235.296875 0)"/>
+     <use xlink:href="#HelveticaNeue-Bold-f" transform="translate(263.09375 0)"/>
+     <use xlink:href="#HelveticaNeue-Bold-2b" transform="translate(292.6875 0)"/>
+     <use xlink:href="#HelveticaNeue-Bold-4c" transform="translate(366.78125 0)"/>
+     <use xlink:href="#HelveticaNeue-Bold-4a" transform="translate(424.1875 0)"/>
+     <use xlink:href="#HelveticaNeue-Bold-50" transform="translate(481.59375 0)"/>
+     <use xlink:href="#HelveticaNeue-Bold-5a" transform="translate(507.390625 0)"/>
+     <use xlink:href="#HelveticaNeue-Bold-50" transform="translate(561.09375 0)"/>
+     <use xlink:href="#HelveticaNeue-Bold-56" transform="translate(586.890625 0)"/>
+     <use xlink:href="#HelveticaNeue-Bold-55" transform="translate(647.984375 0)"/>
+     <use xlink:href="#HelveticaNeue-Bold-5a" transform="translate(707.28125 0)"/>
+     <use xlink:href="#HelveticaNeue-Bold-10" transform="translate(760.984375 0)"/>
+    </g>
+   </g>
+   <g id="text_30">
+    <!-- 52% -->
+    <g style="fill: #ffffff" transform="translate(619.203045 483.222857) scale(0.13 -0.13)">
+     <use xlink:href="#HelveticaNeue-Bold-1c"/>
+     <use xlink:href="#HelveticaNeue-Bold-19" transform="translate(55.59375 0)"/>
+     <use xlink:href="#HelveticaNeue-Bold-c" transform="translate(111.1875 0)"/>
+    </g>
+   </g>
+   <g id="text_31">
+    <!-- shuffled -->
+    <g style="fill: #5b636b" transform="translate(613.455076 510.994286) scale(0.11 -0.11)">
+     <use xlink:href="#HelveticaNeue-5a"/>
+     <use xlink:href="#HelveticaNeue-4f" transform="translate(50 0)"/>
+     <use xlink:href="#HelveticaNeue-5c" transform="translate(105.59375 0)"/>
+     <use xlink:href="#HelveticaNeue-24a" transform="translate(161.1875 0)"/>
+     <use xlink:href="#HelveticaNeue-4c" transform="translate(241.09375 0)"/>
+     <use xlink:href="#HelveticaNeue-4b" transform="translate(294.796875 0)"/>
+    </g>
+   </g>
+   <g id="text_32">
     <!-- Laya wide -->
-    <g style="fill: #1f2328" transform="translate(585.151484 539.097857) scale(0.13 -0.13)">
+    <g style="fill: #1f2328" transform="translate(601.761717 539.097857) scale(0.13 -0.13)">
      <defs>
       <path id="HelveticaNeue-Bold-60" d="M 1978 -410 
 L 3360 3309 
@@ -2300,17 +2501,17 @@ z
      <use xlink:href="#HelveticaNeue-Bold-4c" transform="translate(422.109375 0)"/>
     </g>
    </g>
-   <g id="text_30">
+   <g id="text_33">
     <!-- 50% -->
-    <g style="fill: #ffffff" transform="translate(675.848197 483.222857) scale(0.13 -0.13)">
+    <g style="fill: #ffffff" transform="translate(685.643975 483.222857) scale(0.13 -0.13)">
      <use xlink:href="#HelveticaNeue-Bold-1c"/>
      <use xlink:href="#HelveticaNeue-Bold-17" transform="translate(55.59375 0)"/>
      <use xlink:href="#HelveticaNeue-Bold-c" transform="translate(111.1875 0)"/>
     </g>
    </g>
-   <g id="text_31">
+   <g id="text_34">
     <!-- shuffled -->
-    <g style="fill: #5b636b" transform="translate(670.100228 510.994286) scale(0.11 -0.11)">
+    <g style="fill: #5b636b" transform="translate(679.896007 510.994286) scale(0.11 -0.11)">
      <use xlink:href="#HelveticaNeue-5a"/>
      <use xlink:href="#HelveticaNeue-4f" transform="translate(50 0)"/>
      <use xlink:href="#HelveticaNeue-5c" transform="translate(105.59375 0)"/>
@@ -2319,9 +2520,9 @@ z
      <use xlink:href="#HelveticaNeue-4b" transform="translate(294.796875 0)"/>
     </g>
    </g>
-   <g id="text_32">
+   <g id="text_35">
     <!-- Strands -->
-    <g style="fill: #1f2328" transform="translate(665.491869 539.286357) scale(0.13 -0.13)">
+    <g style="fill: #1f2328" transform="translate(675.287647 539.286357) scale(0.13 -0.13)">
      <defs>
       <path id="HelveticaNeue-Bold-3a" d="M 1126 1517 
 L 154 1517 
@@ -2432,65 +2633,8 @@ z
      <use xlink:href="#HelveticaNeue-Bold-5a" transform="translate(316.8125 0)"/>
     </g>
     <!-- Decider 2B -->
-    <g style="fill: #1f2328" transform="translate(655.391478 555.159357) scale(0.13 -0.13)">
+    <g style="fill: #1f2328" transform="translate(665.187257 555.159357) scale(0.13 -0.13)">
      <defs>
-      <path id="HelveticaNeue-Bold-2b" d="M 1446 845 
-L 1446 3725 
-L 2163 3725 
-Q 2534 3725 2787 3619 
-Q 3040 3514 3193 3315 
-Q 3347 3117 3414 2838 
-Q 3482 2560 3482 2214 
-Q 3482 1837 3386 1574 
-Q 3290 1312 3130 1149 
-Q 2970 986 2765 915 
-Q 2560 845 2342 845 
-L 1446 845 
-z
-M 442 4570 
-L 442 0 
-L 2413 0 
-Q 2938 0 3325 176 
-Q 3712 352 3971 659 
-Q 4230 966 4358 1388 
-Q 4486 1811 4486 2310 
-Q 4486 2880 4329 3302 
-Q 4173 3725 3894 4006 
-Q 3616 4288 3235 4429 
-Q 2854 4570 2413 4570 
-L 442 4570 
-z
-" transform="scale(0.015625)"/>
-      <path id="HelveticaNeue-Bold-4a" d="M 2598 2144 
-L 3488 2144 
-Q 3469 2464 3334 2697 
-Q 3200 2931 2985 3088 
-Q 2771 3245 2499 3321 
-Q 2227 3398 1933 3398 
-Q 1530 3398 1216 3264 
-Q 902 3130 684 2890 
-Q 467 2650 355 2320 
-Q 243 1990 243 1606 
-Q 243 1235 364 924 
-Q 486 614 704 390 
-Q 922 166 1232 41 
-Q 1542 -83 1914 -83 
-Q 2573 -83 2995 262 
-Q 3418 608 3507 1267 
-L 2630 1267 
-Q 2586 960 2410 777 
-Q 2234 595 1907 595 
-Q 1696 595 1549 691 
-Q 1402 787 1315 937 
-Q 1229 1088 1190 1273 
-Q 1152 1459 1152 1638 
-Q 1152 1824 1190 2013 
-Q 1229 2202 1321 2358 
-Q 1414 2515 1561 2614 
-Q 1709 2714 1926 2714 
-Q 2509 2714 2598 2144 
-z
-" transform="scale(0.015625)"/>
       <path id="HelveticaNeue-Bold-29" d="M 1446 2720 
 L 1446 3789 
 L 2387 3789 
@@ -2544,17 +2688,17 @@ z
      <use xlink:href="#HelveticaNeue-Bold-29" transform="translate(455.5 0)"/>
     </g>
    </g>
-   <g id="text_33">
+   <g id="text_36">
     <!-- 47% -->
-    <g style="fill: #ffffff" transform="translate(749.103582 483.222857) scale(0.13 -0.13)">
+    <g style="fill: #ffffff" transform="translate(752.084906 483.222857) scale(0.13 -0.13)">
      <use xlink:href="#HelveticaNeue-Bold-1b"/>
      <use xlink:href="#HelveticaNeue-Bold-1e" transform="translate(55.59375 0)"/>
      <use xlink:href="#HelveticaNeue-Bold-c" transform="translate(111.1875 0)"/>
     </g>
    </g>
-   <g id="text_34">
+   <g id="text_37">
     <!-- shuffled -->
-    <g style="fill: #5b636b" transform="translate(743.355613 510.994286) scale(0.11 -0.11)">
+    <g style="fill: #5b636b" transform="translate(746.336937 510.994286) scale(0.11 -0.11)">
      <use xlink:href="#HelveticaNeue-5a"/>
      <use xlink:href="#HelveticaNeue-4f" transform="translate(50 0)"/>
      <use xlink:href="#HelveticaNeue-5c" transform="translate(105.59375 0)"/>
@@ -2563,9 +2707,9 @@ z
      <use xlink:href="#HelveticaNeue-4b" transform="translate(294.796875 0)"/>
     </g>
    </g>
-   <g id="text_35">
+   <g id="text_38">
     <!-- rizzo-flow -->
-    <g style="fill: #1f2328" transform="translate(732.026863 539.097857) scale(0.13 -0.13)">
+    <g style="fill: #1f2328" transform="translate(735.008187 539.097857) scale(0.13 -0.13)">
      <defs>
       <path id="HelveticaNeue-Bold-61" d="M 141 685 
 L 141 0 
@@ -2578,43 +2722,6 @@ L 269 3309
 L 269 2624 
 L 1862 2624 
 L 141 685 
-z
-" transform="scale(0.015625)"/>
-      <path id="HelveticaNeue-Bold-56" d="M 1152 1651 
-Q 1152 1850 1190 2042 
-Q 1229 2234 1321 2381 
-Q 1414 2528 1568 2621 
-Q 1722 2714 1952 2714 
-Q 2182 2714 2339 2621 
-Q 2496 2528 2589 2381 
-Q 2682 2234 2720 2042 
-Q 2758 1850 2758 1651 
-Q 2758 1453 2720 1264 
-Q 2682 1075 2589 924 
-Q 2496 774 2339 684 
-Q 2182 595 1952 595 
-Q 1722 595 1568 684 
-Q 1414 774 1321 924 
-Q 1229 1075 1190 1264 
-Q 1152 1453 1152 1651 
-z
-M 243 1651 
-Q 243 1254 364 934 
-Q 486 614 710 387 
-Q 934 160 1248 38 
-Q 1562 -83 1952 -83 
-Q 2342 -83 2659 38 
-Q 2976 160 3200 387 
-Q 3424 614 3545 934 
-Q 3667 1254 3667 1651 
-Q 3667 2048 3545 2371 
-Q 3424 2694 3200 2921 
-Q 2976 3149 2659 3273 
-Q 2342 3398 1952 3398 
-Q 1562 3398 1248 3273 
-Q 934 3149 710 2921 
-Q 486 2694 364 2371 
-Q 243 2048 243 1651 
 z
 " transform="scale(0.015625)"/>
      </defs>
@@ -2630,7 +2737,7 @@ z
     </g>
    </g>
   </g>
-  <g id="text_36">
+  <g id="text_39">
    <!-- Shuffle the 20 candidates: does the top pick change? -->
    <g style="fill: #1f2328" transform="translate(46.08 66.18) scale(0.28 -0.28)">
     <defs>
@@ -2889,7 +2996,7 @@ z
     <use xlink:href="#HelveticaNeue-Bold-26" transform="translate(2465.59375 0)"/>
    </g>
   </g>
-  <g id="text_37">
+  <g id="text_40">
    <!-- How often two orders rank the same tool first, on 200 requests (pairwise agreement). -->
    <g style="fill: #5b636b" transform="translate(46.08 93.712) scale(0.16 -0.16)">
     <defs>
@@ -3397,7 +3504,7 @@ z
     <use xlink:href="#HelveticaNeue-15" transform="translate(3748.578125 0)"/>
    </g>
   </g>
-  <g id="text_38">
+  <g id="text_41">
    <!-- Whiskers: 95% interval. “Same order” repeats come from a separate run. -->
    <g style="fill: #5b636b" transform="translate(46.08 612.705469) scale(0.11 -0.11)">
     <defs>
@@ -3705,7 +3812,7 @@ z
     <use xlink:href="#HelveticaNeue-55" transform="translate(3172.953125 0)"/>
     <use xlink:href="#HelveticaNeue-15" transform="translate(3228.546875 0)"/>
    </g>
-   <!-- toolhunch · ToolRet · runs of 2026-09-30, 2026-10-04, 2026-10-05 -->
+   <!-- toolhunch · ToolRet · runs of 2026-09-30, 2026-10-04, 2026-10-05, 2026-10-07 -->
    <g style="fill: #5b636b" transform="translate(46.08 632.16) scale(0.11 -0.11)">
     <defs>
      <path id="HelveticaNeue-c7" d="M 480 1990 
@@ -3963,9 +4070,21 @@ z
     <use xlink:href="#HelveticaNeue-14" transform="translate(2814.265625 0)"/>
     <use xlink:href="#HelveticaNeue-17" transform="translate(2853.171875 0)"/>
     <use xlink:href="#HelveticaNeue-1c" transform="translate(2908.765625 0)"/>
+    <use xlink:href="#HelveticaNeue-13" transform="translate(2964.359375 0)"/>
+    <use xlink:href="#HelveticaNeue-3" transform="translate(2992.15625 0)"/>
+    <use xlink:href="#HelveticaNeue-19" transform="translate(3019.953125 0)"/>
+    <use xlink:href="#HelveticaNeue-17" transform="translate(3075.546875 0)"/>
+    <use xlink:href="#HelveticaNeue-19" transform="translate(3131.140625 0)"/>
+    <use xlink:href="#HelveticaNeue-1d" transform="translate(3186.734375 0)"/>
+    <use xlink:href="#HelveticaNeue-14" transform="translate(3242.328125 0)"/>
+    <use xlink:href="#HelveticaNeue-18" transform="translate(3281.234375 0)"/>
+    <use xlink:href="#HelveticaNeue-17" transform="translate(3336.828125 0)"/>
+    <use xlink:href="#HelveticaNeue-14" transform="translate(3392.421875 0)"/>
+    <use xlink:href="#HelveticaNeue-17" transform="translate(3431.328125 0)"/>
+    <use xlink:href="#HelveticaNeue-1e" transform="translate(3486.921875 0)"/>
    </g>
   </g>
-  <g id="text_39">
+  <g id="text_42">
    <!-- Relevant tool ranked first, -->
    <g style="fill: #1f2328" transform="translate(829.44 171.377406) scale(0.14 -0.14)">
     <use xlink:href="#HelveticaNeue-39"/>
@@ -4336,29 +4455,34 @@ z
     <use xlink:href="#HelveticaNeue-17" transform="translate(1220.9375 0)"/>
     <use xlink:href="#HelveticaNeue-c" transform="translate(1276.53125 0)"/>
    </g>
-   <!-- Laya wide: 20.0% → 18.6% -->
-   <g style="fill: #1f2328" transform="translate(829.44 360.14575) scale(0.14 -0.14)">
+   <!-- GPT-6 Luna (Decisions): 31.8% → 29.8% -->
+   <g style="fill: #1f2328" transform="translate(829.44 360.278094) scale(0.14 -0.14)">
     <defs>
-     <path id="HelveticaNeue-60" d="M 1709 -442 
-Q 1613 -685 1520 -851 
-Q 1427 -1018 1315 -1123 
-Q 1203 -1229 1065 -1277 
-Q 928 -1325 749 -1325 
-Q 653 -1325 557 -1312 
-Q 461 -1299 371 -1267 
-L 371 -768 
-Q 442 -800 534 -822 
-Q 627 -845 691 -845 
-Q 858 -845 970 -765 
-Q 1082 -685 1139 -538 
-L 1363 19 
-L 51 3309 
-L 666 3309 
-L 1632 602 
-L 1645 602 
-L 2573 3309 
-L 3149 3309 
-L 1709 -442 
+     <path id="HelveticaNeue-2b" d="M 1107 512 
+L 1107 4058 
+L 2131 4058 
+Q 2554 4058 2842 3939 
+Q 3130 3821 3312 3593 
+Q 3494 3366 3574 3043 
+Q 3654 2720 3654 2310 
+Q 3654 1888 3568 1590 
+Q 3482 1293 3347 1094 
+Q 3213 896 3043 781 
+Q 2874 666 2701 605 
+Q 2528 544 2374 528 
+Q 2221 512 2118 512 
+L 1107 512 
+z
+M 499 4570 
+L 499 0 
+L 2067 0 
+Q 2637 0 3053 160 
+Q 3469 320 3737 624 
+Q 4006 928 4134 1373 
+Q 4262 1818 4262 2394 
+Q 4262 3494 3692 4032 
+Q 3123 4570 2067 4570 
+L 499 4570 
 z
 " transform="scale(0.015625)"/>
      <path id="HelveticaNeue-1f" d="M 992 3360 
@@ -4419,6 +4543,70 @@ Q 832 870 832 1280
 z
 " transform="scale(0.015625)"/>
     </defs>
+    <use xlink:href="#HelveticaNeue-2e"/>
+    <use xlink:href="#HelveticaNeue-37" transform="translate(75.90625 0)"/>
+    <use xlink:href="#HelveticaNeue-3b" transform="translate(140.703125 0)"/>
+    <use xlink:href="#HelveticaNeue-14" transform="translate(185.203125 0)"/>
+    <use xlink:href="#HelveticaNeue-1d" transform="translate(224.109375 0)"/>
+    <use xlink:href="#HelveticaNeue-3" transform="translate(279.703125 0)"/>
+    <use xlink:href="#HelveticaNeue-33" transform="translate(307.5 0)"/>
+    <use xlink:href="#HelveticaNeue-5c" transform="translate(363.09375 0)"/>
+    <use xlink:href="#HelveticaNeue-55" transform="translate(418.6875 0)"/>
+    <use xlink:href="#HelveticaNeue-48" transform="translate(474.28125 0)"/>
+    <use xlink:href="#HelveticaNeue-3" transform="translate(527.984375 0)"/>
+    <use xlink:href="#HelveticaNeue-f" transform="translate(555.78125 0)"/>
+    <use xlink:href="#HelveticaNeue-2b" transform="translate(581.6875 0)"/>
+    <use xlink:href="#HelveticaNeue-4c" transform="translate(652.09375 0)"/>
+    <use xlink:href="#HelveticaNeue-4a" transform="translate(705.796875 0)"/>
+    <use xlink:href="#HelveticaNeue-50" transform="translate(759.5 0)"/>
+    <use xlink:href="#HelveticaNeue-5a" transform="translate(781.703125 0)"/>
+    <use xlink:href="#HelveticaNeue-50" transform="translate(831.703125 0)"/>
+    <use xlink:href="#HelveticaNeue-56" transform="translate(853.90625 0)"/>
+    <use xlink:href="#HelveticaNeue-55" transform="translate(911.3125 0)"/>
+    <use xlink:href="#HelveticaNeue-5a" transform="translate(966.90625 0)"/>
+    <use xlink:href="#HelveticaNeue-10" transform="translate(1016.90625 0)"/>
+    <use xlink:href="#HelveticaNeue-21" transform="translate(1042.8125 0)"/>
+    <use xlink:href="#HelveticaNeue-3" transform="translate(1070.609375 0)"/>
+    <use xlink:href="#HelveticaNeue-1a" transform="translate(1098.40625 0)"/>
+    <use xlink:href="#HelveticaNeue-18" transform="translate(1154 0)"/>
+    <use xlink:href="#HelveticaNeue-15" transform="translate(1209.59375 0)"/>
+    <use xlink:href="#HelveticaNeue-1f" transform="translate(1237.390625 0)"/>
+    <use xlink:href="#HelveticaNeue-c" transform="translate(1292.984375 0)"/>
+    <use xlink:href="#HelveticaNeue-3" transform="translate(1392.984375 0)"/>
+    <use xlink:href="#ArialMT-13a" transform="translate(1420.78125 0)"/>
+    <use xlink:href="#HelveticaNeue-3" transform="translate(1520.78125 0)"/>
+    <use xlink:href="#HelveticaNeue-19" transform="translate(1548.578125 0)"/>
+    <use xlink:href="#HelveticaNeue-20" transform="translate(1604.171875 0)"/>
+    <use xlink:href="#HelveticaNeue-15" transform="translate(1659.765625 0)"/>
+    <use xlink:href="#HelveticaNeue-1f" transform="translate(1687.5625 0)"/>
+    <use xlink:href="#HelveticaNeue-c" transform="translate(1743.15625 0)"/>
+   </g>
+   <!-- Laya wide: 20.0% → 18.6% -->
+   <g style="fill: #1f2328" transform="translate(829.44 383.79525) scale(0.14 -0.14)">
+    <defs>
+     <path id="HelveticaNeue-60" d="M 1709 -442 
+Q 1613 -685 1520 -851 
+Q 1427 -1018 1315 -1123 
+Q 1203 -1229 1065 -1277 
+Q 928 -1325 749 -1325 
+Q 653 -1325 557 -1312 
+Q 461 -1299 371 -1267 
+L 371 -768 
+Q 442 -800 534 -822 
+Q 627 -845 691 -845 
+Q 858 -845 970 -765 
+Q 1082 -685 1139 -538 
+L 1363 19 
+L 51 3309 
+L 666 3309 
+L 1632 602 
+L 1645 602 
+L 2573 3309 
+L 3149 3309 
+L 1709 -442 
+z
+" transform="scale(0.015625)"/>
+    </defs>
     <use xlink:href="#HelveticaNeue-33"/>
     <use xlink:href="#HelveticaNeue-48" transform="translate(55.59375 0)"/>
     <use xlink:href="#HelveticaNeue-60" transform="translate(109.296875 0)"/>
@@ -4445,35 +4633,8 @@ z
     <use xlink:href="#HelveticaNeue-c" transform="translate(1152.140625 0)"/>
    </g>
    <!-- Strands Decider 2B: 28.5% → 27.6% -->
-   <g style="fill: #1f2328" transform="translate(829.44 385.16025) scale(0.14 -0.14)">
+   <g style="fill: #1f2328" transform="translate(829.44 408.80975) scale(0.14 -0.14)">
     <defs>
-     <path id="HelveticaNeue-2b" d="M 1107 512 
-L 1107 4058 
-L 2131 4058 
-Q 2554 4058 2842 3939 
-Q 3130 3821 3312 3593 
-Q 3494 3366 3574 3043 
-Q 3654 2720 3654 2310 
-Q 3654 1888 3568 1590 
-Q 3482 1293 3347 1094 
-Q 3213 896 3043 781 
-Q 2874 666 2701 605 
-Q 2528 544 2374 528 
-Q 2221 512 2118 512 
-L 1107 512 
-z
-M 499 4570 
-L 499 0 
-L 2067 0 
-Q 2637 0 3053 160 
-Q 3469 320 3737 624 
-Q 4006 928 4134 1373 
-Q 4262 1818 4262 2394 
-Q 4262 3494 3692 4032 
-Q 3123 4570 2067 4570 
-L 499 4570 
-z
-" transform="scale(0.015625)"/>
      <path id="HelveticaNeue-29" d="M 1107 2605 
 L 1107 4058 
 L 2323 4058 
@@ -4553,7 +4714,7 @@ z
     <use xlink:href="#HelveticaNeue-c" transform="translate(1574.53125 0)"/>
    </g>
    <!-- rizzo-flow: 30.5% → 26.5% -->
-   <g style="fill: #1f2328" transform="translate(829.44 408.747406) scale(0.14 -0.14)">
+   <g style="fill: #1f2328" transform="translate(829.44 432.396906) scale(0.14 -0.14)">
     <defs>
      <path id="HelveticaNeue-61" d="M 141 416 
 L 141 0 
@@ -4595,9 +4756,9 @@ z
     <use xlink:href="#HelveticaNeue-c" transform="translate(1133.15625 0)"/>
    </g>
    <!--  -->
-   <g style="fill: #1f2328" transform="translate(829.44 427.48925) scale(0.14 -0.14)"/>
+   <g style="fill: #1f2328" transform="translate(829.44 451.13875) scale(0.14 -0.14)"/>
    <!-- Pale bars: the same order asked -->
-   <g style="fill: #1f2328" transform="translate(829.44 456.060625) scale(0.14 -0.14)">
+   <g style="fill: #1f2328" transform="translate(829.44 479.710125) scale(0.14 -0.14)">
     <defs>
      <path id="HelveticaNeue-49" d="M 429 4570 
 L 429 0 
@@ -4675,7 +4836,7 @@ z
     <use xlink:href="#HelveticaNeue-4b" transform="translate(1385.5 0)"/>
    </g>
    <!-- again (Jev, GPT-4.1 mini, GPT-6 Luna). -->
-   <g style="fill: #1f2328" transform="translate(829.44 478.441375) scale(0.14 -0.14)">
+   <g style="fill: #1f2328" transform="translate(829.44 502.090875) scale(0.14 -0.14)">
     <use xlink:href="#HelveticaNeue-48"/>
     <use xlink:href="#HelveticaNeue-4e" transform="translate(53.703125 0)"/>
     <use xlink:href="#HelveticaNeue-48" transform="translate(111.109375 0)"/>
@@ -4716,7 +4877,7 @@ z
     <use xlink:href="#HelveticaNeue-15" transform="translate(1685.78125 0)"/>
    </g>
    <!-- The others gave the same probabilities -->
-   <g style="fill: #1f2328" transform="translate(829.44 501.97275) scale(0.14 -0.14)">
+   <g style="fill: #1f2328" transform="translate(829.44 525.62225) scale(0.14 -0.14)">
     <use xlink:href="#HelveticaNeue-3b"/>
     <use xlink:href="#HelveticaNeue-4f" transform="translate(57.40625 0)"/>
     <use xlink:href="#HelveticaNeue-4c" transform="translate(113 0)"/>
@@ -4757,7 +4918,7 @@ z
     <use xlink:href="#HelveticaNeue-5a" transform="translate(1680.015625 0)"/>
    </g>
    <!-- when a search was repeated. -->
-   <g style="fill: #1f2328" transform="translate(829.44 525.706469) scale(0.14 -0.14)">
+   <g style="fill: #1f2328" transform="translate(829.44 549.355969) scale(0.14 -0.14)">
     <use xlink:href="#HelveticaNeue-5e"/>
     <use xlink:href="#HelveticaNeue-4f" transform="translate(75.796875 0)"/>
     <use xlink:href="#HelveticaNeue-4c" transform="translate(131.390625 0)"/>

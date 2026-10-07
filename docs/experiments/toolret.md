@@ -4,7 +4,8 @@ A relevant tool appeared first on 22.0% of held-out requests with hybrid retriev
 with Jev and 33.0% with a GPT-4.1 mini logprob decision stage, at 20 candidates; GPT-6 Luna,
 answering as structured output in a later run, reached 34.0%.
 Later runs added Clef, Clef-flash, Strands Decider 2B, rizzo-flow and Laya, and asked GPT-6 Luna's searched
-arm again ([Later deciders](#later-deciders)).
+arm again ([Later deciders](#later-deciders)); the last asked GPT-6 Luna through OpenAI's Decisions API
+([OpenAI Decisions API](#openai-decisions-api)).
 These are ranking measurements. Abstention changes which requests get a tool, and the observed
 thresholds sacrifice many useful picks as well as preventing wrong ones.
 
@@ -672,6 +673,84 @@ rizzo-flow does best in search order.
   `plain` searches.
 - **Clef and Clef-flash** have no pinned version; Cloudflare may change them under the same name.
 
+## OpenAI Decisions API
+
+On 2026-10-07 the same three tests asked GPT-6 Luna through OpenAI's
+[Decisions API](https://developers.openai.com/api/docs/guides/decisions) (`POST /v1/decisions`, public beta, no
+pinned version): typed questions answered with a full distribution over the options. Every request carried one
+choice question per round, the options as `{value, description}` with the reserved “none” last, at the
+configuration its dev runs chose (BRIEF cards: 32% against 26% at FULL on K=20 `plain`). Summaries:
+[decision P4](https://github.com/dfm88/toolhunch/blob/main/bench/results/2026-10-toolret-decision-p4/summary.json),
+[direct P4](https://github.com/dfm88/toolhunch/blob/main/bench/results/2026-10-toolret-direct-p4/summary.json), which holds every arm so far, and
+`bench/results/2026-10-toolret-order-p4/`.
+
+A probe before the runs found that the API accepts 255 options and 64 questions in one request (more were not
+tried), bills about 25 tokens per request and 3.2 per option beyond the benchmark's estimate of the text, and
+rounds every probability to two decimals. It was deterministic: three repeats of ten dev tasks gave the same
+probabilities.
+
+### Re-ranking 44,453 tools with the Decisions API
+
+Held-out, `plain` queries, hybrid alone 22.1% on the 199 positives answered:
+
+| Decider | P@1 K=20 (95% CI) | Δ vs hybrid K=20 (95% CI) | P@1 K=50 | $ / 1,000 searches K=20 | Decision p50 K=20 |
+|---|---:|---:|---:|---:|---:|
+| GPT-6 Luna (Decisions) | 31.7% (25.1 to 38.2) | +9.5 pp (+4.5 to +14.6) | 35.0% | $0.09 | 253 ms |
+
+The same precision as Jev, Clef, rizzo-flow and the structured-output Luna, within the intervals; the server
+reported 171 ms of its own time at the median. Allowed “none”, it gives 59 right, 260 wrong and 78 “none” on 397
+searches (Jev 64 / 265 / 71); at the dev threshold τ = 0.95 it answers 67 of them with selective accuracy 37.3%.
+Three of the 400 K=20 `plain` searches were refused: the API declined a request to grant system access to a
+colleague and one quoting a password. They count as errors and are left out of P@1.
+
+### Direct choice with the Decisions API
+
+| Arm | Relevant picks (95% CI) | Δ vs hybrid (95% CI) | Positives answered “none” | Negatives answered “none” | $ / 1,000 | Decision p50 |
+|---|---:|---:|---:|---:|---:|---:|
+| hybrid@20+luna-decisions | 60.3% (54.5 to 65.5) | +5.9 pp (−0.7 to +12.8) | 24% | 63% | $0.16 | 217 ms |
+| luna-decisions-all | 57.9% (52.4 to 63.4) | +3.4 pp (−3.4 to +10.3) | 25% | 61% | $0.56 | 248 ms |
+
+Most of the gap to Jev (71.4% and 74.1%) is “none”: ignoring abstention, its ranking puts a relevant tool first on
+71.7% and 68.6%. It says “none” to more requests without a right tool than any other hosted decider, picks a wrong
+tool less often than Jev (100 and 105 against 122 and 121 of 435 requests), and declines a quarter of the requests
+that had one, 40 and 43 of the 95 on ToolEyes. On MetaTool, outside the pooled set, it reads all 200 tools where
+the function-calling agents could not: 65.0% (Jev 72%, Clef 76%). Two-decimal rounding tied the top two options
+in 12 of 1,445 answers.
+
+### Candidate order with the Decisions API
+
+| Decider | Identity P@1 | Shuffle mean | Five-order top-card stability | Pairwise agreement (95% CI) |
+|---|---:|---:|---:|---:|
+| GPT-6 Luna (Decisions) | 31.8% | 29.8% | 30.3% | 53.3% (48.3 to 58.1) |
+
+Deterministic at a fixed order, it changes its top card with the order about as often as the models run on the
+Mac, and its picks lean to the first slots: 34.0% in slots 1–3 against a uniform 15% (structured Luna and GPT-4.1
+mini 23%, Jev 18.2%). Four of the 400 task variants were refused in at least one order and are left out.
+
+### GPT-6 Luna three ways
+
+The same model name through three interfaces, on the cells they share (OpenAI does not say whether the weights
+behind the endpoints are the same):
+
+| | Structured letter (F2a run) | Agent with tools (P1, P3 runs) | Decisions API |
+|---|---:|---:|---:|
+| 44,453 tools, K=20: relevant tool first | 34.0% | – | 31.7% |
+| Same, “none” allowed: right / wrong / none | 60 / 257 / 83 | – | 59 / 260 / 78 |
+| Pairwise agreement across orders | 62.9% | – | 53.3% |
+| Decision p50, $ / 1,000 at K=20 | 1,058 ms, $0.12 | – | 253 ms, $0.09 |
+| Small catalogs, whole catalog | – | 79.7% | 57.9% |
+| Small catalogs, 20 searched tools | – | 77.6% | 60.3% |
+| Requests without a right tool answered “none” | – | 0% | 61–63% |
+
+### Limits of the Decisions API runs
+
+- Public beta, no pinned version: OpenAI may change the model behind the same name.
+- One prompt for every decider (the planner's `tool-choice-v1` instructions); instructions written for this API
+  were not tried.
+- Probabilities come rounded to two decimals, so a threshold falls on a 0.01 grid.
+- About 1 call in 300 to 900 got HTTP 503 on the run day; every one was tried again. Three order runs stopped
+  before the published one, two on a 503 and one on a refusal, before the runner learned to go on.
+
 ## Compatible-server smoke tests
 
 Smoke-tested on 2026-09-30 with laya-serve 0.3.22 and rizzo-flow 0.1.0 on a two-tool example; benchmarked
@@ -718,9 +797,10 @@ the recorded private raw evidence and audit metadata.
   probabilities, so its readings are fewer.
 - Cost and latency are tied to the models, routing, caching state and date of these runs; local models' latency
   is one machine's.
-- The later deciders' limits are listed under [Limits of the later runs](#limits-of-the-later-runs).
+- The later deciders' limits are listed under [Limits of the later runs](#limits-of-the-later-runs), the
+  Decisions API's under [its own](#limits-of-the-decisions-api-runs).
 - Searches that raised `DecisionError` are excluded from rates, latency and costs; the published dev and
-  main held-out configurations reported no errors.
+  main held-out configurations reported none, except the Decisions API's three refusals.
 
 ## Reproduce
 

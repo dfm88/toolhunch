@@ -340,14 +340,16 @@ class _ReadmeCharts:
     def _rerank(self) -> Path:
         bars = self._rerank_bars()
         height = self._height(len(bars))
-        top, bottom = 2.0 / height, 1.2 / height
+        # Three footer lines when a local or unpinned decider adds the machine line, two otherwise.
+        top, bottom = 2.0 / height, (1.45 if self.machine else 1.2) / height
         summed = any(bar.side.endswith("*") for bar in bars)
         figure = self._frame(
             "44,453 tools: search 20 candidates, then pick one",
             "200 held-out requests: share with a relevant tool ranked first.",
             "Whiskers: 95% interval. Decision cost and median latency exclude the shared search."
             + (" *Asked one request at a time: the latency adds every call." if summed else "")
-            + f"\n{self.machine}{self.rerank_footer}",
+            + (f"\n{self.machine}" if self.machine else "")
+            + f"\n{self.rerank_footer}",
             height=height,
         )
         span = 1 - top - bottom
